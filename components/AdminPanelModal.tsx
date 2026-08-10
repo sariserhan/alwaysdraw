@@ -22,7 +22,7 @@ export function AdminPanelModal({
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"moderation" | "broadcast" | "telemetry">("moderation");
+  const [activeTab, setActiveTab] = useState<"moderation" | "broadcast" | "image" | "telemetry">("moderation");
 
   // Moderation state
   const [wipeMinX, setWipeMinX] = useState(0);
@@ -35,6 +35,14 @@ export function AdminPanelModal({
   // Broadcast state
   const [broadcastMessage, setBroadcastMessage] = useState("");
 
+  // Image Upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [stampX, setStampX] = useState(10000);
+  const [stampY, setStampY] = useState(10000);
+  const [stampWidthPx, setStampWidthPx] = useState(400);
+  const [isStamping, setIsStamping] = useState(false);
+
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Mutations & Queries
@@ -42,6 +50,7 @@ export function AdminPanelModal({
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
   const clearBroadcast = useMutation(api.admin.clearBroadcast);
+  const submitStroke = useMutation(api.strokes.submit);
 
   const telemetry = useQuery(
     api.admin.getTelemetry,
@@ -72,6 +81,93 @@ export function AdminPanelModal({
       }
     } catch {
       setAuthError("Failed to verify passcode.");
+    }
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleStampImage = async () => {
+    if (!imageFile || !imagePreviewUrl) return;
+    setIsStamping(true);
+    setActionStatus("Processing image pixels...");
+
+    try {
+      const img = new Image();
+      img.src = imagePreviewUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load image"));
+      });
+
+      const canvas = document.createElement("canvas");
+      const maxDim = 70; // Grid density
+      let targetW = img.width;
+      let targetH = img.height;
+
+      if (targetW > maxDim || targetH > maxDim) {
+        if (targetW > targetH) {
+          targetH = Math.round((targetH / targetW) * maxDim);
+          targetW = maxDim;
+        } else {
+          targetW = Math.round((targetW / targetH) * maxDim);
+          targetH = maxDim;
+        }
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not create off-screen canvas context");
+
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
+
+      const pixelSize = stampWidthPx / targetW;
+      const halfW = stampWidthPx / 2;
+      const halfH = (stampWidthPx * (targetH / targetW)) / 2;
+
+      let count = 0;
+      const clientId = "ADMIN_IMAGE_STAMPER";
+
+      for (let y = 0; y < targetH; y++) {
+        for (let x = 0; x < targetW; x++) {
+          const idx = (y * targetW + x) * 4;
+          const r = imgData[idx];
+          const g = imgData[idx + 1];
+          const b = imgData[idx + 2];
+          const a = imgData[idx + 3] / 255;
+
+          if (a < 0.1) continue;
+
+          const colorHex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+          const px = stampX - halfW + x * pixelSize + pixelSize / 2;
+          const py = stampY - halfH + y * pixelSize + pixelSize / 2;
+
+          await submitStroke({
+            clientStrokeId: `admin-img-${Date.now()}-${x}-${y}-${Math.random().toString(36).slice(2, 5)}`,
+            clientId,
+            mode: "draw",
+            brushType: "pixel",
+            color: colorHex,
+            width: Math.max(2, Math.round(pixelSize)),
+            opacity: a,
+            points: [{ x: px, y: py }],
+            clientTimestamp: Date.now(),
+          });
+          count++;
+        }
+      }
+
+      setActionStatus(`Success! Stamped image (${count} pixels) onto canvas at (${stampX}, ${stampY}).`);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Image stamp failed"}`);
+    } finally {
+      setIsStamping(false);
     }
   };
 
@@ -151,7 +247,7 @@ export function AdminPanelModal({
               Admin Control Center
             </h2>
             <p className="font-mono text-[10px] text-ink-dim">
-              Canvas moderation, operations &amp; live telemetry
+              Canvas moderation, image upload &amp; live telemetry
             </p>
           </div>
         </div>
@@ -194,39 +290,50 @@ export function AdminPanelModal({
       ) : (
         <div className="flex flex-col gap-4">
           {/* Navigation Tabs */}
-          <div className="flex border-b border-chrome-border/60 font-mono text-xs">
+          <div className="flex border-b border-chrome-border/60 font-mono text-xs overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab("moderation")}
-              className={`flex-1 py-1.5 font-bold transition-colors ${
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
                 activeTab === "moderation"
                   ? "border-b-2 border-rust text-accent-yellow"
                   : "text-ink-dim hover:text-ink"
               }`}
             >
-              🛡️ MODERATION
+              🛡️ MOD
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("image")}
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+                activeTab === "image"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              🖼️ UPLOAD
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("broadcast")}
-              className={`flex-1 py-1.5 font-bold transition-colors ${
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
                 activeTab === "broadcast"
                   ? "border-b-2 border-rust text-accent-yellow"
                   : "text-ink-dim hover:text-ink"
               }`}
             >
-              📢 BROADCAST
+              📢 BANNER
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("telemetry")}
-              className={`flex-1 py-1.5 font-bold transition-colors ${
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
                 activeTab === "telemetry"
                   ? "border-b-2 border-rust text-accent-yellow"
                   : "text-ink-dim hover:text-ink"
               }`}
             >
-              📊 TELEMETRY
+              📊 STATS
             </button>
           </div>
 
@@ -311,7 +418,72 @@ export function AdminPanelModal({
             </div>
           )}
 
-          {/* TAB 2: Broadcast */}
+          {/* TAB 2: Image Upload & Stamp */}
+          {activeTab === "image" && (
+            <div className="flex flex-col gap-3 text-left font-mono text-xs">
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🖼️ Image Upload &amp; Stamp</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                  className="block w-full text-xs text-ink file:mr-2 file:rounded file:border file:border-rust file:bg-rust file:px-2 file:py-1 file:text-xs file:font-bold file:text-on-accent hover:file:brightness-110"
+                />
+
+                {imagePreviewUrl && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreviewUrl}
+                      alt="Stamp Preview"
+                      className="h-28 w-full rounded border border-chrome-border object-contain bg-black/40"
+                    />
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-ink-dim">Stamp X</label>
+                        <input
+                          type="number"
+                          value={stampX}
+                          onChange={(e) => setStampX(Number(e.target.value))}
+                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-ink-dim">Stamp Y</label>
+                        <input
+                          type="number"
+                          value={stampY}
+                          onChange={(e) => setStampY(Number(e.target.value))}
+                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-ink-dim">Width (px)</label>
+                        <input
+                          type="number"
+                          value={stampWidthPx}
+                          onChange={(e) => setStampWidthPx(Number(e.target.value))}
+                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isStamping}
+                      onClick={handleStampImage}
+                      className="mt-1 rounded border-2 border-rust bg-rust px-3 py-2 font-bold text-on-accent hover:brightness-110 disabled:opacity-50"
+                    >
+                      {isStamping ? "STAMPING IMAGE..." : "🖼️ STAMP IMAGE ONTO CANVAS"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Broadcast */}
           {activeTab === "broadcast" && (
             <div className="flex flex-col gap-3 text-left font-mono text-xs">
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
@@ -343,7 +515,7 @@ export function AdminPanelModal({
             </div>
           )}
 
-          {/* TAB 3: Telemetry */}
+          {/* TAB 4: Telemetry */}
           {activeTab === "telemetry" && (
             <div className="grid grid-cols-2 gap-2 text-left font-mono text-xs">
               <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
