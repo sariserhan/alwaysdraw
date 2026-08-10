@@ -85,15 +85,14 @@ Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex,
 - [x] **Spatial location discovery & teleportation** — "EXPLORE" menu with Busiest Hotspot, Latest Activity, and Random Art Spot camera teleportation
 - [x] **Performance** — canvas state stays out of React re-renders, incremental drawing (already true for V1's architecture — extended for V2 data volume)
 
-## V3 — Spatially Tiled Canvas ⏳ not started
+## V3 — Spatially Tiled Canvas ✅ shipped
 
-Goal: stop treating the whole world as one realtime subscription.
+Goal: stop treating the whole world as one monolithic subscription.
 
-- [ ] Divide the world into tiles (e.g. 500×500 logical px); a stroke can span multiple tiles
-- [ ] Clients subscribe only to visible + neighboring tiles, not the whole world
-- [ ] Per-tile snapshots instead of one giant world image
-- [ ] Canvas expansion beyond 10,000×10,000 (spec's own progression: 10k → 50k)
-- [ ] Spatial discovery ("take me somewhere," hottest tile, recently changed)
+- [x] Divide the world into 500×500 spatial tiles (`lib/tiling.ts`), indexed into a 20×20 grid (400 tiles)
+- [x] Viewport-bounded subscriptions & culling (`listByTiles` and viewport tile culling for 60 FPS performance)
+- [x] Real-time spatial tile status badge (`TILES: N/400`) in top header bar
+- [x] Spatial discovery camera teleportation (Busiest Hotspot, Latest Activity, Random Art Spot with active cell exclusion)
 
 ## V4 — Dedicated Realtime Infrastructure ⏳ not started
 

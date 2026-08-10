@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getTileKeysForStroke } from "../lib/tiling";
 import {
   WORLD_WIDTH,
   WORLD_HEIGHT,
@@ -40,6 +41,7 @@ const strokeReturnFields = v.object({
   width: v.number(),
   opacity: v.optional(v.number()),
   points: v.array(pointValidator),
+  tiles: v.optional(v.array(v.string())),
   clientTimestamp: v.number(),
   sequence: v.number(),
   serverTimestamp: v.number(),
@@ -109,7 +111,6 @@ export const submit = mutation({
     ) {
       throw new Error(`opacity must be in [${MIN_OPACITY}, ${MAX_OPACITY}]`);
     }
-    // mode is already constrained to "draw" | "erase" by the args validator.
 
     // --- Idempotency: retry-safe on clientStrokeId ---
     const existing = await ctx.db
@@ -149,6 +150,9 @@ export const submit = mutation({
     const nextSequence = metadata.currentSequence + 1;
     await ctx.db.patch(metadata._id, { currentSequence: nextSequence });
 
+    // Compute spatial tiles spanned by this stroke
+    const tileKeys = getTileKeysForStroke(args.points, args.width, WORLD_WIDTH, WORLD_HEIGHT);
+
     await ctx.db.insert("strokes", {
       clientStrokeId: args.clientStrokeId,
       clientId: args.clientId,
@@ -158,6 +162,7 @@ export const submit = mutation({
       width: args.width,
       opacity: args.opacity ?? 1,
       points: args.points,
+      tiles: tileKeys,
       clientTimestamp: args.clientTimestamp,
       sequence: nextSequence,
       serverTimestamp: Date.now(),
@@ -203,5 +208,35 @@ export const listRecent = query({
       .order("desc")
       .take(limit);
     return rows.reverse();
+  },
+});
+
+export const listByTiles = query({
+  args: {
+    tileKeys: v.array(v.string()),
+    afterSequence: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(strokeReturnFields),
+  handler: async (ctx, args) => {
+    const limit = Math.min(
+      Math.max(1, args.limit ?? DEFAULT_LIST_LIMIT),
+      MAX_LIST_LIMIT,
+    );
+    const afterSeq = args.afterSequence ?? 0;
+    const tileSet = new Set(args.tileKeys);
+
+    if (tileSet.size === 0) return [];
+
+    const rows = await ctx.db
+      .query("strokes")
+      .withIndex("by_sequence", (q) => q.gt("sequence", afterSeq))
+      .order("asc")
+      .take(limit);
+
+    return rows.filter((row) => {
+      if (!row.tiles || row.tiles.length === 0) return true;
+      return row.tiles.some((t) => tileSet.has(t));
+    });
   },
 });

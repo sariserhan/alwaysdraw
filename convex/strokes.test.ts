@@ -314,3 +314,23 @@ describe("strokes.listRecent — live tail", () => {
     expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
   });
 });
+
+describe("strokes.listByTiles — spatial query filtering", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("filters strokes matching the requested visible tile keys", async () => {
+    await t.mutation(api.strokes.submit, strokeArgs({ clientStrokeId: "tile-a", points: [{ x: 100, y: 100 }] }));
+    await t.mutation(api.strokes.submit, strokeArgs({ clientStrokeId: "tile-b", points: [{ x: 5000, y: 5000 }] }));
+
+    const tileA = await t.query(api.strokes.listByTiles, { tileKeys: ["tile_0_0"] });
+    expect(tileA.some((r) => r.clientStrokeId === "tile-a")).toBe(true);
+    expect(tileA.some((r) => r.clientStrokeId === "tile-b")).toBe(false);
+
+    const tileB = await t.query(api.strokes.listByTiles, { tileKeys: ["tile_10_10"] });
+    expect(tileB.some((r) => r.clientStrokeId === "tile-b")).toBe(true);
+    expect(tileB.some((r) => r.clientStrokeId === "tile-a")).toBe(false);
+  });
+});

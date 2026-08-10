@@ -16,6 +16,8 @@ export type LocalStroke = {
   /** 0..1, defaults to 1 when omitted (strokes recorded before opacity existed). */
   opacity?: number;
   points: Point[];
+  /** Spatial tile IDs (500x500 px cells) spanned by this stroke (e.g. ["tile_4_8"]). */
+  tiles?: string[];
   clientTimestamp: number;
 };
 

@@ -18,6 +18,8 @@ export default defineSchema({
     // Optional so pre-opacity rows still validate; missing means 1 (opaque).
     opacity: v.optional(v.number()),
     points: v.array(v.object({ x: v.number(), y: v.number() })),
+    // Spatial tile partitioning: array of 500x500 tile IDs (e.g. ["tile_4_8"]) spanned by this stroke
+    tiles: v.optional(v.array(v.string())),
     clientTimestamp: v.number(),
     sequence: v.number(),
     serverTimestamp: v.number(),

@@ -49,6 +49,7 @@ import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { HelpModal } from "./HelpModal";
+import { getVisibleTileKeys, TILE_SIZE } from "@/lib/tiling";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
@@ -181,6 +182,8 @@ export function GlobalCanvas() {
     });
   }, []);
 
+  const [visibleTileCount, setVisibleTileCount] = useState<number>(0);
+
   const redrawStrokes = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx) return;
@@ -189,8 +192,28 @@ export function GlobalCanvas() {
 
     const maxSeqFilter = isReplayMode ? replaySequenceIndex : Infinity;
 
+    // Spatial Tile Partitioning & Viewport-Bounded Culling
+    const visibleTileKeys = getVisibleTileKeys(
+      cameraRef.current,
+      width,
+      height,
+      WORLD_WIDTH,
+      WORLD_HEIGHT,
+      TILE_SIZE,
+      1,
+    );
+    const visibleTileSet = new Set(visibleTileKeys);
+    if (visibleTileKeys.length !== visibleTileCount) {
+      setVisibleTileCount(visibleTileKeys.length);
+    }
+
     for (const s of committedRef.current) {
       if (s.sequence <= maxSeqFilter) {
+        if (s.tiles && s.tiles.length > 0) {
+          if (!s.tiles.some((t) => visibleTileSet.has(t))) {
+            continue; // Culled off-screen stroke for 60 FPS performance
+          }
+        }
         paintOneStroke(ctx, width, height, s);
       }
     }
@@ -198,7 +221,7 @@ export function GlobalCanvas() {
       for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
       if (shapePreviewRef.current) paintOneStroke(ctx, width, height, shapePreviewRef.current);
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex]);
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1036,10 +1059,17 @@ export function GlobalCanvas() {
         className="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
       >
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2" />
-        <div className="flex items-center gap-2 pl-4">
+        <div className="flex items-center gap-3 pl-4">
           <h1 id="app-heading" className="stencil-cut font-display text-sm font-bold tracking-[0.22em] text-ink uppercase">
             AlwaysDraw
           </h1>
+          <div
+            className="hidden md:flex items-center gap-1 rounded-sm border border-rust/50 bg-chrome-bg-raised px-2 py-0.5 font-mono text-[10px] text-ink-dim"
+            title="Active 500x500 spatial tiles in current camera viewport"
+          >
+            <span>TILES:</span>
+            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/400</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 pr-4">
