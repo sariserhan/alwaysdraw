@@ -66,7 +66,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
         <div
           role="menu"
           aria-label="Supported Languages"
-          className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-1 w-44 rounded-sm border-2 border-rust bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md"
+          className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-1 w-48 rounded-sm border-2 border-rust bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md"
         >
           <ChromeRivet className="top-1.5 left-1.5" />
           <ChromeRivet className="top-1.5 right-1.5" />
@@ -77,7 +77,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
             </span>
           </div>
 
-          <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto no-scrollbar">
+          <div className="flex flex-col gap-0.5">
             {SUPPORTED_LOCALES.map((loc) => (
               <button
                 key={loc.code}
