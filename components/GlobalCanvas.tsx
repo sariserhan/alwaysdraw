@@ -2273,7 +2273,7 @@ export function GlobalCanvas() {
 
         {/* Mobile Drawer Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="xl:hidden absolute top-full left-0 right-0 z-50 border-b-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          <div className="xl:hidden absolute right-0 top-full z-50 mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
               <span className="whitespace-nowrap">🛠️ {t(locale, "canvas_tools_panels")}</span>
               <span className="whitespace-nowrap text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
