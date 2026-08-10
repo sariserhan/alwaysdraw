@@ -18,6 +18,34 @@ export interface ReplayBarProps {
 
 const SPEEDS = [1, 5, 20, 100];
 
+export function TimeTravelButton({
+  onEnterReplay,
+  isReplayMode,
+}: {
+  onEnterReplay: () => void;
+  isReplayMode: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onEnterReplay}
+      className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        isReplayMode
+          ? "border-rust bg-rust/30 text-accent-yellow"
+          : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
+      }`}
+      title="Open Historical Time-Travel Replay Scrubber"
+      aria-label="Time Travel Replay"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <span>TIME TRAVEL</span>
+    </button>
+  );
+}
+
 export function ReplayBar({
   isReplayMode,
   isPlaying,
@@ -32,23 +60,7 @@ export function ReplayBar({
   onEnterReplay,
 }: ReplayBarProps) {
   if (!isReplayMode) {
-    return (
-      <button
-        type="button"
-        onClick={onEnterReplay}
-        className="group relative flex items-center gap-2 rounded-sm border border-rust/70 bg-chrome-bg-raised/90 px-3 py-1.5 font-mono text-xs font-semibold tracking-wider text-ink shadow-[0_4px_12px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-colors hover:border-rust hover:bg-chrome-bg-raised hover:text-accent-yellow"
-        title="Open Historical Time-Travel Replay"
-        aria-label="Open Time-Travel Replay Scrubber"
-      >
-        <ChromeRivet className="top-1/2 left-1 -translate-y-1/2" />
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="ml-1 text-accent-yellow">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-          <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        <span>TIME TRAVEL</span>
-        <ChromeRivet className="top-1/2 right-1 -translate-y-1/2" />
-      </button>
-    );
+    return <TimeTravelButton onEnterReplay={onEnterReplay} isReplayMode={false} />;
   }
 
   return (

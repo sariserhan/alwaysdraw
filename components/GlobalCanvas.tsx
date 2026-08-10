@@ -46,7 +46,7 @@ import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
-import { ReplayBar } from "./ReplayBar";
+import { ReplayBar, TimeTravelButton } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { HelpModal } from "./HelpModal";
 
@@ -1043,6 +1043,14 @@ export function GlobalCanvas() {
             getBusiestPoint={getBusiestPoint}
             getRandomActivePoint={getRandomActivePoint}
             getLatestActivityPoint={getLatestActivityPoint}
+          />
+          <TimeTravelButton
+            onEnterReplay={() => {
+              setIsReplayMode(true);
+              setReplaySequenceIndex(0);
+              setIsPlayingReplay(true);
+            }}
+            isReplayMode={isReplayMode}
           />
           <HelpModal />
           <ThemeToggle />

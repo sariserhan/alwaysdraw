@@ -62,45 +62,45 @@ export function HelpModal() {
           <div className="mt-4 space-y-4 font-mono text-xs text-ink-dim leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
             <div>
               <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                What is this?
+                What is AlwaysDraw?
               </h3>
               <p>
-                AlwaysDraw is a single, persistent 10,000×10,000 drawing wall shared by everyone on the internet in real time. There are no rooms, no private canvases, no protected regions, and no accounts.
+                AlwaysDraw is a single public 10,000×10,000 drawing wall shared live by everyone on the internet. There are no private rooms, no accounts, no protected regions, and no undo. Everyone draws on the exact same surface at the exact same time.
               </p>
             </div>
 
             <div>
               <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                How it works
+                How It Works
               </h3>
-              <ul className="list-disc pl-4 space-y-1.5 text-ink-dim">
+              <ul className="list-disc pl-4 space-y-2 text-ink-dim">
                 <li>
-                  <strong className="text-ink">Draw &amp; Erase:</strong> Anyone can draw or paint over anyone else&apos;s work. Erasing clears your strokes to reveal the concrete wall beneath.
+                  <strong className="text-ink">Consequence Over Control:</strong> Anyone can draw, erase, or spray paint over anyone else&apos;s artwork. Erasing clears your strokes to reveal the raw concrete wall underneath.
                 </li>
                 <li>
-                  <strong className="text-ink">13 Tools &amp; Brushes:</strong> Basic (Pencil, Marker, Calligraphy, Pixel Art), Artistic (Watercolor, Oil, Chalk, Charcoal), Effects (Neon Glow, Glitter), plus Shapes &amp; Ruler.
+                  <strong className="text-ink">13 Expressive Brushes:</strong> Choose Basic textures (Pencil, Marker, Calligraphy, Pixel Art), Artistic media (Watercolor, Oil Paint, Chalk, Charcoal), or Special Effects (Neon Glow, Glitter).
                 </li>
                 <li>
-                  <strong className="text-ink">Time Travel:</strong> Click <span className="text-accent-yellow font-bold">TIME TRAVEL</span> at the bottom to watch how the wall evolved stroke-by-stroke over time.
+                  <strong className="text-ink">Time Travel (Top Navbar):</strong> Click <span className="text-accent-yellow font-bold">TIME TRAVEL</span> in the top header to scrub back through time and watch artwork evolve stroke-by-stroke from the canvas&apos;s creation.
                 </li>
                 <li>
-                  <strong className="text-ink">Spatial Discovery:</strong> Click <span className="text-accent-blue font-bold">EXPLORE</span> in the top header to jump to active hotspots or random artwork spots across the 100M-pixel world.
+                  <strong className="text-ink">Spatial Discovery (Top Navbar):</strong> Click <span className="text-accent-blue font-bold">EXPLORE</span> in the top header to instantly teleport your camera to active hotspots, latest activity, or random art across the 100M-pixel wall.
                 </li>
               </ul>
             </div>
 
             <div className="border-t border-chrome-border/60 pt-3">
               <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                Controls &amp; Navigation
+                Camera Controls &amp; Shortcuts
               </h3>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div className="rounded bg-chrome-bg-raised p-2">
-                  <span className="text-ink font-bold block">Pan Camera</span>
-                  <span>Space + Drag, Pan Tool, or 2-finger touch</span>
+                  <span className="text-ink font-bold block mb-0.5">Pan Camera</span>
+                  <span>Space + Drag, Pan Tool, or 2-finger touch drag</span>
                 </div>
                 <div className="rounded bg-chrome-bg-raised p-2">
-                  <span className="text-ink font-bold block">Zoom Camera</span>
-                  <span>Mouse wheel, Pinch gesture, or Zoom +/-</span>
+                  <span className="text-ink font-bold block mb-0.5">Zoom Camera</span>
+                  <span>Mouse wheel, Pinch-to-zoom, or Toolbar +/-</span>
                 </div>
               </div>
             </div>
