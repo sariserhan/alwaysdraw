@@ -1349,7 +1349,7 @@ export function GlobalCanvas() {
       <header
         id="header-bar"
         role="banner"
-        className="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-2 sm:px-4 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm overflow-hidden"
+        className="pointer-events-auto absolute inset-x-0 top-0 z-40 flex flex-wrap items-center justify-between gap-1.5 border-b-2 border-rust/70 bg-chrome-bg/95 px-2 sm:px-4 py-1.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
       >
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2 hidden sm:block" />
         <div className="flex shrink-0 items-center gap-2 pl-1 sm:pl-4">
@@ -1358,7 +1358,7 @@ export function GlobalCanvas() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2.5 max-w-[calc(100vw-120px)] sm:max-w-none overflow-x-auto no-scrollbar py-0.5 whitespace-nowrap pr-1 sm:pr-4">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
           <div
             className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"

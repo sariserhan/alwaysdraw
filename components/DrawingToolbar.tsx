@@ -555,7 +555,7 @@ export function DrawingToolbar({
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-2 pb-2 sm:px-4 max-w-full">
       <div
-        className="pointer-events-auto relative flex max-w-full items-center justify-start sm:justify-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 whitespace-nowrap"
+        className="pointer-events-auto relative flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-1.5 sm:py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 max-w-[98vw] overflow-visible"
         style={{
           backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
         }}
