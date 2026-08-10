@@ -38,6 +38,11 @@ export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
 // per-client and a global cap bound table growth from a spoofed clientId.
 export const BOOKMARKS_PER_CLIENT_WINDOW = 10;
 export const BOOKMARKS_GLOBAL_WINDOW = 100;
+export const MAX_COMMENT_LENGTH = 280;
+export const COMMENTS_PER_CLIENT_WINDOW = 10;
+export const COMMENTS_GLOBAL_WINDOW = 200;
+// Toggle (vote/un-vote), so this bounds spam-clicking rather than real usage.
+export const VOTES_PER_CLIENT_WINDOW = 30;
 // Snapshots carry no per-client identity (they're a server-side optimization,
 // not a user action), so this is a global-only limit — legitimate submissions
 // are infrequent, so this is generous headroom, not a real throughput cap.

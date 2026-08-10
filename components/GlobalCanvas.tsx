@@ -39,9 +39,12 @@ import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedC
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
+import { generateFloodFillPoints } from "@/lib/floodFill";
+import { calculateSymmetricPoints } from "@/lib/symmetry";
+import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
-import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
+import type { LocalStroke, ServerStroke, Point, Tool, BrushType, SymmetryMode } from "@/lib/types";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
@@ -56,6 +59,7 @@ import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { ExploreMenu } from "./ExploreMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
+import { CommunityGalleryModal } from "./CommunityGalleryModal";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
@@ -213,6 +217,10 @@ export function GlobalCanvas() {
   const [textInputText, setTextInputText] = useState("");
   const [textStyle, setTextStyle] = useState<FontStyle>("sans");
   const [textSize, setTextSize] = useState<number>(32);
+  const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>("off");
+  const [comments, setComments] = useState<CanvasComment[]>([]);
+  const [commentInputPos, setCommentInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
+  const [commentText, setCommentText] = useState("");
 
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
   const rollbackClient = useMutation(api.admin.rollbackClient);
@@ -1356,6 +1364,33 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "fill") {
+        const fillPts = generateFloodFillPoints(worldPt, brushWidth * 4);
+        if (fillPts.length >= 2) {
+          const buffer = new StrokeBuffer(
+            clientId,
+            "draw",
+            "brush",
+            color,
+            brushWidth,
+            opacity,
+            username,
+            countryCode,
+            commitOwnChunk,
+          );
+          for (const p of fillPts) buffer.addPoint(p);
+          buffer.finish();
+          scheduleRedraw({ strokes: true });
+        }
+        return;
+      }
+
+      if (tool === "comment") {
+        const screenPt = getScreenPoint(e.clientX, e.clientY);
+        setCommentInputPos({ world: worldPt, screen: screenPt });
+        return;
+      }
+
       if (tool === "shape") {
         shapeDragRef.current = { start: worldPt, current: worldPt };
         return;
@@ -1852,6 +1887,12 @@ export function GlobalCanvas() {
               onTeleport={handleBookmarkTeleport}
               locale={locale}
             />
+            <CommunityGalleryModal
+              clientId={clientId}
+              username={username}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+            />
           </div>
 
           <HeaderSeam />
@@ -1980,6 +2021,14 @@ export function GlobalCanvas() {
                 <BookmarkMenu
                   currentCamera={cameraSnapshot}
                   clientId={clientId}
+                  onTeleport={handleBookmarkTeleport}
+                  locale={locale}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <CommunityGalleryModal
+                  clientId={clientId}
+                  username={username}
                   onTeleport={handleBookmarkTeleport}
                   locale={locale}
                 />
