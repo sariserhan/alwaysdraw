@@ -10,7 +10,7 @@ colors:
   chrome-bg-recessed: "#101112"
   chrome-border: "#3a3530"
   rust: "#b5502c"
-  concrete: "#b7b0a1"
+  concrete: "#e8e0c9"
   ink: "#f5f1e6"
   ink-dim: "#cdc7b8"
   accent-crimson: "#e0432b"
@@ -74,12 +74,12 @@ components:
 
 **Creative North Star: "The Bolted Rack"**
 
-AlwaysDraw is a rusted train-yard wall that the whole internet keeps tagging — not a whiteboard app with a toolbar politely floating over a blank page. The interface reads as mounted hardware: a riveted steel strip and a bolted spray-can rack, both bolted directly to the edges of the screen, framing a full-bleed slab of poured concrete that anyone can mark. Chrome is near-black weathered steel; the canvas itself is a plain, warm concrete gray so any color painted onto it reads clearly — the ground carries no texture of its own, deliberately, so it never competes with what people actually draw on it. Nothing about the chrome is soft, rounded, or ambient — depth comes from hard borders, mounting hardware, and directional shadows, the way real equipment sits on a wall, not from floating cards or glassy panels.
+AlwaysDraw is a rusted train-yard wall that the whole internet keeps tagging — not a whiteboard app with a toolbar politely floating over a blank page. The interface reads as mounted hardware: a riveted steel strip and a bolted spray-can rack, both bolted directly to the edges of the screen, framing a full-bleed sheet of warm paper anyone can mark. Chrome is near-black weathered steel; the canvas itself is a plain, warm parchment tone (not stark white — closer to aged paper) so any color painted onto it reads clearly — the ground carries no texture of its own, deliberately, so it never competes with what people actually draw on it. Nothing about the chrome is soft, rounded, or ambient — depth comes from hard borders, mounting hardware, and directional shadows, the way real equipment sits on a wall, not from floating cards or glassy panels.
 
 This world was chosen explicitly against the category default for collaborative drawing tools (Miro/FigJam/Excalidraw-style soft pastel whiteboards) — that direction is the confirmed anti-reference. It was also chosen against a neon-cyberpunk night-district direction that scored well on recognition but ran into the same AI-generated-interface cliché (near-black + one neon accent) the brief asked to avoid.
 
 **Key Characteristics:**
-- Near-black steel chrome bolted to the viewport edges; a warm concrete-gray canvas in between
+- Near-black steel chrome bolted to the viewport edges; a warm paper-toned canvas in between
 - A curated four-color spray-paint accent set (crimson, acid green, electric blue, warning yellow), each with one fixed system role — never decorative
 - Real stencil-plate construction (masked bridge-gaps) on the wordmark and on every measurement/count numeral
 - Fully circular shapes reserved for literal hardware and indicator lights (rivets, swatches, cursors, status dots) — every panel and control otherwise stays rectilinear
@@ -104,7 +104,7 @@ A near-black steel-and-rust neutral system carries the interface; a four-color s
 - **Chrome Raised** (`#202224`): one step up from Chrome Black — toolbar body, status pills, the color-swatch tray. Never used for full-bleed backgrounds.
 - **Chrome Recessed** (`#101112`): one step down from Chrome Black — the toolbar's own internal gradient floor, implying the panel is lit from above.
 - **Steel Border** (`#3a3530`): all structural hairline borders on chrome surfaces.
-- **Concrete** (`#b7b0a1`): the canvas ground — a plain flat fill, deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it.
+- **Concrete** (`#e8e0c9`): the canvas ground — a plain flat warm-paper fill (not stark white), deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it. Kept the token name from the original material study; the tone itself reads as paper, not poured concrete.
 - **Stencil Ink** (`#f5f1e6`): primary text on chrome.
 - **Ink Dim** (`#b8b3a6`): secondary/label text on chrome (tool labels, "online"/"live" captions, size labels).
 - **On-Accent** (`#f5f1e6`): text sitting directly on a saturated accent fill (the active Brush/Erase button, `::selection`). Fixed — does not swap with theme, since the accent fill beneath it doesn't either.
@@ -190,8 +190,14 @@ The system's one distinctive custom component. A rectilinear rack (`rounded-sm`,
 ### Brush Picker (signature component)
 Tapping the active Brush tool (when it's already selected) opens a popover above the rack — same rectilinear-rack language (`rounded-sm`, 2px border, Chrome Raised) as the toolbar itself, not a separate floating card. Twelve brushes grouped under three plain category captions (Basic, Artistic, Effects) matching the product's own catalog, each a two-column grid of text buttons using the same active/inactive treatment as every other button (Deep Crimson fill + On-Accent text when selected). Selecting a brush also switches the active tool to Brush, so picking a texture and drawing with it is one motion, not two.
 
-### Pan & Zoom Tools
-Two explicit modes alongside Brush/Erase, for touch users (and anyone who'd rather not learn space-drag or pinch): Pan turns any single-pointer drag into a camera pan; Zoom turns a vertical drag into a zoom anchored at the press point (drag up = in, down = out). Both suppress drawing entirely while active — they are camera tools, not brush variants. The canvas cursor reflects the active tool: grab/grabbing for Pan, a vertical resize cursor for Zoom, and the custom Brush Cursor (below) for Brush/Erase — the browser's own arrow cursor never appears over the canvas.
+### Pan, Magnifier, Shapes & Ruler Tools
+Four explicit modes alongside Brush/Erase, each suppressing drawing entirely while active — they are inspection/utility tools, not brush variants:
+- **Pan:** turns any single-pointer drag into a camera pan — for touch users and anyone who'd rather not learn space-drag/pinch.
+- **Magnifier:** a hover-only loupe (see below) — inspects the wall at a higher effective zoom without moving the actual camera.
+- **Shapes:** opens an icon-only popover (Line, Square, Circle, Triangle — no text labels, unlike the Brush picker) above the rack; drag a bounding box on the canvas and release to commit a clean outline stroke in the current color/size/opacity, rendered with the plain Brush texture regardless of whatever artistic brush is otherwise selected.
+- **Ruler:** drag between two points to read the distance (world px) as a dashed line + label; purely an inspection overlay, never added to the shared wall.
+
+The canvas cursor reflects the active tool: grab/grabbing for Pan, the browser's default arrow for Magnifier, a crosshair for Shapes/Ruler, and the custom Brush Cursor (below) for Brush/Erase.
 
 ### Brush Cursor (signature component)
 The OS cursor is hidden over the canvas whenever Brush or Erase is active; a custom overlay takes its place, rendered at the brush's real on-screen diameter (`brushWidth × zoom`, in screen pixels — not a fixed icon size), so a visitor always sees exactly how much of the shared wall their next stroke or erase will affect before they commit to it. A translucent color-tinted ring plus a small solid center dot for most brushes; per-brush variants read the same identity the brush renders with — square for Pixel, a rotated ellipse for Calligraphy, a dashed ring for the grainy brushes (Chalk/Charcoal), a soft blurred ring for Watercolor/Highlighter, a glow (`box-shadow`) for Neon Glow, a small authored sparkle mark for Glitter, and a neutral ring with an authored × mark (not the color) for Erase, since erasing has no "color" of its own. Position/size update via direct DOM style writes on every pointer move and on every camera-zoom frame — too high-frequency for React state — while shape/color are ordinary props that only change when the toolbar selection changes.
@@ -200,14 +206,14 @@ The OS cursor is hidden over the canvas whenever Brush or Erase is active; a cus
 - **Style:** a small SVG paint-drip (teardrop) shape, not a plain circle or arrow — each remote visitor's cursor is colored by hashing their anonymous client ID against the four-color accent set, so different visitors read as visibly different "spray cans" on the wall. (Distinct from the Brush Cursor above, which represents your own tool, not another visitor.)
 
 ### Canvas Ground
-- **Style:** a flat Concrete fill with a 1px Rust-colored border along the world edge. Deliberately plain — no grid, crack, seam, or grain texture. This was tried (a poured-slab expansion-joint grid plus hairline cracks) and pulled after real use: the texture visually competed with the strokes people actually draw, which defeats the point of a drawing surface. The strokes are the only visual complexity the ground carries.
+- **Style:** a flat warm-paper Concrete fill with a 1px Rust-colored border along the world edge. Deliberately plain — no grid, crack, seam, or grain texture. This was tried (a poured-slab expansion-joint grid plus hairline cracks) and pulled after real use: the texture visually competed with the strokes people actually draw, which defeats the point of a drawing surface. The strokes are the only visual complexity the ground carries.
 - **Architecture:** rendered on its own canvas layer, stacked beneath a separate transparent strokes layer. This is load-bearing, not incidental — erasing (`destination-out`) clears pixels on the strokes layer only, revealing the Concrete ground underneath rather than punching a transparent hole to whatever sits behind the page.
 - **Rule:** if ground texture is ever reconsidered, it must be explicit, specifiable geometry (lines, polylines, filled shapes) — never a repeating-noise/`feTurbulence` grain effect.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.
+- **Do** keep chrome near-black/steel and canvas warm-paper-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.
 - **Do** keep the stencil-cut mask confined to the wordmark alone — it was tried at smaller scale twice and hurt legibility both times; treat it as a one-off identity mark, not a reusable texture.
 - **Do** give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it; a panel with none of the three will read as a floating card.
 - **Do** reserve fully circular shapes for hardware/indicators (rivets, caps, dots, cursors); keep panels and buttons rectilinear at the `2px` radius.

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
+import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { ChromeRivet } from "./ChromeRivet";
 
 const SWATCHES = [
@@ -115,6 +116,15 @@ function MagnifierIcon() {
       <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.75" />
       <path d="M15.5 15.5 21 21" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <path d="M10.5 8v5M8 10.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ShapesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="10" width="10" height="10" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="16.5" cy="7.5" r="5" stroke="currentColor" strokeWidth="1.75" />
     </svg>
   );
 }
@@ -273,11 +283,82 @@ function BrushPicker({
   );
 }
 
+function ShapeIcon({ type }: { type: ShapeType }) {
+  switch (type) {
+    case "line":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M4 20 20 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
+      );
+    case "rect":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <rect x="4" y="6" width="16" height="12" stroke="currentColor" strokeWidth="1.75" />
+        </svg>
+      );
+    case "circle":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
+        </svg>
+      );
+    case "triangle":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 4 20 19 4 19Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+  }
+}
+
+function ShapePicker({
+  shapeType,
+  onSelect,
+  onClose,
+}: {
+  shapeType: ShapeType;
+  onSelect: (t: ShapeType) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-20 mb-3 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-1">
+          {SHAPE_CATALOG.map((s) => (
+            <button
+              key={s.type}
+              type="button"
+              onClick={() => {
+                onSelect(s.type);
+                onClose();
+              }}
+              aria-pressed={shapeType === s.type}
+              aria-label={s.label}
+              title={s.label}
+              className={`flex items-center justify-center rounded-sm p-2 transition ${
+                shapeType === s.type
+                  ? "bg-accent-crimson-deep text-on-accent"
+                  : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
+              }`}
+            >
+              <ShapeIcon type={s.type} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function DrawingToolbar({
   tool,
   onToolChange,
   brushType,
   onBrushTypeChange,
+  shapeType,
+  onShapeTypeChange,
   color,
   onColorChange,
   width,
@@ -293,6 +374,8 @@ export function DrawingToolbar({
   onToolChange: (t: Tool) => void;
   brushType: BrushType;
   onBrushTypeChange: (b: BrushType) => void;
+  shapeType: ShapeType;
+  onShapeTypeChange: (s: ShapeType) => void;
   color: string;
   onColorChange: (c: string) => void;
   width: number;
@@ -305,9 +388,11 @@ export function DrawingToolbar({
   onResetView: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [shapePickerOpen, setShapePickerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
   const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
+  const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 
   if (hidden) {
     return <ShowTab onClick={() => setHidden(false)} />;
@@ -383,14 +468,54 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange("zoom")}
-            aria-pressed={tool === "zoom"}
-            title="Zoom"
+            onClick={() => onToolChange("magnifier")}
+            aria-pressed={tool === "magnifier"}
+            title="Magnifier"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "zoom" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              tool === "magnifier" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <MagnifierIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (tool === "shape") {
+                setShapePickerOpen((v) => !v);
+              } else {
+                onToolChange("shape");
+              }
+            }}
+            aria-pressed={tool === "shape"}
+            aria-haspopup="true"
+            aria-expanded={shapePickerOpen}
+            title={activeShapeLabel}
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "shape" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <ShapesIcon />
+          </button>
+          {shapePickerOpen && (
+            <ShapePicker
+              shapeType={shapeType}
+              onSelect={(s) => {
+                onShapeTypeChange(s);
+                onToolChange("shape");
+              }}
+              onClose={() => setShapePickerOpen(false)}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => onToolChange("ruler")}
+            aria-pressed={tool === "ruler"}
+            title="Ruler"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "ruler" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <RulerIcon />
           </button>
         </div>
 

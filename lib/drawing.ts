@@ -71,11 +71,11 @@ export function clearCanvas(ctx: CanvasRenderingContext2D, viewportWidth: number
   void viewportHeight;
 }
 
-const CONCRETE_FILL = "#b7b0a1";
+const CONCRETE_FILL = "#e8e0c9";
 const RUST = "#b5502c";
 
 /**
- * Renders the shared wall: a plain flat concrete fill with a rust-bordered
+ * Renders the shared wall: a plain flat paper-toned fill with a rust-bordered
  * edge. Deliberately no grid, crack, or grain texture — that visual noise
  * competed with the strokes actually drawn on it, so the ground stays plain
  * and the drawing is the only complexity.

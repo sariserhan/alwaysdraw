@@ -123,10 +123,22 @@ No other secrets are required for V1 (no auth, no third-party APIs).
 npx convex deploy   # pushes convex/ to your production deployment
 ```
 
-**Next.js (frontend), on Vercel:**
-1. Push this repo to GitHub and import it in Vercel, or run `vercel deploy` from the repo root.
-2. Set `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) in the Vercel project's environment variables to your **production** Convex deployment's URL (from `npx convex deploy` output or the Convex dashboard) — not the dev URL.
-3. Deploy. The root URL opens directly into the canvas.
+**Next.js (frontend), on Cloudflare Workers (via OpenNext):**
+
+Cloudflare doesn't run Next.js natively — the [OpenNext](https://opennext.js.org/cloudflare) adapter (`@opennextjs/cloudflare`) builds this app into a Worker.
+
+1. One-time setup in the repo root:
+   ```bash
+   npx @opennextjs/cloudflare migrate
+   ```
+   This installs `@opennextjs/cloudflare`, adds `wrangler.jsonc` (Worker config: `main: ".open-next/worker.js"`, `assets: ".open-next/assets"`, `nodejs_compat` flag) and `open-next.config.ts`, and adds `preview`/`deploy`/`upload` scripts to `package.json`.
+2. Set `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) as Worker environment variables — in `wrangler.jsonc`'s `vars` block for non-secret values, or via `npx wrangler secret put NEXT_PUBLIC_CONVEX_URL` — to your **production** Convex deployment's URL (from `npx convex deploy` output or the Convex dashboard), not the dev URL. These are `NEXT_PUBLIC_*` values baked in at build time, so they must be set before the build/deploy step below.
+3. Build + deploy:
+   ```bash
+   npx @opennextjs/cloudflare build
+   npx @opennextjs/cloudflare deploy
+   ```
+   (Or `npx wrangler login` first if this is the first deploy from this machine.) The Worker's `*.workers.dev` URL — or a custom domain attached in the Cloudflare dashboard — opens directly into the canvas.
 
 ## 7. Testing instructions
 

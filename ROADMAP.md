@@ -1,0 +1,133 @@
+# AlwaysDraw Roadmap
+
+One world. One canvas. Always drawing.
+
+This tracks the full product vision (versions 1–5, as originally scoped) against what's actually shipped, plus the running backlog. See [README.md](README.md) for setup/deploy/testing instructions and [DESIGN.md](DESIGN.md) for the visual system. This file is about *what*, those are about *how*.
+
+Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
+
+---
+
+## Where things stand
+
+**V1 is shipped and substantially exceeds its original scope.** The base spec (single shared canvas, local-first drawing, presence, mobile support) is done, and a live design/feedback pass on top of it added a full visual identity, a 13-tool brush system, dual themes, and a live cursor preview — none of which were in the original V1 spec but came out of building it and using it. V2–V5 are unstarted by design: the original instructions were explicit that V2+ waits until V1 proves itself with real traffic.
+
+---
+
+## V1 — Functional MVP ✅ shipped (and then some)
+
+### Original scope (from the initial spec)
+- [x] Next.js + TypeScript + Tailwind + Convex, no accounts, no rooms, no undo
+- [x] Single global canvas, viewport-sized `<canvas>` + camera (pan/zoom), not a giant DOM element
+- [x] Root URL opens directly into the canvas — no homepage, no onboarding
+- [x] Local-first drawing (draws before the network round-trip)
+- [x] Batched stroke submission (~40ms / ~40 points per chunk)
+- [x] Server-sequenced, append-only stroke history (no client-trusted ordering)
+- [x] Convex reactive live sync (draw/erase visible to others in near real time)
+- [x] Eraser stored as an operation (`mode: "erase"`), never a deletion
+- [x] Anonymous identity (`anon-XXXXXX` in localStorage) — convenience, not auth
+- [x] Approximate online count via presence heartbeat + staleness window
+- [x] Remote cursors (capped, hidden after inactivity)
+- [x] Abuse-boundary validation: brush width, point count, coordinate bounds, color format, no NaN/Infinity
+- [x] Desktop input (drag/wheel/space-drag) + mobile input (1-finger draw, 2-finger pan/pinch)
+- [x] Reload reconstructs the shared canvas from history
+- [x] Two-layer canvas (world + strokes) so erasing reveals the wall, not the page background — added after the original single-layer approach turned out to make erasing look broken
+- [x] World size: 5,000×5,000 → bumped to **10,000×10,000** per request
+
+### Visual identity ✅ (via the Impeccable design pass — not in the original spec)
+- [x] PRODUCT.md + DESIGN.md: a committed visual world, **"The Bolted Rack"** — a rusted train-yard wall, riveted steel chrome, no whiteboard-SaaS look
+- [x] Dark theme (default, deliberate) + light theme (manual, persisted toggle)
+- [x] Plain canvas ground, a warm paper tone (not stark white) — a grid/crack texture was tried and pulled after real use competed visually with actual strokes
+- [x] Finish-reviewed twice against the direction contract; DESIGN.md + `.impeccable/design.json` sidecar kept current through every later change
+
+### Brush & tool system ✅ (user-specified mid-session, fully built)
+13 tools total — 12 draw-mode brush textures plus Erase, each with genuinely distinct rendering (verified via pixel sampling, not just code review):
+
+| Category | Brushes |
+|---|---|
+| Basic | Brush, Pencil, Marker, Highlighter, Calligraphy, Pixel, Erase |
+| Artistic | Watercolor, Oil Paint, Chalk, Charcoal |
+| Effects | Glitter, Neon Glow |
+
+- [x] `brushType` + `opacity` fields threaded through Convex schema, validation, StrokeBuffer, and every render call — remote clients render the *same* texture the drawer picked, not a generic line
+- [x] Deterministic per-point hashing (not `Math.random`) for grain/scatter, so redraws don't flicker
+- [x] Explicit **Pan** tool (not just space-drag/pinch) for touch/mouse users who'd rather not learn gestures
+- [x] **Magnifier** tool: a hover-only circular loupe that shows a zoomed-in crop of the wall around the cursor, without moving the actual camera — for inspecting brush texture up close
+- [x] **Shapes** tool: Line/Square/Circle/Triangle, drag a bounding box to commit a clean outline stroke (reuses the existing stroke pipeline — a shape is just a generated point path)
+- [x] **Ruler** tool: drag between two points to read the distance in world px as a dashed line + label — an inspection overlay only, never added to the shared wall
+- [x] Brush picker popover (grouped Basic/Artistic/Effects), Size + Opacity controls, a discoverable rainbow-conic custom color picker
+- [x] Live brush cursor: replaces the OS cursor over the canvas with the brush's actual on-screen size/color/shape at current zoom (square for Pixel, ellipse for Calligraphy, dashed for grainy brushes, glow for Neon, sparkle for Glitter, × for Erase) — so anyone can see exactly how much of the wall their next stroke affects before committing
+- [x] Toolbar: collapsible (side rivets shrink it to the tool row) and fully hideable (top chevron, with a pull-tab to bring it back) — two independent controls
+
+### Testing ✅
+- [x] Vitest unit tests for `lib/camera.ts` and `lib/coordinates.ts` (pan/zoom math, clamping, screen↔world inverse relationship) — 22 tests
+- [ ] No automated tests yet for stroke sequencing/replay or Convex function validation (manual verification only so far)
+
+### Known gaps (see README §8 for full detail)
+- Live-tail catch-up window is capped at 300 strokes; a long network stall still needs a full reload to catch up completely
+- Full-history replay on load, dev-capped at 20,000 strokes — no snapshot system yet
+- Presence/online-count queries don't scale past ~hundreds of concurrent users
+- No rate limiting beyond input validation
+- No accounts, no moderation — by design for V1
+
+---
+
+## V2 — Product Quality ⏳ not started
+
+Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex, no Durable Objects yet.
+
+- [ ] **Snapshot system** — rendered snapshot + "strokes since snapshot," removing the full-replay cost as history grows (the #1 scaling wall right now)
+- [ ] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
+- [ ] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button; cheap given `lib/coordinates.ts` already isolates the camera math
+- [ ] Historical replay (play/pause/scrub/speed) and read-only time travel
+- [ ] Heatmap of drawing activity by region
+- [ ] Mini-map overview
+- [ ] Featured/active-location discovery (never protected — still fully editable)
+- [ ] Performance: canvas state stays out of React re-renders, incremental drawing (already true for V1's architecture — this just extends it as data volume grows)
+
+## V3 — Spatially Tiled Canvas ⏳ not started
+
+Goal: stop treating the whole world as one realtime subscription.
+
+- [ ] Divide the world into tiles (e.g. 500×500 logical px); a stroke can span multiple tiles
+- [ ] Clients subscribe only to visible + neighboring tiles, not the whole world
+- [ ] Per-tile snapshots instead of one giant world image
+- [ ] Canvas expansion beyond 10,000×10,000 (spec's own progression: 10k → 50k)
+- [ ] Spatial discovery ("take me somewhere," hottest tile, recently changed)
+
+## V4 — Dedicated Realtime Infrastructure ⏳ not started
+
+Goal: move high-frequency drawing traffic off Convex, *if* real traffic justifies it. Convex stays as the application backend regardless.
+
+- [ ] Cloudflare Workers + Durable Objects, one coordinator per tile (or tile group)
+- [ ] Native WebSocket protocol (subscribe/unsubscribe/stroke/cursor/ping-pong) replacing Convex for raw drawing traffic
+- [ ] Reconnection via `lastSequenceByTile`
+- [ ] Presence/cursors move off Convex writes entirely
+- [ ] Convex narrows to: users, bookmarks, discovery metadata, moderation, analytics, snapshot pointers
+
+## V5 — Global Distributed Canvas ⏳ not started
+
+Goal: an effectively infinite, persistent world.
+
+- [ ] Chunk-based world coordinates, tiles created on demand
+- [ ] Multi-resolution tile pyramid for low-zoom rendering (don't render millions of strokes at once)
+- [ ] CDN-delivered snapshot tiles (Cloudflare R2 + CDN); WebSockets carry only recent deltas
+- [ ] Global/regional historical replay ("watch the last 24 hours of humanity drawing")
+- [ ] Discovery layer: trending regions, oldest untouched area, random teleport, daily highlights
+- [ ] Optional accounts (contribution history, saved places) — anonymous drawing stays possible
+- [ ] Moderation for illegal content only — never region ownership or protection
+- [ ] Safety infrastructure: bot detection, abuse fingerprinting, rate limiting, emergency read-only mode
+
+---
+
+## Backlog / TODO
+
+Near-term, concrete, not tied to a specific numbered version:
+
+- [ ] Deploy to production (`npx convex deploy` + Cloudflare Workers via OpenNext — `npx @opennextjs/cloudflare build && deploy`) — user is handling this
+- [ ] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation (currently manual-only)
+- [ ] Revisit the presence/online-count queries before concurrent users gets past the hundreds (documented `ponytail:` ceiling in `convex/presence.ts`)
+- [ ] Decide whether the live-tail's fixed 300-stroke window needs to become cursor-based before or as part of V2's snapshot work
+- [ ] Sentry/PostHog observability (frontend errors, Convex errors, websocket disconnects, snapshot failures) — spec'd for later, not started
+
+Nothing else from this session's conversation is outstanding — every explicit ask (eraser fix, bigger canvas, light theme, 13 brushes, Pan/Zoom tools, opacity, custom color picker, legibility fixes, collapsible/hideable toolbar, live brush cursor) has been built, verified live, and committed.
