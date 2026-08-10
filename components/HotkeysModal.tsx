@@ -42,7 +42,7 @@ export function HotkeysModal({ isOpen, onToggle }: HotkeysModalProps) {
         onClick={onToggle}
         className={`flex h-7 items-center gap-1 rounded-sm border px-2 font-mono text-xs font-bold transition-colors ${
           isOpen
-            ? "border-rust bg-rust/30 text-accent-yellow shadow-sm"
+            ? "border-rust bg-rust text-on-accent font-bold shadow-sm"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink-dim hover:border-rust hover:text-ink"
         }`}
         title="Keyboard Shortcuts Map"

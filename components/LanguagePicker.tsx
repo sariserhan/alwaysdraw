@@ -51,7 +51,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
         onClick={() => setIsOpen((prev) => !prev)}
         className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isOpen
-            ? "border-rust bg-rust/30 text-accent-yellow"
+            ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
         title="Change Application Language"
@@ -85,7 +85,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
                 onClick={() => handleSelect(loc)}
                 className={`flex items-center justify-between rounded px-2 py-1.5 font-mono text-xs transition-colors text-left ${
                   loc.code === currentLocale
-                    ? "bg-rust/30 text-accent-yellow font-bold"
+                    ? "bg-rust text-on-accent font-bold shadow-sm"
                     : "text-ink hover:bg-chrome-bg-raised hover:text-accent-yellow"
                 }`}
               >
@@ -93,7 +93,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
                   <span className="text-sm">{loc.flag}</span>
                   <span>{loc.name}</span>
                 </div>
-                <span className="text-[10px] text-ink-dim uppercase">{loc.code}</span>
+                <span className="text-[10px] opacity-80 uppercase">{loc.code}</span>
               </button>
             ))}
           </div>

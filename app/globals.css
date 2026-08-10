@@ -32,6 +32,11 @@
   --chrome-border: #a89f8c;
   --ink: #201d18;
   --ink-dim: #4d4536;
+  --accent-yellow: #8f5c00;
+  --accent-crimson: #c8321b;
+  --accent-green: #1a7e4b;
+  --accent-blue: #1672ab;
+  --rust: #a23d19;
 }
 
 @theme inline {

@@ -89,7 +89,7 @@ export function TimeTravelMenu({
         onClick={handleToggle}
         className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isReplayMode || isOpen
-            ? "border-rust bg-rust/30 text-accent-yellow"
+            ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
         title="Open Historical Time-Travel Replay"
