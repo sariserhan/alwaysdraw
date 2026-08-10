@@ -11,6 +11,13 @@ crons.interval(
 );
 
 crons.interval(
+  "recompute online count",
+  { seconds: 15 },
+  internal.presence.recomputeOnlineCount,
+  {},
+);
+
+crons.interval(
   "clear expired write rate limits",
   { minutes: 1 },
   internal.abuse.clearExpiredRateLimits,

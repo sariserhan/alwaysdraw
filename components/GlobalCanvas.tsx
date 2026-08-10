@@ -18,6 +18,7 @@ import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
+import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
@@ -67,7 +68,13 @@ export function GlobalCanvas() {
   } | null>(null);
 
   const [clientId] = useState(() => getClientId());
-  const cameraRef = useRef<Camera>(defaultCamera(WORLD_WIDTH, WORLD_HEIGHT));
+  // Deep link: a shared URL's ?x=&y=&z= seeds the initial view, if present/valid.
+  // Computed once as a plain value (not read from a ref) so it can seed both
+  // the ref below and the lazy useState initializers without a render-time ref read.
+  const initialCamera =
+    parseCameraFromSearch(window.location.search) ?? defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
+  const cameraRef = useRef<Camera>(initialCamera);
+  const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportRef = useRef({ width: 0, height: 0 });
 
   const committedRef = useRef<ServerStroke[]>([]);
@@ -81,13 +88,11 @@ export function GlobalCanvas() {
   const [color, setColor] = useState("#17181a");
   const [brushWidth, setBrushWidth] = useState(8);
   const [opacity, setOpacity] = useState(1);
-  const [zoomPercent, setZoomPercent] = useState(100);
+  const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Snapshots of ref-held values, synced (in effects/callbacks, never during
   // render) only when something that must re-render RemoteCursors happens.
-  const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() =>
-    defaultCamera(WORLD_WIDTH, WORLD_HEIGHT),
-  );
+  const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
   const convex = useConvex();
@@ -254,6 +259,13 @@ export function GlobalCanvas() {
         if (dirtyRef.current.world) {
           redrawWorld();
           dirtyRef.current.world = false;
+          // Debounced so a pan/zoom gesture doesn't hammer the History API —
+          // only the settled view ends up shareable via the address bar.
+          if (urlSyncTimerRef.current) clearTimeout(urlSyncTimerRef.current);
+          urlSyncTimerRef.current = setTimeout(() => {
+            const qs = cameraToSearchString(cameraRef.current);
+            window.history.replaceState(null, "", `${window.location.pathname}?${qs}`);
+          }, 400);
         }
         if (dirtyRef.current.strokes) {
           redrawStrokes();
@@ -748,6 +760,14 @@ export function GlobalCanvas() {
     [scheduleRedraw],
   );
 
+  // Reads cameraRef directly (not the debounced address bar) so the copied
+  // link always matches the view on screen right now, not up to 400ms stale.
+  const handleShare = useCallback(async () => {
+    const qs = cameraToSearchString(cameraRef.current);
+    const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+    await navigator.clipboard.writeText(url);
+  }, []);
+
   return (
     <div className="relative h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
       <div ref={containerRef} className="absolute inset-0">
@@ -831,6 +851,7 @@ export function GlobalCanvas() {
         onZoomIn={() => zoomButton(1.2)}
         onZoomOut={() => zoomButton(1 / 1.2)}
         onResetView={resetView}
+        onShare={handleShare}
       />
     </div>
   );

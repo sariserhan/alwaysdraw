@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
@@ -236,6 +236,23 @@ function ResetIcon() {
   );
 }
 
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 15V4M12 4 8 8M12 4l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const CATEGORIES: Array<"Basic" | "Artistic" | "Effects"> = ["Basic", "Artistic", "Effects"];
 
 function BrushPicker({
@@ -369,6 +386,7 @@ export function DrawingToolbar({
   onZoomIn,
   onZoomOut,
   onResetView,
+  onShare,
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
@@ -386,11 +404,14 @@ export function DrawingToolbar({
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
+  onShare: () => Promise<void>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
   const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 
@@ -635,6 +656,24 @@ export function DrawingToolbar({
             className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
           >
             <ResetIcon />
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await onShare();
+                setCopied(true);
+                if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+                copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+              } catch {
+                // clipboard write failed (permissions/unsupported) — no feedback, button stays idle
+              }
+            }}
+            aria-label={copied ? "link copied" : "copy shareable link"}
+            title={copied ? "Copied!" : "Copy shareable link"}
+            className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
+          >
+            {copied ? <CheckIcon /> : <ShareIcon />}
           </button>
         </div>
         </>

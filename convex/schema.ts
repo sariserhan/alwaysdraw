@@ -49,4 +49,12 @@ export default defineSchema({
   })
     .index("by_clientId", ["clientId"])
     .index("by_lastSeenAt", ["lastSeenAt"]),
+
+  // Singleton, recomputed on a cron (see crons.ts) so the public onlineCount
+  // query is an O(1) single-doc read instead of collecting every presence
+  // row within the online window on every call from every subscriber.
+  presenceStats: defineTable({
+    onlineCount: v.number(),
+    computedAt: v.number(),
+  }),
 });

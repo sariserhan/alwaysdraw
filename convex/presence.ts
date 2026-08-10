@@ -92,20 +92,16 @@ export const list = query({
   },
 });
 
+// O(1) read of the cron-maintained counter (see recomputeOnlineCount below)
+// instead of collecting every online-window row on every call from every
+// subscriber — that pattern re-ran and re-pushed to all subscribers on
+// literally every heartbeat, an O(clients^2) reactivity cost as usage grows.
 export const onlineCount = query({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    // ponytail: .collect() here is bounded by concurrent online clients (30s
-    // window, stale rows swept every 1min by crons.ts), not by table growth.
-    // No .count() exists on the query builder; revisit with a counter doc if
-    // concurrent users ever gets large enough for this to matter.
-    const cutoff = Date.now() - PRESENCE_ONLINE_WINDOW_MS;
-    const rows = await ctx.db
-      .query("presence")
-      .withIndex("by_lastSeenAt", (q) => q.gte("lastSeenAt", cutoff))
-      .collect();
-    return rows.length;
+    const stats = await ctx.db.query("presenceStats").first();
+    return stats?.onlineCount ?? 0;
   },
 });
 
@@ -121,6 +117,27 @@ export const clearStale = internalMutation({
       .take(1000); // ponytail: bounded per-run batch; 1min cron cadence keeps backlog small
     for (const row of stale) {
       await ctx.db.delete(row._id);
+    }
+    return null;
+  },
+});
+
+// Called by crons.ts every 15s; the one place that still pays the O(n)
+// row-collect cost, so the public onlineCount query doesn't have to.
+export const recomputeOnlineCount = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const cutoff = Date.now() - PRESENCE_ONLINE_WINDOW_MS;
+    const rows = await ctx.db
+      .query("presence")
+      .withIndex("by_lastSeenAt", (q) => q.gte("lastSeenAt", cutoff))
+      .collect();
+    const stats = await ctx.db.query("presenceStats").first();
+    if (stats === null) {
+      await ctx.db.insert("presenceStats", { onlineCount: rows.length, computedAt: Date.now() });
+    } else {
+      await ctx.db.patch(stats._id, { onlineCount: rows.length, computedAt: Date.now() });
     }
     return null;
   },
