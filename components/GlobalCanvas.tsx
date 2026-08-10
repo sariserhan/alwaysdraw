@@ -161,7 +161,6 @@ export function GlobalCanvas() {
   const initialCamera =
     parseCameraFromSearch(window.location.search) ?? defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
   const cameraRef = useRef<Camera>(initialCamera);
-  const [cameraState, setCameraState] = useState<Camera>(initialCamera);
   const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportRef = useRef({ width: 0, height: 0 });
 
@@ -233,7 +232,6 @@ export function GlobalCanvas() {
   }, []);
 
   const handleStartImagePlacement = useCallback((file: File, url: string, aspectRatio: number) => {
-    setCameraState({ ...cameraRef.current });
     const initialWidth = 400;
     const initialHeight = Math.round(initialWidth / aspectRatio);
     setImagePlacement({
@@ -934,7 +932,7 @@ export function GlobalCanvas() {
           targetW = maxDim;
         } else {
           targetW = Math.round((targetW / targetH) * maxDim);
-          targetW = maxDim;
+          targetH = maxDim;
         }
       }
 
@@ -1015,6 +1013,11 @@ export function GlobalCanvas() {
 
       await Promise.all(batchTasks);
       setImagePlacement(null);
+      scheduleRedraw({ world: true, strokes: true });
+    } catch (err) {
+      console.error("image stamp failed", err);
+      captureOperationalError(err, "admin_image_stamp");
+      setSubmitError("image stamp failed partway — try a smaller or simpler image");
       scheduleRedraw({ world: true, strokes: true });
     } finally {
       setIsStampingImage(false);
@@ -1655,7 +1658,7 @@ export function GlobalCanvas() {
         {imagePlacement && (
           <AdminImageOverlay
             placement={imagePlacement}
-            camera={cameraState}
+            camera={cameraSnapshot}
             viewportWidth={viewportSize.width}
             viewportHeight={viewportSize.height}
             onChangePlacement={setImagePlacement}
