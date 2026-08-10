@@ -19,6 +19,7 @@ import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
+import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
@@ -80,7 +81,10 @@ export function GlobalCanvas() {
   const committedRef = useRef<ServerStroke[]>([]);
   const appliedIdsRef = useRef<Set<string>>(new Set());
   const pendingRef = useRef<Map<string, LocalStroke>>(new Map());
+  const replayStartedAtRef = useRef<number | null>(null);
+  const firstMarkTrackedRef = useRef(false);
   const [replayDone, setReplayDone] = useState(false);
+  const [replayError, setReplayError] = useState(false);
 
   const [tool, setTool] = useState<Tool>("brush");
   const [brushType, setBrushType] = useState<BrushType>("brush");
@@ -371,26 +375,41 @@ export function GlobalCanvas() {
   // ---------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
+    replayStartedAtRef.current = performance.now();
     async function replay() {
       let after = 0;
       let total = 0;
-      while (!cancelled) {
-        const page = await convex.query(api.strokes.listSince, {
-          afterSequence: after,
-          limit: REPLAY_PAGE_SIZE,
-        });
-        if (page.length === 0) break;
-        for (const s of page) {
-          committedRef.current.push(s);
-          appliedIdsRef.current.add(s.clientStrokeId);
-          after = Math.max(after, s.sequence);
+      try {
+        while (!cancelled) {
+          const page = await convex.query(api.strokes.listSince, {
+            afterSequence: after,
+            limit: REPLAY_PAGE_SIZE,
+          });
+          if (page.length === 0) break;
+          for (const s of page) {
+            committedRef.current.push(s);
+            appliedIdsRef.current.add(s.clientStrokeId);
+            after = Math.max(after, s.sequence);
+          }
+          total += page.length;
+          if (page.length < REPLAY_PAGE_SIZE || total >= REPLAY_HARD_CAP) break;
         }
-        total += page.length;
-        if (page.length < REPLAY_PAGE_SIZE || total >= REPLAY_HARD_CAP) break;
-      }
-      if (!cancelled) {
-        setReplayDone(true);
-        scheduleRedraw();
+        if (!cancelled) {
+          setReplayDone(true);
+          captureEvent("wall_loaded", {
+            duration_ms: Math.round(
+              performance.now() - (replayStartedAtRef.current ?? performance.now()),
+            ),
+            stroke_chunks: total,
+            replay_capped: total >= REPLAY_HARD_CAP,
+          });
+          scheduleRedraw();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setReplayError(true);
+          captureOperationalError(error, "initial_replay", { stroke_chunks: total });
+        }
       }
     }
     replay();
@@ -438,14 +457,20 @@ export function GlobalCanvas() {
   // ---------------------------------------------------------------------
   const commitOwnChunk = useCallback(
     (chunk: LocalStroke) => {
+      if (!firstMarkTrackedRef.current) {
+        firstMarkTrackedRef.current = true;
+        captureEvent("first_mark", { mode: chunk.mode, brush: chunk.brushType });
+      }
       pendingRef.current.set(chunk.clientStrokeId, chunk);
       submitStroke(chunk).catch((err) => {
         console.error("stroke submit rejected", err);
+        captureOperationalError(err, "stroke_submit", { mode: chunk.mode });
         pendingRef.current.delete(chunk.clientStrokeId);
         setSubmitError("a mark didn't stick — try again");
+        scheduleRedraw({ strokes: true });
       });
     },
-    [submitStroke],
+    [scheduleRedraw, submitStroke],
   );
 
   useEffect(() => {
@@ -783,6 +808,12 @@ export function GlobalCanvas() {
     const qs = cameraToSearchString(cameraRef.current);
     const url = `${window.location.origin}${window.location.pathname}?${qs}`;
     await navigator.clipboard.writeText(url);
+    captureEvent("share_link_copied");
+  }, []);
+
+  const handleToolChange = useCallback((nextTool: Tool) => {
+    setTool(nextTool);
+    captureEvent("tool_selected", { tool: nextTool });
   }, []);
 
   return (
@@ -822,8 +853,8 @@ export function GlobalCanvas() {
       {!replayDone && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-chrome-bg/80">
           <span className="font-mono text-sm tracking-wide text-ink-dim">
-            loading the wall
-            <span className="animate-pulse text-accent-green">…</span>
+            {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
+            {!replayError && <span className="animate-pulse text-accent-green">…</span>}
           </span>
         </div>
       )}
@@ -853,7 +884,7 @@ export function GlobalCanvas() {
 
       <DrawingToolbar
         tool={tool}
-        onToolChange={setTool}
+        onToolChange={handleToolChange}
         brushType={brushType}
         onBrushTypeChange={setBrushType}
         shapeType={shapeType}
