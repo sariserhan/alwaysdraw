@@ -1988,6 +1988,11 @@ export function GlobalCanvas() {
               ["Grid", "🔳"],
               ["Username", "👤"],
               [showComments ? "Hide Comments" : "Show Comments", showComments ? "💬" : "🚫"],
+              ["Zoom Out", "➖"],
+              ["Zoom In", "➕"],
+              ["Reset View", "↺"],
+              [showHeatmap ? "Hide Heatmap" : "Heatmap", "🔥"],
+              ["Share Link", "🔗"],
             ].map(([label, icon]) => (
               <button
                 key={label}
