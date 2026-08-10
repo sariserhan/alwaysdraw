@@ -1,23 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- Outer Rusted Steel Frame -->
-  <rect width="64" height="64" rx="14" fill="#17181a" stroke="#b5502c" stroke-width="3"/>
-  <rect x="4" y="4" width="56" height="56" rx="11" fill="#202224" stroke="#3a3530" stroke-width="1.5"/>
-
-  <!-- Corner Chrome Rivets -->
-  <circle cx="9" cy="9" r="2.5" fill="#e0432b"/>
-  <circle cx="55" cy="9" r="2.5" fill="#e0b13a"/>
-  <circle cx="9" cy="55" r="2.5" fill="#e0b13a"/>
-  <circle cx="55" cy="55" r="2.5" fill="#e0432b"/>
-
-  <!-- Spray Paint Can Body & Nozzle -->
-  <path d="M 24 26 L 40 26 L 40 48 C 40 50 38 52 36 52 L 28 52 C 26 52 24 50 24 48 Z" fill="#b5502c" stroke="#f5f1e6" stroke-width="1.5"/>
-  <rect x="27" y="20" width="10" height="6" rx="1.5" fill="#e0b13a"/>
-  <rect x="29" y="16" width="6" height="4" rx="1" fill="#f5f1e6"/>
-
-  <!-- Spray Burst Splatter & Arc -->
-  <path d="M 32 14 C 24 8 16 10 12 14" stroke="#e0432b" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-  <path d="M 32 14 C 40 8 48 10 52 14" stroke="#e0b13a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-  <circle cx="16" cy="18" r="2" fill="#e0432b"/>
-  <circle cx="48" cy="18" r="2" fill="#e0b13a"/>
-  <circle cx="32" cy="8" r="2.5" fill="#f5f1e6"/>
+  <rect width="64" height="64" rx="12" fill="#121315" stroke="#34383e" stroke-width="2"/>
+  <!-- Steel Plate Detail -->
+  <rect x="8" y="8" width="48" height="48" rx="6" fill="#1b1d21" stroke="#26292e" stroke-width="1.5"/>
+  <!-- Rivets -->
+  <circle cx="12" cy="12" r="2" fill="#e0432b"/>
+  <circle cx="52" cy="12" r="2" fill="#4a4f56"/>
+  <circle cx="12" cy="52" r="2" fill="#4a4f56"/>
+  <circle cx="52" cy="52" r="2" fill="#e0432b"/>
+  <!-- Stencil 'A' Spray Graphic -->
+  <path d="M 32 16 L 20 44 L 26 44 L 29 36 L 35 36 L 38 44 L 44 44 Z M 32 23 L 33.8 31 L 30.2 31 Z" fill="#f5f1e6"/>
+  <path d="M 18 42 C 22 46 42 46 46 42" stroke="#e0432b" stroke-width="3" stroke-linecap="round" fill="none"/>
 </svg>
