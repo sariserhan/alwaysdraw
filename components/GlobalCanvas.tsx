@@ -38,6 +38,7 @@ import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
+import { convertTextToPoints, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
@@ -208,6 +209,10 @@ export function GlobalCanvas() {
   });
   const [imagePlacement, setImagePlacement] = useState<AdminImagePlacement | null>(null);
   const [isStampingImage, setIsStampingImage] = useState(false);
+  const [textInputPos, setTextInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
+  const [textInputText, setTextInputText] = useState("");
+  const [textStyle, setTextStyle] = useState<FontStyle>("sans");
+  const [textSize, setTextSize] = useState<number>(32);
 
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
   const rollbackClient = useMutation(api.admin.rollbackClient);
@@ -238,6 +243,34 @@ export function GlobalCanvas() {
       sessionStorage.removeItem("alwaysdraw_admin_passcode");
     }
   }, []);
+
+  const handleCommitText = useCallback(() => {
+    if (!textInputPos || !textInputText.trim()) {
+      setTextInputPos(null);
+      setTextInputText("");
+      return;
+    }
+
+    const pts = convertTextToPoints(textInputText, textInputPos.world, textSize, textStyle);
+    if (pts.length >= 2) {
+      const buffer = new StrokeBuffer(
+        clientId,
+        "draw",
+        "brush",
+        color,
+        brushWidth,
+        opacity,
+        username,
+        countryCode,
+        commitOwnChunk,
+      );
+      for (const p of pts) buffer.addPoint(p);
+      buffer.flush();
+      scheduleRedraw({ strokes: true });
+    }
+    setTextInputPos(null);
+    setTextInputText("");
+  }, [textInputPos, textInputText, textSize, textStyle, clientId, color, brushWidth, opacity, username, countryCode, commitOwnChunk, scheduleRedraw]);
 
   const handleStartImagePlacement = useCallback((file: File, url: string, aspectRatio: number) => {
     const initialWidth = 400;
@@ -1315,6 +1348,12 @@ export function GlobalCanvas() {
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
 
+      if (tool === "text") {
+        const screenPt = getScreenPoint(e.clientX, e.clientY);
+        setTextInputPos({ world: worldPt, screen: screenPt });
+        return;
+      }
+
       if (tool === "shape") {
         shapeDragRef.current = { start: worldPt, current: worldPt };
         return;
@@ -2069,6 +2108,82 @@ export function GlobalCanvas() {
           onPurgeAllStampedImages={handlePurgeAllStampedImages}
         />
       </nav>
+
+      {textInputPos && (
+        <div
+          className="fixed z-50 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] flex flex-col gap-2.5"
+          style={{
+            left: Math.min(Math.max(10, textInputPos.screen.x), (viewportSize.width || 800) - 330),
+            top: Math.min(Math.max(10, textInputPos.screen.y), (viewportSize.height || 600) - 220),
+          }}
+        >
+          <div className="flex items-center justify-between border-b border-chrome-border/60 pb-1.5 font-mono text-xs font-bold uppercase text-accent-yellow">
+            <span>✍️ Insert Vector Text</span>
+            <button
+              type="button"
+              onClick={() => setTextInputPos(null)}
+              className="text-ink-dim hover:text-ink text-sm font-bold"
+            >
+              ✕
+            </button>
+          </div>
+
+          <input
+            type="text"
+            autoFocus
+            value={textInputText}
+            onChange={(e) => setTextInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCommitText();
+              if (e.key === "Escape") setTextInputPos(null);
+            }}
+            placeholder="Type text to draw on canvas..."
+            className="w-full rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1.5 font-mono text-xs text-ink focus:border-rust focus:outline-none"
+          />
+
+          <div className="flex items-center justify-between gap-2 font-mono text-[10px]">
+            <select
+              value={textStyle}
+              onChange={(e) => setTextStyle(e.target.value as FontStyle)}
+              className="flex-1 rounded-sm border border-chrome-border bg-chrome-bg-raised px-2 py-1 text-ink focus:outline-none"
+            >
+              {FONT_STYLES.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={textSize}
+              onChange={(e) => setTextSize(Number(e.target.value))}
+              className="w-20 rounded-sm border border-chrome-border bg-chrome-bg-raised px-2 py-1 text-ink focus:outline-none"
+            >
+              <option value={20}>20px</option>
+              <option value={32}>32px</option>
+              <option value={48}>48px</option>
+              <option value={64}>64px</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setTextInputPos(null)}
+              className="rounded-sm border border-chrome-border px-3 py-1 font-mono text-xs font-bold text-ink-dim hover:bg-chrome-bg hover:text-ink"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleCommitText}
+              className="rounded-sm border border-accent-crimson-deep bg-accent-crimson-deep px-3 py-1 font-mono text-xs font-bold text-on-accent hover:brightness-110 shadow-md"
+            >
+              Place Text
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

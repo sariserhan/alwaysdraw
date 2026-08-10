@@ -169,6 +169,14 @@ function DropletIcon() {
   );
 }
 
+function TextIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 7V4h16v3M12 4v16m-3 0h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function EyedropperIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -386,6 +394,12 @@ function ShapeIcon({ type }: { type: ShapeType }) {
           <path d="M4 20 20 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
         </svg>
       );
+    case "arrow":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     case "rect":
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -402,6 +416,24 @@ function ShapeIcon({ type }: { type: ShapeType }) {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path d="M12 4 20 19 4 19Z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <polygon points="12,2 15,8 22,9 17,14 18,21 12,17 6,21 7,14 2,9 9,8" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      );
+    case "hexagon":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      );
+    case "heart":
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
   }
@@ -703,6 +735,17 @@ export function DrawingToolbar({
               onClose={() => setShapePickerOpen(false)}
             />
           )}
+          <button
+            type="button"
+            onClick={() => onToolChange("text")}
+            aria-pressed={tool === "text"}
+            title="Text Tool (T)"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "text" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <TextIcon />
+          </button>
           <button
             type="button"
             onClick={() => {

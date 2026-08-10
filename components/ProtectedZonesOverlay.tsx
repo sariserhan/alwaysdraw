@@ -56,7 +56,11 @@ export function ProtectedZonesOverlay({
             }}
           >
             {/* Header Shield Badge */}
-            <div className="pointer-events-auto absolute -top-4 left-3 flex items-center gap-1.5 rounded-sm border border-rust bg-chrome-bg/95 px-2 py-0.5 font-mono text-[10px] font-bold text-accent-yellow shadow-md backdrop-blur-md">
+            <div
+              className={`pointer-events-auto absolute left-3 flex items-center gap-1.5 rounded-sm border border-rust bg-chrome-bg/95 px-2 py-0.5 font-mono text-[10px] font-bold text-accent-yellow shadow-md backdrop-blur-md transition-all ${
+                topLeft.y < 24 ? "top-1" : "-top-4"
+              }`}
+            >
               <span>🛡️</span>
               <span className="uppercase tracking-wider">{zone.name}</span>
               <span className="text-[9px] text-ink-dim">

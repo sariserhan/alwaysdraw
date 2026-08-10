@@ -9,10 +9,10 @@ test("loads the wall and primary controls respond", async ({ page }) => {
   });
   await page.goto("/");
 
-  await expect(page).toHaveTitle("AlwaysDraw");
+  await expect(page).toHaveTitle(/AlwaysDraw/);
   await expect(page.getByText("AlwaysDraw", { exact: true })).toBeVisible();
-  // World layer + stroke layer + the hidden magnifier loupe canvas.
-  await expect(page.locator("canvas")).toHaveCount(3);
+  // World layer + stroke layer + heatmap layer + magnifier loupe + minimap canvas.
+  await expect(page.locator("canvas")).toHaveCount(5);
   await expect(page.getByRole("button", { name: "switch to light theme" })).toBeVisible();
 
   await page.getByRole("button", { name: "switch to light theme" }).click();

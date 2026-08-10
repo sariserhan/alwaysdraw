@@ -17,6 +17,7 @@ export const HOTKEY_MAP: HotkeyAction[] = [
   { key: "T", label: "Stencil Tool", description: "Spray industrial stencils (Biohazard, Crown, Skull)", tool: "stencil" },
   { key: "R", label: "Ruler Tool", description: "Measure distance between canvas points", tool: "ruler" },
   { key: "L", label: "Laser Pointer", description: "Temporary glowing laser trail fading after 2s", tool: "laser" },
+  { key: "X", label: "Text Tool", description: "Type vector text onto the canvas", tool: "text" },
   { key: "I", label: "Eyedropper", description: "Sample color from any mark on the wall", tool: "eyedropper" },
   { key: "G", label: "Toggle Grid", description: "Toggle architectural grid overlay", action: "toggleHeatmap" },
   { key: "P", label: "FPS Profiler HUD", description: "Toggle real-time 60 FPS & VRAM memory profiler HUD", action: "toggleHeatmap" },
