@@ -34,10 +34,6 @@
 ## 🪄 3. Special Creative Tools
 
 - **Flood Fill Bucket (`F`):** Tap any area to generate dense spiral fill strokes in your active color.
-- **Symmetry & Mandala Kaleidoscope Engine (`🔮`):**
-  - **2-Way Horizontal Mirror:** Axis reflection across canvas center.
-  - **4-Way Quadrant Symmetry:** Quadrant reflection.
-  - **8-Way Mandala Radial Symmetry:** 8-fold rotational kaleidoscope symmetry for mandalas and logos.
 - **Sticker & Emoji Stamp Library:** Stamp retro sprites, badges, emojis, skulls, fire, rockets, and stars directly onto the canvas wall.
 - **Architectural Ruler (`R`):** Measure distance (in canvas world units) between any two points with dynamic screen-space guides.
 - **Industrial Stencil Sprayer (`T`):** Spray industrial stencil art (Biohazard, Crown, Skull) onto the canvas.
@@ -109,14 +105,6 @@
 - **Normalized Glyph Maps:** Contains normalized stroke polyline paths ($[0..1] \times [0..1]$) for every letter in the alphabet, numbers, and symbols (`GLYPHS`).
 - **Path Generation (`convertTextToStrokePaths`):** Translates input text string into world-coordinate vector paths (`Point[][]`), scaling by selected font size (`textSize`) and adding letter/line spacing.
 - **Zero Zig-Zag Webbing:** Each letter path is flushed as separate continuous stroke lines via `StrokeBuffer`, preventing cross-line artifacts and producing sharp, crisp vector text across all clients.
-
-### 9.4 Symmetry & Kaleidoscope Engine (`lib/symmetry.ts`)
-- **Trigonometric Reflection (`calculateSymmetricPoints`):**
-  - **Mirror 2-Way:** Calculates horizontal axis mirror point $X_{mirror} = 2 \cdot C_x - X$.
-  - **Mirror 4-Way:** Calculates 4-quadrant reflection points across $(C_x, C_y)$.
-  - **Mandala 8-Way:** Calculates 8 rotational points at $45^\circ$ angle increments around origin $(C_x, C_y)$ using polar coordinates:  
-    $$X_i = C_x + r \cdot \cos(\theta_0 + i \cdot \frac{\pi}{4}), \quad Y_i = C_y + r \cdot \sin(\theta_0 + i \cdot \frac{\pi}{4})$$
-- **Multi-Buffer Dispatch:** Symmetrical points are pushed to parallel `StrokeBuffer` instances, committing synchronized strokes in real time.
 
 ### 9.5 Flood Fill Engine (`lib/floodFill.ts`)
 - **Spiral Fill Generator:** `generateFloodFillPoints` calculates an expanding spiral path originating from target click coordinates $(X_0, Y_0)$ with radial step spacing.

@@ -13,7 +13,7 @@ A single public 20,000×20,000 drawing canvas shared in real time by everyone on
 - **Real-Time Multiplayer Sync:** Reactive real-time stroke synchronization powered by Convex backend.
 - **12 Brush Textures & Custom Colors:** Basic (Brush, Pencil, Marker, Highlighter, Calligraphy, Pixel), Artistic (Watercolor, Oil Paint, Chalk, Charcoal), and Effects (Glitter, Neon Glow) with eyedropper color sampling.
 - **Vector Text & Expanded Shapes:** Type vector text in 5 typography styles (Sans, Mono, Pixel, Serif, Script) and draw 8 shape types (Line, Arrow, Rectangle, Circle, Triangle, Star, Hexagon, Heart).
-- **Special Creative Tools:** Flood Fill Bucket, 2-Way / 4-Way / 8-Way Mandala Symmetry, Sticker Catalog, Architectural Ruler, Industrial Stencils, and Laser Pointer.
+- **Special Creative Tools:** Flood Fill Bucket, Sticker Catalog, Architectural Ruler, Industrial Stencils, and Laser Pointer.
 - **Navigation & Exploration:** Smooth focal-point pan & zoom, MiniMap viewport tracker, Activity Heatmap overlay, and Viewport Bookmarks with URL deep-linking.
 - **Collaboration & Sticky Notes:** Live remote cursors, country flag indicators, and interactive Sticky Note comment pins.
 - **Time-Travel Replay:** Replay wall history stroke-by-stroke with speed controls (1x, 2x, 5x, 10x).
@@ -54,7 +54,7 @@ app/
 
 components/
   GlobalCanvas.tsx       Main canvas coordinator (camera, pointer input, tool modes, redraw loop)
-  DrawingToolbar.tsx      Toolbar controls (brushes, shapes, text, fill, stickers, symmetry, color, opacity, zoom)
+  DrawingToolbar.tsx      Toolbar controls (brushes, shapes, text, fill, stickers, color, opacity, zoom)
   ProtectedZonesOverlay.tsx Visual shield overlay for admin-protected canvas areas
   CommentsOverlay.tsx    Interactive sticky note comments overlay
   MiniMap.tsx            MiniMap navigation widget & viewport tracker
@@ -69,7 +69,6 @@ lib/
   brushes.ts             12 brush renderers & catalog
   shapes.ts              8 vector shape generators
   textToPoints.ts        Vector font stroke renderer
-  symmetry.ts            2-way, 4-way, and 8-way mandala point calculators
   floodFill.ts           Spiral fill point generator
   stickers.ts            Sticker & emoji catalog
   strokeBuffer.ts        Stroke chunk batching & buffer management
