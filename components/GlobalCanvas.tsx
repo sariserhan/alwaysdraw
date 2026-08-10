@@ -53,7 +53,6 @@ import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
-import { SoundToggle } from "./SoundToggle";
 import { HighlightsModal } from "./HighlightsModal";
 import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
@@ -61,7 +60,6 @@ import { GridToggle } from "./GridToggle";
 import { SpatialCompass } from "./SpatialCompass";
 import { FpsHud } from "./FpsHud";
 import { RateLimitToast } from "./RateLimitToast";
-import { playBrushSound } from "@/lib/audio";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
 import { fpsTracker } from "@/lib/fpsTracker";
 import { calculateShapeMetrics } from "@/lib/shapeMetrics";
@@ -827,7 +825,6 @@ export function GlobalCanvas() {
       }
     }
     buffer.addPoint(worldPoint);
-    playBrushSound(buffer.brushType, buffer.mode === "erase");
     lastDrawWorldRef.current = worldPoint;
   }, []);
 
@@ -1024,7 +1021,6 @@ export function GlobalCanvas() {
             scheduleRedraw({ world: true, strokes: true });
           });
         }
-        playBrushSound("marker");
         scheduleRedraw({ world: true, strokes: true });
         return;
       }
@@ -1037,7 +1033,6 @@ export function GlobalCanvas() {
           color: color || "#39c07a",
           points: [{ ...worldPt, timestamp: Date.now() }],
         });
-        playBrushSound("neonGlow");
         scheduleRedraw({ strokes: true });
         return;
       }
@@ -1127,7 +1122,6 @@ export function GlobalCanvas() {
           const trail = laserTrailsRef.current.find((t) => t.id === activeLaserTrailIdRef.current);
           if (trail) {
             trail.points.push({ ...worldPt, timestamp: Date.now() });
-            playBrushSound("neonGlow");
             scheduleRedraw({ strokes: true });
           }
         }
@@ -1386,7 +1380,6 @@ export function GlobalCanvas() {
           {/* Preferences: how the app looks/sounds to you */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <SoundToggle />
             <GridToggle config={gridConfig} onChange={setGridConfig} />
           </div>
 
@@ -1502,9 +1495,6 @@ export function GlobalCanvas() {
 
             <MobileGroupLabel>Preferences</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <SoundToggle />
-              </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <GridToggle config={gridConfig} onChange={setGridConfig} />
               </div>
