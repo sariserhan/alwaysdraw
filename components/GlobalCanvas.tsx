@@ -103,6 +103,8 @@ export function GlobalCanvas() {
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const shapePreviewRef = useRef<LocalStroke | null>(null);
+  const isStencilDraggingRef = useRef(false);
+  const lastStencilWorldRef = useRef<Point | null>(null);
   const laserTrailsRef = useRef<LaserTrail[]>([]);
   const activeLaserTrailIdRef = useRef<string | null>(null);
   const rulerDragRef = useRef<{
@@ -283,8 +285,29 @@ export function GlobalCanvas() {
       if (laserTrailsRef.current.length > 0) {
         drawLaserTrails(ctx, cameraRef.current, width, height, laserTrailsRef.current);
       }
+      if (tool === "stencil" && lastCursorWorldRef.current) {
+        const stencilSize = Math.max(40, brushWidth * 6);
+        const subPaths = buildStencilPoints(selectedStencil, lastCursorWorldRef.current.x, lastCursorWorldRef.current.y, stencilSize);
+        ctx.save();
+        ctx.strokeStyle = color || "#ffcc00";
+        ctx.lineWidth = Math.max(2, Math.round(brushWidth / 3)) * cameraRef.current.zoom;
+        ctx.setLineDash([4, 4]);
+        ctx.globalAlpha = 0.8;
+        for (const pts of subPaths) {
+          if (pts.length < 2) continue;
+          const first = worldToScreen(pts[0].x, pts[0].y, cameraRef.current, width, height);
+          ctx.beginPath();
+          ctx.moveTo(first.x, first.y);
+          for (let i = 1; i < pts.length; i++) {
+            const p = worldToScreen(pts[i].x, pts[i].y, cameraRef.current, width, height);
+            ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount]);
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color]);
 
   // Replay animation loop
   useEffect(() => {
@@ -976,7 +999,7 @@ export function GlobalCanvas() {
       if (tool === "magnifier") return;
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
-      lastCursorWorldRef.current = worldPt;
+      Object.assign(lastCursorWorldRef.current, worldPt);
 
       if (tool === "shape") {
         shapeDragRef.current = { start: worldPt, current: worldPt };
@@ -984,11 +1007,10 @@ export function GlobalCanvas() {
       }
 
       if (tool === "stencil") {
-        // A stencil may be made of several disjoint sub-shapes (e.g.
-        // biohazard's 3 circles); each sub-path is submitted as its own
-        // stroke so the renderer's single-polyline-per-stroke drawing
-        // doesn't chain a straight connector line between them.
-        const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, brushWidth * 6);
+        isStencilDraggingRef.current = true;
+        lastStencilWorldRef.current = worldPt;
+        const stencilSize = Math.max(40, brushWidth * 6);
+        const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, stencilSize);
         for (const points of subPaths) {
           const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
           const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -1115,7 +1137,7 @@ export function GlobalCanvas() {
       if (tool === "magnifier") return;
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
-      lastCursorWorldRef.current = worldPt;
+      Object.assign(lastCursorWorldRef.current, worldPt);
 
       if (tool === "laser") {
         if (activeLaserTrailIdRef.current) {
@@ -1173,6 +1195,12 @@ export function GlobalCanvas() {
 
       if (tool === "laser") {
         activeLaserTrailIdRef.current = null;
+      }
+
+      if (tool === "stencil") {
+        isStencilDraggingRef.current = false;
+        lastStencilWorldRef.current = null;
+        return;
       }
 
       if (tool === "shape") {
