@@ -6,6 +6,9 @@ export const WORLD_HEIGHT = 10_000;
 export const MIN_BRUSH_WIDTH = 1;
 export const MAX_BRUSH_WIDTH = 100;
 
+export const MIN_OPACITY = 0.05;
+export const MAX_OPACITY = 1;
+
 export const MIN_POINTS_PER_STROKE = 1;
 export const MAX_POINTS_PER_STROKE = 100;
 
@@ -19,3 +22,20 @@ export const MAX_PRESENCE_LIST = 50;
 // #rgb or #rrggbb, or rgb()/rgba() with numeric components.
 export const COLOR_PATTERN =
   /^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\))$/;
+
+// Draw-mode brush styles. "erase" strokes (mode: "erase") don't carry a
+// brushType — Clear/Eraser isn't a texture, it's the destination-out op.
+export const BRUSH_TYPES = [
+  "brush",
+  "pencil",
+  "marker",
+  "highlighter",
+  "calligraphy",
+  "pixel",
+  "watercolor",
+  "oilPaint",
+  "chalk",
+  "charcoal",
+  "glitter",
+  "neonGlow",
+] as const;

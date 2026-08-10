@@ -160,10 +160,12 @@
     ],
     "dos": [
       "Do keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.",
-      "Do apply the stencil-cut mask only to the wordmark and to live numeric measurements — never to body prose or static labels.",
+      "Do apply the stencil-cut mask only to bold Space Grotesk words (the wordmark, short labels) — never to numerals or anything set in Space Mono, which broke visibly under the mask in testing.",
       "Do give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it.",
       "Do reserve fully circular shapes for hardware/indicators; keep panels and buttons rectilinear at the 2px radius.",
-      "Do author any new texture as explicit, deterministic vector geometry — never a repeating/random noise pattern."
+      "Do author any new texture as explicit, deterministic vector geometry — never a repeating/random noise pattern.",
+      "Do give any 'pick anything' control a persistent, color-independent affordance (the custom color picker's rainbow ring) so it's never mistaken for a preset swatch.",
+      "Do let the camera go wherever the user pans/zooms it at any zoom level — a prior zoomed-out auto-center behavior was removed once the Pan tool shipped."
     ],
     "donts": [
       "Don't introduce rounded-lg/rounded-xl soft cards, pill-shaped panels, or ambient glassy blur — that's the whiteboard-SaaS world this system was explicitly built against.",

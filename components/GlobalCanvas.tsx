@@ -10,14 +10,14 @@ import {
   panBy,
   zoomAt,
   clampZoom,
-  clampCameraToViewport,
   distance,
 } from "@/lib/camera";
 import { screenToWorld, clampToWorld } from "@/lib/coordinates";
-import { clearCanvas, drawWorldBackground, drawStroke, drawSegment } from "@/lib/drawing";
+import { clearCanvas, drawWorldBackground, drawStroke } from "@/lib/drawing";
+import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
-import type { LocalStroke, ServerStroke, Point, Tool } from "@/lib/types";
+import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
@@ -52,8 +52,10 @@ export function GlobalCanvas() {
   const [replayDone, setReplayDone] = useState(false);
 
   const [tool, setTool] = useState<Tool>("brush");
+  const [brushType, setBrushType] = useState<BrushType>("brush");
   const [color, setColor] = useState("#17181a");
   const [brushWidth, setBrushWidth] = useState(8);
+  const [opacity, setOpacity] = useState(1);
   const [zoomPercent, setZoomPercent] = useState(100);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Snapshots of ref-held values, synced (in effects/callbacks, never during
@@ -82,18 +84,31 @@ export function GlobalCanvas() {
     drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
   }, []);
 
+  const paintOneStroke = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, s: LocalStroke) => {
+    if (s.mode === "erase") {
+      drawStroke(ctx, cameraRef.current, width, height, s.points, "erase", s.color, s.width);
+      return;
+    }
+    renderBrushStroke(s.brushType, {
+      ctx,
+      camera: cameraRef.current,
+      viewportWidth: width,
+      viewportHeight: height,
+      points: s.points,
+      color: s.color,
+      width: s.width,
+      opacity: s.opacity ?? 1,
+    });
+  }, []);
+
   const redrawStrokes = useCallback(() => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
-    for (const s of committedRef.current) {
-      drawStroke(ctx, cameraRef.current, width, height, s.points, s.mode, s.color, s.width);
-    }
-    for (const s of pendingRef.current.values()) {
-      drawStroke(ctx, cameraRef.current, width, height, s.points, s.mode, s.color, s.width);
-    }
-  }, []);
+    for (const s of committedRef.current) paintOneStroke(ctx, width, height, s);
+    for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
+  }, [paintOneStroke]);
 
   const rafRef = useRef<number | null>(null);
   const dirtyRef = useRef({ world: true, strokes: true });
@@ -104,13 +119,6 @@ export function GlobalCanvas() {
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null;
-        cameraRef.current = clampCameraToViewport(
-          cameraRef.current,
-          WORLD_WIDTH,
-          WORLD_HEIGHT,
-          viewportRef.current.width,
-          viewportRef.current.height,
-        );
         if (dirtyRef.current.world) {
           redrawWorld();
           dirtyRef.current.world = false;
@@ -159,13 +167,6 @@ export function GlobalCanvas() {
         worldCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         worldCtxRef.current = worldCtx;
       }
-      cameraRef.current = clampCameraToViewport(
-        cameraRef.current,
-        WORLD_WIDTH,
-        WORLD_HEIGHT,
-        viewportRef.current.width,
-        viewportRef.current.height,
-      );
       redrawWorld();
       redrawStrokes();
     };
@@ -290,18 +291,20 @@ export function GlobalCanvas() {
       const buffer = new StrokeBuffer(
         clientId,
         tool === "eraser" ? "erase" : "draw",
+        tool === "eraser" ? undefined : brushType,
         color,
         brushWidth,
+        opacity,
         commitOwnChunk,
       );
       buffer.addPoint(worldPoint);
       drawBufferRef.current = buffer;
       lastDrawWorldRef.current = worldPoint;
     },
-    [commitOwnChunk, clientId, tool, color, brushWidth],
+    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity],
   );
 
-  // Segment color/width/mode come from the active buffer (locked in at
+  // Segment color/width/brush/mode come from the active buffer (locked in at
   // pointer-down), not live state, so an in-progress stroke stays consistent
   // even if the user changes tool settings mid-drag.
   const continueDraw = useCallback((worldPoint: Point) => {
@@ -311,17 +314,20 @@ export function GlobalCanvas() {
     const prev = lastDrawWorldRef.current;
     if (ctx && prev) {
       const { width, height } = viewportRef.current;
-      drawSegment(
-        ctx,
-        cameraRef.current,
-        width,
-        height,
-        prev,
-        worldPoint,
-        buffer.mode,
-        buffer.color,
-        buffer.width,
-      );
+      if (buffer.mode === "erase") {
+        drawStroke(ctx, cameraRef.current, width, height, [prev, worldPoint], "erase", buffer.color, buffer.width);
+      } else {
+        renderBrushStroke(buffer.brushType, {
+          ctx,
+          camera: cameraRef.current,
+          viewportWidth: width,
+          viewportHeight: height,
+          points: [prev, worldPoint],
+          color: buffer.color,
+          width: buffer.width,
+          opacity: buffer.opacity,
+        });
+      }
     }
     buffer.addPoint(worldPoint);
     lastDrawWorldRef.current = worldPoint;
@@ -341,6 +347,9 @@ export function GlobalCanvas() {
   const isSpaceDownRef = useRef(false);
   const lastPanScreenRef = useRef<Point | null>(null);
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
+  // Explicit Zoom tool: drag up/down from the press point zooms in/out,
+  // anchored at that point — a touch-friendly alternative to pinch/wheel.
+  const zoomDragRef = useRef<{ startScreen: Point; startZoom: number } | null>(null);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -386,6 +395,7 @@ export function GlobalCanvas() {
 
       if (e.pointerType === "touch" && activePointersRef.current.size === 2) {
         endDraw();
+        zoomDragRef.current = null;
         isPanningRef.current = true;
         const pts = [...activePointersRef.current.values()];
         lastPanScreenRef.current = {
@@ -406,11 +416,22 @@ export function GlobalCanvas() {
 
       if (e.pointerType === "mouse" && e.button !== 0) return;
 
+      if (tool === "pan") {
+        isPanningRef.current = true;
+        lastPanScreenRef.current = screenPt;
+        return;
+      }
+
+      if (tool === "zoom") {
+        zoomDragRef.current = { startScreen: screenPt, startZoom: cameraRef.current.zoom };
+        return;
+      }
+
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       lastCursorWorldRef.current = worldPt;
       beginDraw(worldPt);
     },
-    [beginDraw, endDraw, getPointerWorld, getScreenPoint],
+    [beginDraw, endDraw, getPointerWorld, getScreenPoint, tool],
   );
 
   const handlePointerMove = useCallback(
@@ -454,6 +475,18 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (zoomDragRef.current) {
+        const { startScreen, startZoom } = zoomDragRef.current;
+        const deltaY = startScreen.y - screenPt.y; // drag up = zoom in
+        const targetZoom = clampZoom(startZoom * Math.pow(1.006, deltaY));
+        const factor = targetZoom / cameraRef.current.zoom;
+        const { width, height } = viewportRef.current;
+        cameraRef.current = zoomAt(cameraRef.current, factor, startScreen.x, startScreen.y, width, height);
+        scheduleRedraw({ world: true, strokes: true });
+        lastCursorWorldRef.current = getPointerWorld(e.clientX, e.clientY);
+        return;
+      }
+
       if (drawBufferRef.current) {
         const worldPt = getPointerWorld(e.clientX, e.clientY);
         lastCursorWorldRef.current = worldPt;
@@ -473,6 +506,7 @@ export function GlobalCanvas() {
         isPanningRef.current = false;
         lastPanScreenRef.current = null;
         pinchStartRef.current = null;
+        zoomDragRef.current = null;
         endDraw();
       } else if (activePointersRef.current.size === 1 && isPanningRef.current) {
         lastPanScreenRef.current = [...activePointersRef.current.values()][0];
@@ -502,7 +536,9 @@ export function GlobalCanvas() {
         <canvas ref={worldCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 h-full w-full touch-none cursor-crosshair"
+          className={`absolute inset-0 h-full w-full touch-none ${
+            tool === "pan" ? "cursor-grab active:cursor-grabbing" : tool === "zoom" ? "cursor-ns-resize" : "cursor-crosshair"
+          }`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -554,10 +590,14 @@ export function GlobalCanvas() {
       <DrawingToolbar
         tool={tool}
         onToolChange={setTool}
+        brushType={brushType}
+        onBrushTypeChange={setBrushType}
         color={color}
         onColorChange={setColor}
         width={brushWidth}
         onWidthChange={setBrushWidth}
+        opacity={opacity}
+        onOpacityChange={setOpacity}
         zoomPercent={zoomPercent}
         onZoomIn={() => zoomButton(1.2)}
         onZoomOut={() => zoomButton(1 / 1.2)}

@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  clampZoom,
-  defaultCamera,
-  zoomAt,
-  panBy,
-  distance,
-  clampCameraToViewport,
-  MIN_ZOOM,
-  MAX_ZOOM,
-  type Camera,
-} from "./camera";
+import { clampZoom, defaultCamera, zoomAt, panBy, distance, MIN_ZOOM, MAX_ZOOM, type Camera } from "./camera";
 
 describe("clampZoom", () => {
   it("passes through values already in range", () => {
@@ -94,28 +84,5 @@ describe("distance", () => {
   it("computes euclidean distance", () => {
     expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
     expect(distance({ x: 1, y: 1 }, { x: 1, y: 1 })).toBe(0);
-  });
-});
-
-describe("clampCameraToViewport", () => {
-  it("forces the camera to center when the world fits within the viewport", () => {
-    const camera: Camera = { x: 9999, y: -500, zoom: 0.1 };
-    const clamped = clampCameraToViewport(camera, 5000, 5000, 1000, 1000);
-    expect(clamped).toEqual({ x: 2500, y: 2500, zoom: 0.1 });
-  });
-
-  it("leaves the camera untouched when zoomed in past fit", () => {
-    const camera: Camera = { x: 1234, y: 4321, zoom: 2 };
-    const clamped = clampCameraToViewport(camera, 5000, 5000, 1000, 1000);
-    expect(clamped).toEqual(camera);
-  });
-
-  it("clamps each axis independently", () => {
-    // World fits horizontally (5000 * 0.15 = 750 <= 1000) but not vertically
-    // (5000 * 0.15 = 750 > 600).
-    const camera: Camera = { x: 9999, y: 9999, zoom: 0.15 };
-    const clamped = clampCameraToViewport(camera, 5000, 5000, 1000, 600);
-    expect(clamped.x).toBe(2500);
-    expect(clamped.y).toBe(9999);
   });
 });

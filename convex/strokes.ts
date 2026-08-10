@@ -5,14 +5,18 @@ import {
   WORLD_HEIGHT,
   MIN_BRUSH_WIDTH,
   MAX_BRUSH_WIDTH,
+  MIN_OPACITY,
+  MAX_OPACITY,
   MIN_POINTS_PER_STROKE,
   MAX_POINTS_PER_STROKE,
   DEFAULT_LIST_LIMIT,
   MAX_LIST_LIMIT,
   COLOR_PATTERN,
+  BRUSH_TYPES,
 } from "./constants";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
+const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
 
 const strokeReturnFields = v.object({
   _id: v.id("strokes"),
@@ -20,8 +24,10 @@ const strokeReturnFields = v.object({
   clientStrokeId: v.string(),
   clientId: v.string(),
   mode: v.union(v.literal("draw"), v.literal("erase")),
+  brushType: v.optional(brushTypeValidator),
   color: v.string(),
   width: v.number(),
+  opacity: v.optional(v.number()),
   points: v.array(pointValidator),
   clientTimestamp: v.number(),
   sequence: v.number(),
@@ -33,8 +39,10 @@ export const submit = mutation({
     clientStrokeId: v.string(),
     clientId: v.string(),
     mode: v.union(v.literal("draw"), v.literal("erase")),
+    brushType: v.optional(brushTypeValidator),
     color: v.string(),
     width: v.number(),
+    opacity: v.optional(v.number()),
     points: v.array(pointValidator),
     clientTimestamp: v.number(),
   },
@@ -71,6 +79,12 @@ export const submit = mutation({
     if (!COLOR_PATTERN.test(args.color)) {
       throw new Error("color must be a hex or rgb()/rgba() string");
     }
+    if (
+      args.opacity !== undefined &&
+      (!Number.isFinite(args.opacity) || args.opacity < MIN_OPACITY || args.opacity > MAX_OPACITY)
+    ) {
+      throw new Error(`opacity must be in [${MIN_OPACITY}, ${MAX_OPACITY}]`);
+    }
     // mode is already constrained to "draw" | "erase" by the args validator.
 
     // --- Idempotency: retry-safe on clientStrokeId ---
@@ -102,8 +116,10 @@ export const submit = mutation({
       clientStrokeId: args.clientStrokeId,
       clientId: args.clientId,
       mode: args.mode,
+      brushType: args.mode === "draw" ? (args.brushType ?? "brush") : undefined,
       color: args.color,
       width: args.width,
+      opacity: args.opacity ?? 1,
       points: args.points,
       clientTimestamp: args.clientTimestamp,
       sequence: nextSequence,

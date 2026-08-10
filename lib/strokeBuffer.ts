@@ -1,4 +1,4 @@
-import type { LocalStroke, Point, StrokeMode } from "./types";
+import type { BrushType, LocalStroke, Point, StrokeMode } from "./types";
 
 const FLUSH_INTERVAL_MS = 40;
 const MAX_POINTS_PER_CHUNK = 40;
@@ -23,8 +23,10 @@ export class StrokeBuffer {
   constructor(
     private readonly clientId: string,
     public readonly mode: StrokeMode,
+    public readonly brushType: BrushType | undefined,
     public readonly color: string,
     public readonly width: number,
+    public readonly opacity: number,
     private readonly onFlush: (chunk: LocalStroke) => void,
   ) {}
 
@@ -52,8 +54,10 @@ export class StrokeBuffer {
       clientStrokeId: generateChunkId(),
       clientId: this.clientId,
       mode: this.mode,
+      brushType: this.brushType,
       color: this.color,
       width: this.width,
+      opacity: this.opacity,
       points: this.points,
       clientTimestamp: Date.now(),
     };

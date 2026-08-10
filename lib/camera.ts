@@ -47,21 +47,3 @@ export function panBy(camera: Camera, dxScreen: number, dyScreen: number): Camer
 export function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
-
-/**
- * When the world (at the current zoom) fits entirely within the viewport on
- * an axis, force-center it on that axis instead of leaving it wherever a
- * prior pan left it. Zoomed-in axes are left untouched — only zooming out
- * past "the whole wall fits on screen" snaps back to center.
- */
-export function clampCameraToViewport(
-  camera: Camera,
-  worldWidth: number,
-  worldHeight: number,
-  viewportWidth: number,
-  viewportHeight: number,
-): Camera {
-  const x = worldWidth * camera.zoom <= viewportWidth ? worldWidth / 2 : camera.x;
-  const y = worldHeight * camera.zoom <= viewportHeight ? worldHeight / 2 : camera.y;
-  return x === camera.x && y === camera.y ? camera : { ...camera, x, y };
-}

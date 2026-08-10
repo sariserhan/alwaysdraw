@@ -1,6 +1,8 @@
 "use client";
 
-import type { Tool } from "@/lib/types";
+import { useState } from "react";
+import type { BrushType, Tool } from "@/lib/types";
+import { BRUSH_CATALOG } from "@/lib/brushes";
 import { ChromeRivet } from "./ChromeRivet";
 
 const SWATCHES = [
@@ -86,6 +88,65 @@ function EraserIcon() {
   );
 }
 
+function HandIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8 12.5V5.5a1.5 1.5 0 0 1 3 0V11M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11.2V5.5a1.5 1.5 0 0 1 3 0V13M17 8.5a1.5 1.5 0 0 1 3 0V15c0 3.5-2 6.5-6 6.5h-2c-3 0-4.2-1-5.5-3l-2.7-4.7c-.5-.9-.2-1.9.6-2.3.8-.4 1.7 0 2.2.8L8 14"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MagnifierIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M15.5 15.5 21 21" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <path d="M10.5 8v5M8 10.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RulerIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="2.5" y="8" width="19" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M6 8v3M9.5 8v2M13 8v3M16.5 8v2M20 8v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function DropletIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2c3.5 4.5 6 8.1 6 11a6 6 0 1 1-12 0c0-2.9 2.5-6.5 6-11Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 15l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function MinusIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -116,13 +177,64 @@ function ResetIcon() {
   );
 }
 
+const CATEGORIES: Array<"Basic" | "Artistic" | "Effects"> = ["Basic", "Artistic", "Effects"];
+
+function BrushPicker({
+  brushType,
+  onSelect,
+  onClose,
+}: {
+  brushType: BrushType;
+  onSelect: (t: BrushType) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-20 mb-3 w-56 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+        {CATEGORIES.map((category) => (
+          <div key={category} className="mb-1.5 last:mb-0">
+            <div className="px-1.5 py-1 font-mono text-[10px] tracking-widest text-ink-dim uppercase">
+              {category}
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              {BRUSH_CATALOG.filter((b) => b.category === category).map((b) => (
+                <button
+                  key={b.type}
+                  type="button"
+                  onClick={() => {
+                    onSelect(b.type);
+                    onClose();
+                  }}
+                  aria-pressed={brushType === b.type}
+                  className={`rounded-sm px-2 py-1.5 text-left text-xs font-medium transition ${
+                    brushType === b.type
+                      ? "bg-accent-crimson-deep text-on-accent"
+                      : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function DrawingToolbar({
   tool,
   onToolChange,
+  brushType,
+  onBrushTypeChange,
   color,
   onColorChange,
   width,
   onWidthChange,
+  opacity,
+  onOpacityChange,
   zoomPercent,
   onZoomIn,
   onZoomOut,
@@ -130,15 +242,22 @@ export function DrawingToolbar({
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
+  brushType: BrushType;
+  onBrushTypeChange: (b: BrushType) => void;
   color: string;
   onColorChange: (c: string) => void;
   width: number;
   onWidthChange: (w: number) => void;
+  opacity: number;
+  onOpacityChange: (o: number) => void;
   zoomPercent: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-2 sm:px-4">
       <div
@@ -151,28 +270,71 @@ export function DrawingToolbar({
         <MountBracket side="right" />
         <DripEdge />
 
-        <div className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
+        <div className="relative flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
           <button
             type="button"
-            onClick={() => onToolChange("brush")}
+            onClick={() => {
+              if (tool === "brush") {
+                setPickerOpen((v) => !v);
+              } else {
+                onToolChange("brush");
+              }
+            }}
             aria-pressed={tool === "brush"}
+            aria-haspopup="true"
+            aria-expanded={pickerOpen}
+            title={activeBrushLabel}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "brush" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <BrushIcon />
-            Brush
+            <span className="stencil-cut-sm hidden sm:inline">{activeBrushLabel}</span>
+            <ChevronUpIcon />
           </button>
+          {pickerOpen && (
+            <BrushPicker
+              brushType={brushType}
+              onSelect={(t) => {
+                onBrushTypeChange(t);
+                onToolChange("brush");
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
           <button
             type="button"
             onClick={() => onToolChange("eraser")}
             aria-pressed={tool === "eraser"}
+            title="Eraser"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <EraserIcon />
-            Erase
+            <span className="stencil-cut-sm hidden sm:inline">Erase</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onToolChange("pan")}
+            aria-pressed={tool === "pan"}
+            title="Pan"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "pan" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <HandIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToolChange("zoom")}
+            aria-pressed={tool === "zoom"}
+            title="Zoom"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "zoom" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <MagnifierIcon />
           </button>
         </div>
 
@@ -181,7 +343,10 @@ export function DrawingToolbar({
             <button
               key={sw}
               type="button"
-              onClick={() => onColorChange(sw)}
+              onClick={() => {
+                onColorChange(sw);
+                onToolChange("brush");
+              }}
               aria-label={`color ${sw}`}
               aria-pressed={color === sw}
               className={`relative h-6 w-6 rounded-full ring-1 ring-black/40 transition ${
@@ -192,25 +357,39 @@ export function DrawingToolbar({
               }}
             />
           ))}
-          <label className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40">
+          <label
+            className={`relative h-6 w-6 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition ${
+              !SWATCHES.includes(color) ? "ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised" : ""
+            }`}
+            title="Custom color"
+            style={{
+              background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
+            }}
+          >
             <input
               type="color"
               value={color}
-              onChange={(e) => onColorChange(e.target.value)}
+              onChange={(e) => {
+                onColorChange(e.target.value);
+                onToolChange("brush");
+              }}
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               aria-label="custom color"
             />
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 rounded-full"
-              style={{ background: color }}
-            />
+            {!SWATCHES.includes(color) && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-[3px] rounded-full"
+                style={{ background: color }}
+              />
+            )}
           </label>
         </div>
 
         <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
-          <span className="stencil-cut-sm font-mono text-[10px] tracking-widest text-ink-dim uppercase">
-            Size
+          <span className="flex items-center gap-1 text-ink-dim">
+            <RulerIcon />
+            <span className="font-mono text-[10px] tracking-widest uppercase">Size</span>
           </span>
           <input
             type="range"
@@ -218,10 +397,29 @@ export function DrawingToolbar({
             max={60}
             value={width}
             onChange={(e) => onWidthChange(Number(e.target.value))}
-            className="w-20 accent-accent-crimson sm:w-24"
+            className="w-16 accent-accent-crimson sm:w-20"
             aria-label="brush size"
           />
           <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
+        </div>
+
+        <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
+          <span className="flex items-center gap-1 text-ink-dim">
+            <DropletIcon />
+            <span className="font-mono text-[10px] tracking-widest uppercase">Opacity</span>
+          </span>
+          <input
+            type="range"
+            min={5}
+            max={100}
+            value={Math.round(opacity * 100)}
+            onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
+            className="w-16 accent-accent-crimson sm:w-20"
+            aria-label="brush opacity"
+          />
+          <span className="w-9 text-right font-mono text-xs tabular-nums text-ink">
+            {Math.round(opacity * 100)}%
+          </span>
         </div>
 
         <div className="flex items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">

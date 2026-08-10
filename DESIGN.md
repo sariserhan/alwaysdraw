@@ -181,7 +181,13 @@ Additional signature geometry: small teardrop drip shapes hanging from the toolb
 - **Indicator:** a 6px dot with a matching `0 0 6px` color glow — green for live/online, yellow (pulsing) for reconnecting.
 
 ### The Toolbar (signature component)
-The system's one distinctive custom component. A rectilinear rack (`rounded-sm`, 2px border, `ring-1 ring-rust/25` inset accent) mounted to the bottom edge via two small square bracket tabs at its top-left/top-right corners, each carrying a rivet. A row of teardrop drip shapes hangs from its bottom edge. Internally: a bordered brush/eraser toggle group, seven fixed spray-cap color swatches plus a native color-picker styled to match, a brush-size range input (Crimson accent-color), and a zoom/reset control cluster — all Space Mono for the live numbers, Space Grotesk labels for everything else.
+The system's one distinctive custom component. A rectilinear rack (`rounded-sm`, 2px border, `ring-1 ring-rust/25` inset accent) mounted to the bottom edge via two small square bracket tabs at its top-left/top-right corners, each carrying a rivet. A row of teardrop drip shapes hangs from its bottom edge. Internally, left to right: a bordered four-tool group (Brush/Erase/Pan/Zoom), seven fixed spray-cap color swatches plus a rainbow-conic custom-color picker, a ruler-icon Size control, a droplet-icon Opacity control, and a zoom%/reset cluster — all Space Mono for the live numbers, Space Grotesk labels for everything else.
+
+### Brush Picker (signature component)
+Tapping the active Brush tool (when it's already selected) opens a popover above the rack — same rectilinear-rack language (`rounded-sm`, 2px border, Chrome Raised) as the toolbar itself, not a separate floating card. Twelve brushes grouped under three plain category captions (Basic, Artistic, Effects) matching the product's own catalog, each a two-column grid of text buttons using the same active/inactive treatment as every other button (Deep Crimson fill + On-Accent text when selected). Selecting a brush also switches the active tool to Brush, so picking a texture and drawing with it is one motion, not two.
+
+### Pan & Zoom Tools
+Two explicit modes alongside Brush/Erase, for touch users (and anyone who'd rather not learn space-drag or pinch): Pan turns any single-pointer drag into a camera pan; Zoom turns a vertical drag into a zoom anchored at the press point (drag up = in, down = out). Both suppress drawing entirely while active — they are camera tools, not brush variants. The canvas cursor reflects the active tool (grab/grabbing for Pan, a vertical resize cursor for Zoom, crosshair otherwise), since a bolted rack with unlabeled hand/magnifier icons needs the cursor to confirm the mode.
 
 ### Remote Cursors
 - **Style:** a small SVG paint-drip (teardrop) shape, not a plain circle or arrow — each remote visitor's cursor is colored by hashing their anonymous client ID against the four-color accent set, so different visitors read as visibly different "spray cans" on the wall.
@@ -199,6 +205,8 @@ The system's one distinctive custom component. A rectilinear rack (`rounded-sm`,
 - **Do** give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it; a panel with none of the three will read as a floating card.
 - **Do** reserve fully circular shapes for hardware/indicators (rivets, caps, dots, cursors); keep panels and buttons rectilinear at the `2px` radius.
 - **Do** author any new texture (grain, wear, damage) as explicit, deterministic vector geometry — polylines, filled shapes, gradients along a path — never a repeating/random noise pattern.
+- **Do** give any "pick anything" control (the custom color picker) a persistent, color-independent affordance — the rainbow conic-gradient — so it never gets mistaken for just another preset swatch showing the current selection.
+- **Do** let the camera go wherever the user pans/zooms it, at any zoom level. A prior "snap back to center when zoomed out" behavior was removed once the Pan tool shipped — forcing position fights a tool whose entire job is letting the user choose position.
 
 ### Don't:
 - **Don't** introduce rounded-lg/rounded-xl soft cards, pill-shaped panels, or ambient glassy blur — that's the whiteboard-SaaS world this system was explicitly built against.

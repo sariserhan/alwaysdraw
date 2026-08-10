@@ -2,7 +2,7 @@
 
 One world. One canvas. Always drawing.
 
-A single public 5000×5000 drawing canvas shared by everyone on the internet. No rooms, no accounts, no ownership, no undo. Anyone can draw, erase, or paint over anyone else, in real time.
+A single public 10,000×10,000 drawing canvas shared by everyone on the internet. No rooms, no accounts, no ownership, no undo. Anyone can draw, erase, or paint over anyone else, in real time, with 12 distinct brush textures (Basic/Artistic/Effects) plus explicit Pan and Zoom tools for touch users.
 
 ## 1. Architecture summary
 
@@ -12,11 +12,23 @@ Browser (Next.js App Router, client-only canvas component)
   ├─ Local-first drawing: pointer input is drawn to the <canvas> immediately,
   │  never blocked on the network.
   │
+  ├─ Two stacked canvases: a static world layer (concrete fill) beneath a
+  │  transparent strokes layer, so erasing (destination-out) reveals the
+  │  wall, not a hole through to the page background.
+  │
+  ├─ lib/brushes.ts dispatches each stroke to one of 12 brush renderers
+  │  (Basic: Brush/Pencil/Marker/Highlighter/Calligraphy/Pixel; Artistic:
+  │  Watercolor/Oil Paint/Chalk/Charcoal; Effects: Glitter/Neon Glow) keyed
+  │  by the stroke's brushType — same renderer runs for local and remote
+  │  strokes, so everyone sees the same texture. Deterministic per-point
+  │  hashing (not Math.random) drives grain/scatter so redraws don't flicker.
+  │
   ├─ StrokeBuffer batches points from one drag into ~40-point chunks, flushed
   │  every ~40ms, each chunk submitted as its own Convex mutation.
   │
   └─ Convex (reactive backend)
-       ├─ strokes table — every draw/erase chunk, server-sequenced, append-only
+       ├─ strokes table — every draw/erase chunk (+ brushType, opacity),
+       │  server-sequenced, append-only
        ├─ canvasMetadata — singleton holding the global sequence counter
        └─ presence table — one row per anonymous client, heartbeat every 5s
 
@@ -46,16 +58,19 @@ app/
 
 components/
   GlobalCanvas.tsx        owns camera, tool state, pointer/touch input, redraw loop
-  DrawingToolbar.tsx       brush/eraser, color, size, zoom controls
+  DrawingToolbar.tsx       tool row (Brush/Erase/Pan/Zoom), brush picker, color, size, opacity, zoom controls
   OnlineCount.tsx
   ConnectionStatus.tsx     live Convex websocket state
   RemoteCursors.tsx
+  ThemeToggle.tsx           dark (default) / light theme switch
+  ChromeRivet.tsx
   ConvexClientProvider.tsx
 
 lib/
   camera.ts               Camera type, pan/zoom math (pure, unit-testable)
   coordinates.ts           screen<->world conversion, world-bounds clamping
-  drawing.ts               canvas draw calls (stroke, segment, background)
+  drawing.ts               canvas draw calls (plain stroke, erase, world background)
+  brushes.ts                12 brush renderers (Basic/Artistic/Effects) + BRUSH_CATALOG
   strokeBuffer.ts           batches pointer points into ~40pt chunks every ~40ms
   identity.ts               anonymous clientId in localStorage
   types.ts
