@@ -2269,38 +2269,19 @@ export function GlobalCanvas() {
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
         </div>
 
-        {/* Desktop Help & Status (>= 1360px) — kept in the top bar rather
-            than the sidebar, since these two are reference/status info the
-            user reaches for independent of the drawing controls below. */}
-        <div className="hidden min-[1360px]:flex items-center gap-2 pr-4">
+        {/* Right Section: All Preferences & Status Controls on Topbar */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
+          <LanguagePicker
+            currentLocale={locale}
+            onLocaleChange={(loc) => {
+              setLocale(loc);
+              localStorage.setItem("alwaysdraw_locale", loc);
+            }}
+          />
+          <ThemeToggle />
+          <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
           <HelpModal locale={locale} />
           <ConnectionStatus locale={locale} />
-        </div>
-
-        {/* Mobile Hamburger Button Controls (< 1360px — matched to the
-            desktop row's actual measured content width, not a stock
-            Tailwind breakpoint; see the row's own comment above) */}
-        <div className="flex items-center gap-2 min-[1360px]:hidden pr-1">
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1 font-mono text-xs font-bold text-ink uppercase shadow-sm transition hover:bg-chrome-bg-recessed active:scale-95"
-            aria-label="Toggle Mobile Menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? (
-              <>
-                <span className="text-accent-crimson text-sm font-black">✕</span>
-                <span>{t(locale, "close")}</span>
-              </>
-            ) : (
-              <>
-                <span className="text-accent-yellow text-sm font-black">☰</span>
-                <span>{t(locale, "menu")}</span>
-              </>
-            )}
-          </button>
         </div>
 
         {/* Mobile Drawer Dropdown Menu */}
