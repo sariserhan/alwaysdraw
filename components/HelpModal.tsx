@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
+import type { Locale } from "@/lib/i18n";
+import { HELP_TRANSLATIONS } from "@/lib/helpTranslations";
 
-export function HelpModal() {
+export interface HelpModalProps {
+  locale?: Locale;
+}
+
+export function HelpModal({ locale = "en" }: HelpModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const tHelp = HELP_TRANSLATIONS[locale] ?? HELP_TRANSLATIONS.en;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -23,12 +30,12 @@ export function HelpModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="help-modal-title"
-        className="fixed inset-0 z-[99999] flex flex-col items-center justify-start overflow-y-auto bg-black/80 p-4 pt-16 sm:pt-20 backdrop-blur-md animate-fade-in pointer-events-auto"
+        className="fixed inset-0 z-[99999] flex flex-col items-center justify-start overflow-y-auto bg-black/85 p-3 sm:p-4 pt-12 sm:pt-16 backdrop-blur-md animate-fade-in pointer-events-auto"
         onClick={(e) => {
           if (e.target === e.currentTarget) setIsOpen(false);
         }}
       >
-        <div className="relative my-auto w-full max-w-xl rounded-sm border-2 border-rust bg-chrome-bg p-5 sm:p-6 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.95)]">
+        <div className="relative my-auto w-full max-w-2xl rounded-sm border-2 border-rust bg-chrome-bg p-4 sm:p-6 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.95)]">
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
           <ChromeRivet className="bottom-2 left-2" />
@@ -39,12 +46,12 @@ export function HelpModal() {
             <div>
               <h2
                 id="help-modal-title"
-                className="stencil-cut font-display text-lg font-bold tracking-widest text-ink uppercase"
+                className="stencil-cut font-display text-base sm:text-lg font-bold tracking-widest text-ink uppercase"
               >
-                AlwaysDraw
+                {tHelp.modalTitle}
               </h2>
               <p className="font-mono text-xs text-accent-yellow">
-                One world. One canvas. Always drawing.
+                {tHelp.modalSubtitle}
               </p>
             </div>
 
@@ -52,68 +59,96 @@ export function HelpModal() {
               type="button"
               onClick={() => setIsOpen(false)}
               aria-label="Close help modal"
-              className="flex h-7 w-7 items-center justify-center rounded border border-chrome-border bg-chrome-bg-raised font-mono text-sm font-bold text-ink transition-colors hover:border-rust hover:text-accent-crimson"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-chrome-border bg-chrome-bg-raised font-mono text-sm font-bold text-ink transition-colors hover:border-rust hover:text-accent-crimson"
             >
               ✕
             </button>
           </div>
 
-          {/* Body */}
-          <div className="mt-4 space-y-4 font-mono text-xs text-ink-dim leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
-            <div>
-              <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                What is AlwaysDraw?
-              </h3>
-              <p>
-                AlwaysDraw is a single public 10,000×10,000 drawing wall shared live by everyone on the internet. There are no private rooms, no accounts, no protected regions, and no undo. Everyone draws on the exact same surface at the exact same time.
-              </p>
+          {/* Feature Showcase Body */}
+          <div className="mt-4 space-y-3 font-mono text-xs text-ink-dim leading-relaxed max-h-[62vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.brushesTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.brushesDesc}
+                </p>
+              </div>
+
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.textShapesTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.textShapesDesc}
+                </p>
+              </div>
+
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.creativeToolsTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.creativeToolsDesc}
+                </p>
+              </div>
+
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.collabTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.collabDesc}
+                </p>
+              </div>
+
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.navTimeTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.navTimeDesc}
+                </p>
+              </div>
+
+              <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
+                <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
+                  {tHelp.categories.shieldTitle}
+                </h3>
+                <p className="text-[11px] text-ink-dim leading-normal">
+                  {tHelp.categories.shieldDesc}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                How It Works
-              </h3>
-              <ul className="list-disc pl-4 space-y-2 text-ink-dim">
-                <li>
-                  <strong className="text-ink">Consequence Over Control:</strong> Anyone can draw, erase, or spray paint over anyone else&apos;s artwork. Erasing clears your strokes to reveal the raw concrete wall underneath.
-                </li>
-                <li>
-                  <strong className="text-ink">13 Expressive Brushes:</strong> Choose Basic textures (Pencil, Marker, Calligraphy, Pixel Art), Artistic media (Watercolor, Oil Paint, Chalk, Charcoal), or Special Effects (Neon Glow, Glitter).
-                </li>
-                <li>
-                  <strong className="text-ink">Time Travel (Top Navbar):</strong> Click <span className="text-accent-yellow font-bold">TIME TRAVEL</span> in the top header to scrub back through time and watch artwork evolve stroke-by-stroke from the canvas&apos;s creation.
-                </li>
-                <li>
-                  <strong className="text-ink">Spatial Discovery (Top Navbar):</strong> Click <span className="text-accent-blue font-bold">EXPLORE</span> in the top header to instantly teleport your camera to active hotspots, latest activity, or random art across the 100M-pixel wall.
-                </li>
-              </ul>
-            </div>
-
+            {/* Shortcuts Section */}
             <div className="border-t border-chrome-border/60 pt-3">
-              <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
-                Camera Controls &amp; Shortcuts
+              <h3 className="font-display text-xs font-bold text-ink uppercase tracking-wide mb-2">
+                {tHelp.shortcutsTitle}
               </h3>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="rounded bg-chrome-bg-raised p-2">
-                  <span className="text-ink font-bold block mb-0.5">Pan Camera</span>
-                  <span>Space + Drag, Pan Tool, or 2-finger touch drag</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="rounded border border-chrome-border/60 bg-chrome-bg-raised/90 p-2">
+                  <span className="text-accent-yellow font-bold block mb-0.5">{tHelp.panLabel}</span>
+                  <span>{tHelp.panDesc}</span>
                 </div>
-                <div className="rounded bg-chrome-bg-raised p-2">
-                  <span className="text-ink font-bold block mb-0.5">Zoom Camera</span>
-                  <span>Mouse wheel, Pinch-to-zoom, or Toolbar +/-</span>
+                <div className="rounded border border-chrome-border/60 bg-chrome-bg-raised/90 p-2">
+                  <span className="text-accent-yellow font-bold block mb-0.5">{tHelp.zoomLabel}</span>
+                  <span>{tHelp.zoomDesc}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="mt-5 flex justify-end border-t border-chrome-border/60 pt-3">
+          <div className="mt-4 flex justify-end border-t border-chrome-border/60 pt-3">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="rounded border border-rust bg-rust/30 px-4 py-1.5 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white"
+              className="rounded border border-rust bg-rust/30 px-5 py-1.5 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white shadow-md"
             >
-              GOT IT, LET&apos;S DRAW
+              {tHelp.gotItBtn}
             </button>
           </div>
         </div>

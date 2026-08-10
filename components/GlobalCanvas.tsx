@@ -2062,13 +2062,37 @@ export function GlobalCanvas() {
             the header row, stacked vertically and docked directly under the
             mini-map instead. Same breakpoint the header row used to switch
             on, so this and the mobile hamburger drawer are still mutually
-            exclusive. */}
+            exclusive. Collapsible via a handle on its own edge; fully
+            hideable down to a small re-show tab in the same dock spot. */}
+        {sidebarHidden ? (
+          <button
+            type="button"
+            onClick={() => setSidebarHidden(false)}
+            aria-label="Show sidebar"
+            title="Show sidebar"
+            className="pointer-events-auto hidden min-[1360px]:flex absolute right-3 sm:right-4 z-20 h-7 w-7 items-center justify-center rounded-sm border-2 border-chrome-border bg-chrome-bg-raised text-ink-dim shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:text-ink"
+            style={{ top: sidebarTop }}
+          >
+            ◂
+          </button>
+        ) : (
         <aside
           id="desktop-sidebar"
           aria-label="Canvas Tools & Controls"
           className="pointer-events-auto hidden min-[1360px]:flex w-[196px] flex-col gap-3 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
           style={{ top: sidebarTop, maxHeight: `calc(100vh - ${sidebarTop}px - 12px)` }}
         >
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setSidebarHidden(true)}
+              aria-label="Hide sidebar"
+              title="Hide sidebar"
+              className="flex h-5 w-5 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
+            >
+              ▸
+            </button>
+          </div>
           <div className="flex flex-col items-start gap-2">
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
@@ -2149,7 +2173,7 @@ export function GlobalCanvas() {
           <div className="border-t border-chrome-border/60" />
 
           <div className="flex flex-col items-start gap-2">
-            <MobileGroupLabel>❓ {t(locale, "group_help_status")}</MobileGroupLabel>
+            <MobileGroupLabel>⚙️ {t(locale, "group_preferences")}</MobileGroupLabel>
             <LanguagePicker
               currentLocale={locale}
               onLocaleChange={(loc) => {
@@ -2159,10 +2183,9 @@ export function GlobalCanvas() {
             />
             <ThemeToggle />
             <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
-            <HelpModal />
-            <ConnectionStatus locale={locale} />
           </div>
         </aside>
+        )}
 
         <ProtectedZonesOverlay
           camera={cameraSnapshot}
@@ -2244,6 +2267,14 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
+        </div>
+
+        {/* Desktop Help & Status (>= 1360px) — kept in the top bar rather
+            than the sidebar, since these two are reference/status info the
+            user reaches for independent of the drawing controls below. */}
+        <div className="hidden min-[1360px]:flex items-center gap-2 pr-4">
+          <HelpModal locale={locale} />
+          <ConnectionStatus locale={locale} />
         </div>
 
         {/* Mobile Hamburger Button Controls (< 1360px — matched to the
@@ -2364,7 +2395,7 @@ export function GlobalCanvas() {
             <MobileGroupLabel>❓ {t(locale, "group_help_status")}</MobileGroupLabel>
             <div className="flex flex-wrap items-center gap-2">
               <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
-              <HelpModal />
+              <HelpModal locale={locale} />
               <ConnectionStatus locale={locale} />
             </div>
           </div>
