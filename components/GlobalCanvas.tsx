@@ -2153,7 +2153,7 @@ export function GlobalCanvas() {
             click hit-testing. shrink-0 below already stops pills from being
             squashed into wrapping; letting the row itself overflow visually
             in extreme cases is the safer tradeoff. */}
-        <div className="hidden xl:flex items-center gap-3 pr-4">
+        <div className="hidden min-[1360px]:flex items-center gap-3 pr-4">
           {/* Cluster 1: View & Display */}
           <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
@@ -2252,8 +2252,10 @@ export function GlobalCanvas() {
           </MoreMenu>
         </div>
 
-        {/* Mobile Hamburger Button Controls (< xl) */}
-        <div className="flex items-center gap-2 xl:hidden pr-1">
+        {/* Mobile Hamburger Button Controls (< 1360px — matched to the
+            desktop row's actual measured content width, not a stock
+            Tailwind breakpoint; see the row's own comment above) */}
+        <div className="flex items-center gap-2 min-[1360px]:hidden pr-1">
           <ThemeToggle />
           <button
             type="button"
@@ -2278,7 +2280,7 @@ export function GlobalCanvas() {
 
         {/* Mobile Drawer Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="xl:hidden absolute right-0 top-full z-50 mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          <div className="min-[1360px]:hidden absolute right-0 top-full z-50 mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
               <span className="whitespace-nowrap">🛠️ {t(locale, "canvas_tools_panels")}</span>
               <span className="whitespace-nowrap text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
