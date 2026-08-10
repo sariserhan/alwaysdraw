@@ -927,8 +927,16 @@ export function GlobalCanvas() {
           const qG = Math.round(g / 8) * 8;
           const qB = Math.round(b / 8) * 8;
           const colorHex = `#${((1 << 24) + (Math.min(255, qR) << 16) + (Math.min(255, qG) << 8) + Math.min(255, qB)).toString(16).slice(1)}`;
-          const px = Math.round(imagePlacement.worldX - halfW + x * pixelSize + pixelSize / 2);
-          const py = Math.round(imagePlacement.worldY - halfH + y * pixelSize + pixelSize / 2);
+          const rawPx = Math.round(imagePlacement.worldX - halfW + x * pixelSize + pixelSize / 2);
+          const rawPy = Math.round(imagePlacement.worldY - halfH + y * pixelSize + pixelSize / 2);
+
+          // Skip pixels that fall outside the valid [0, WORLD_WIDTH] x [0, WORLD_HEIGHT] world bounds
+          if (rawPx < 0 || rawPx > WORLD_WIDTH || rawPy < 0 || rawPy > WORLD_HEIGHT) {
+            continue;
+          }
+
+          const px = rawPx;
+          const py = rawPy;
 
           const existing = pointsByColor.get(colorHex);
           if (existing) {

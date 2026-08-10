@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import type { Camera } from "@/lib/camera";
 import { worldToScreen } from "@/lib/coordinates";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import { ChromeRivet } from "./ChromeRivet";
 
 export interface AdminImagePlacement {
@@ -96,15 +97,18 @@ export function AdminImageOverlay({
         const dxWorld = dxScreen / camera.zoom;
         const dyWorld = dyScreen / camera.zoom;
 
+        const targetX = dragStartRef.current.initialWorldX + dxWorld;
+        const targetY = dragStartRef.current.initialWorldY + dyWorld;
+
         onChangePlacement({
           ...placement,
-          worldX: dragStartRef.current.initialWorldX + dxWorld,
-          worldY: dragStartRef.current.initialWorldY + dyWorld,
+          worldX: Math.max(0, Math.min(WORLD_WIDTH, targetX)),
+          worldY: Math.max(0, Math.min(WORLD_HEIGHT, targetY)),
         });
       } else if (isResizing) {
         const dxScreen = e.clientX - dragStartRef.current.screenX;
         const dxWorld = dxScreen / camera.zoom;
-        const newWidth = Math.max(50, dragStartRef.current.initialWidth + dxWorld * 2);
+        const newWidth = Math.max(50, Math.min(WORLD_WIDTH, dragStartRef.current.initialWidth + dxWorld * 2));
         const newHeight = newWidth / placement.aspectRatio;
 
         onChangePlacement({
