@@ -314,9 +314,9 @@ export function GlobalCanvas() {
     const el = cursorElRef.current;
     const pos = lastScreenPosRef.current;
     const canvas = canvasRef.current;
-    const isBrushTool = tool === "brush" || tool === "eraser";
+    const isBrushOrLaserTool = tool === "brush" || tool === "eraser" || tool === "laser";
 
-    if (!isBrushTool || !pos) {
+    if (!isBrushOrLaserTool || !pos) {
       if (el) el.style.display = "none";
       if (canvas) canvas.style.cursor = "";
       return;
@@ -325,14 +325,14 @@ export function GlobalCanvas() {
     const { width, height } = viewportRef.current;
     const worldPt = screenToWorld(pos.x, pos.y, cameraRef.current, width, height);
     const onWall = isWithinWorld(worldPt);
-    if (canvas) canvas.style.cursor = onWall ? "" : "default";
+    if (canvas) canvas.style.cursor = onWall ? "none" : "default";
 
     if (!el) return;
     if (!onWall) {
       el.style.display = "none";
       return;
     }
-    const diameter = Math.max(MIN_CURSOR_DIAMETER_PX, brushWidth * cameraRef.current.zoom);
+    const diameter = tool === "laser" ? 14 : Math.max(MIN_CURSOR_DIAMETER_PX, brushWidth * cameraRef.current.zoom);
     el.style.left = `${pos.x}px`;
     el.style.top = `${pos.y}px`;
     el.style.width = `${diameter}px`;

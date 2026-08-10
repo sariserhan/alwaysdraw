@@ -16,6 +16,7 @@ const SPARKLE_CLIP = "polygon(50% 0%, 61% 35%, 100% 50%, 61% 65%, 50% 100%, 39% 
  */
 export const BrushCursor = forwardRef<HTMLDivElement, { tool: Tool; brushType: BrushType; color: string }>(
   function BrushCursor({ tool, brushType, color }, ref) {
+    const isLaser = tool === "laser";
     const isEraser = tool === "eraser";
     const isPixel = !isEraser && brushType === "pixel";
     const isCalligraphy = !isEraser && brushType === "calligraphy";
@@ -24,6 +25,24 @@ export const BrushCursor = forwardRef<HTMLDivElement, { tool: Tool; brushType: B
     const isGlow = !isEraser && brushType === "neonGlow";
     const isSparkle = !isEraser && brushType === "glitter";
     const ringColor = isEraser ? "var(--ink)" : color;
+
+    if (isLaser) {
+      return (
+        <div
+          ref={ref}
+          aria-hidden
+          className="pointer-events-none absolute top-0 left-0 z-30 hidden -translate-x-1/2 -translate-y-1/2"
+        >
+          <span
+            className="absolute top-1/2 left-1/2 block h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white"
+            style={{
+              background: color || "#39c07a",
+              boxShadow: `0 0 12px ${color || "#39c07a"}, 0 0 20px ${color || "#39c07a"}`,
+            }}
+          />
+        </div>
+      );
+    }
 
     return (
       <div
