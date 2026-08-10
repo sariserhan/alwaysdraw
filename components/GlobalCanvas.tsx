@@ -57,6 +57,7 @@ import { HighlightsModal } from "./HighlightsModal";
 import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
+import { SpatialCompass } from "./SpatialCompass";
 import { RateLimitToast } from "./RateLimitToast";
 import { playBrushSound } from "@/lib/audio";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
@@ -1297,6 +1298,7 @@ export function GlobalCanvas() {
           </div>
           <SoundToggle />
           <GridToggle config={gridConfig} onChange={setGridConfig} />
+          <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
           <HighlightsModal
             onJumpToPoint={handleJumpToPoint}
             getBusiestPoint={getBusiestPoint}
