@@ -128,7 +128,8 @@ Near-term, concrete, not tied to a specific numbered version:
 - [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
 - [x] Scale online-count reads with a cron-maintained singleton; remote cursor fan-out remains intentionally capped
 - [x] Cursor-based live catch-up shipped with sequence-cursor coverage
-- [ ] Activate Sentry/PostHog with real production project keys and verify receipt — instrumentation is implemented and committed, but verified NOT active on the current production deployment (no Sentry/PostHog network activity found live); `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_POSTHOG_KEY` are build-time values, so this deployment predates whichever of them were just added — needs a fresh Cloudflare build, then re-verification
+- [x] Activate Sentry with a real project key and verify receipt — `NEXT_PUBLIC_SENTRY_DSN` set, confirmed locally: the example page's frontend + backend test errors both sent real envelopes to the configured project (`sentry.javascript.nextjs/10.69.0`), matching SDK version installed. Not yet reverified on the production Cloudflare deployment specifically (same build-time-env-var caveat — needs a fresh build there too).
+- [ ] Activate PostHog with a real project key — deliberately deferred, not scheduled yet
 - [x] Public-write guardrails: bounded identifiers, per-client/global fixed-window limits for strokes and presence, and an `ALWAYSDRAW_READ_ONLY=1` incident switch
 - [x] Browser smoke coverage for desktop/mobile plus an opt-in, non-production two-browser synchronization/reload test
 
