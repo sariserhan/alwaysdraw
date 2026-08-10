@@ -969,6 +969,47 @@ export function GlobalCanvas() {
     [getScreenPoint, gridConfig],
   );
 
+  const stampStencilAt = useCallback(
+    (worldPt: Point) => {
+      const stencilSize = Math.max(40, brushWidth * 6);
+      const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, stencilSize);
+      for (const points of subPaths) {
+        const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
+        const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const stroke: LocalStroke = {
+          clientStrokeId,
+          clientId,
+          mode: "draw",
+          brushType: "chalk",
+          color,
+          width: Math.max(3, Math.round(brushWidth / 2)),
+          opacity,
+          points,
+          tiles,
+          clientTimestamp: Date.now(),
+        };
+        pendingRef.current.set(stroke.clientStrokeId, stroke);
+
+        submitStroke({
+          clientStrokeId: stroke.clientStrokeId,
+          clientId,
+          mode: stroke.mode,
+          brushType: stroke.brushType,
+          color: stroke.color,
+          width: stroke.width,
+          opacity: stroke.opacity,
+          points: stroke.points,
+          clientTimestamp: stroke.clientTimestamp,
+        }).catch(() => {
+          pendingRef.current.delete(stroke.clientStrokeId);
+          scheduleRedraw({ world: true, strokes: true });
+        });
+      }
+      scheduleRedraw({ world: true, strokes: true });
+    },
+    [brushWidth, selectedStencil, color, opacity, clientId, submitStroke, scheduleRedraw],
+  );
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       try {
@@ -1026,41 +1067,7 @@ export function GlobalCanvas() {
       if (tool === "stencil") {
         isStencilDraggingRef.current = true;
         lastStencilWorldRef.current = worldPt;
-        const stencilSize = Math.max(40, brushWidth * 6);
-        const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, stencilSize);
-        for (const points of subPaths) {
-          const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
-          const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-          const stroke: LocalStroke = {
-            clientStrokeId,
-            clientId,
-            mode: "draw",
-            brushType: "marker",
-            color,
-            width: Math.max(3, Math.round(brushWidth / 2)),
-            opacity,
-            points,
-            tiles,
-            clientTimestamp: Date.now(),
-          };
-          pendingRef.current.set(stroke.clientStrokeId, stroke);
-
-          submitStroke({
-            clientStrokeId: stroke.clientStrokeId,
-            clientId,
-            mode: stroke.mode,
-            brushType: stroke.brushType,
-            color: stroke.color,
-            width: stroke.width,
-            opacity: stroke.opacity,
-            points: stroke.points,
-            clientTimestamp: stroke.clientTimestamp,
-          }).catch(() => {
-            pendingRef.current.delete(stroke.clientStrokeId);
-            scheduleRedraw({ world: true, strokes: true });
-          });
-        }
-        scheduleRedraw({ world: true, strokes: true });
+        stampStencilAt(worldPt);
         return;
       }
 
@@ -1091,17 +1098,13 @@ export function GlobalCanvas() {
     },
     [
       beginDraw,
-      brushWidth,
-      clientId,
       color,
       endDraw,
       getPointerWorld,
       getScreenPoint,
       isReplayMode,
-      opacity,
       scheduleRedraw,
-      selectedStencil,
-      submitStroke,
+      stampStencilAt,
       tool,
       updateRuler,
     ],
@@ -1192,6 +1195,18 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "stencil") {
+        if (isStencilDraggingRef.current && lastStencilWorldRef.current) {
+          const minSpacing = Math.max(30, brushWidth * 3);
+          if (distance(lastStencilWorldRef.current, worldPt) >= minSpacing) {
+            lastStencilWorldRef.current = worldPt;
+            stampStencilAt(worldPt);
+          }
+        }
+        scheduleRedraw({ strokes: true });
+        return;
+      }
+
       if (tool === "ruler") {
         const drag = rulerDragRef.current;
         if (!drag) return;
@@ -1203,7 +1218,7 @@ export function GlobalCanvas() {
 
       continueDraw(worldPt);
     },
-    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler],
+    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler, stampStencilAt],
   );
 
   const handlePointerUp = useCallback(
