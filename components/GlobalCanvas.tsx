@@ -1451,6 +1451,30 @@ export function GlobalCanvas() {
       {/* Admin Broadcast Announcement Ticker */}
       <AdminBroadcastBanner />
 
+      {/* Sticky Floating Admin Status Badge */}
+      {adminPasscode && (
+        <div className="pointer-events-auto fixed top-14 left-4 z-50 flex items-center gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-yellow shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setAdminOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 hover:underline"
+            title="Click to toggle Admin Control Center"
+          >
+            <span className="h-2 w-2 rounded-full bg-accent-crimson animate-ping shrink-0" />
+            <span>🛡️ ADMIN MODE</span>
+          </button>
+          <span className="text-chrome-border">|</span>
+          <button
+            type="button"
+            onClick={handleLogoutAdmin}
+            className="text-ink-dim hover:text-accent-crimson transition-colors"
+            title="Log out of Admin Mode"
+          >
+            EXIT 🚪
+          </button>
+        </div>
+      )}
+
       {/* Top Header Bar */}
       <header
         id="header-bar"
@@ -1472,28 +1496,6 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
-          {adminPasscode && (
-            <div className="flex items-center gap-1.5 rounded-sm border border-rust bg-rust/20 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-yellow shadow-sm">
-              <button
-                type="button"
-                onClick={() => setAdminOpen((prev) => !prev)}
-                className="flex items-center gap-1 hover:underline"
-                title="Click to toggle Admin Control Center"
-              >
-                <span className="h-2 w-2 rounded-full bg-accent-crimson animate-ping shrink-0" />
-                <span>🛡️ ADMIN MODE</span>
-              </button>
-              <span className="text-chrome-border">|</span>
-              <button
-                type="button"
-                onClick={handleLogoutAdmin}
-                className="text-ink-dim hover:text-accent-crimson transition-colors"
-                title="Log out of Admin Mode"
-              >
-                EXIT 🚪
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
