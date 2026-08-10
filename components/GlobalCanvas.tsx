@@ -1447,7 +1447,14 @@ export function GlobalCanvas() {
         </div>
 
         {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
-        <div className="hidden lg:flex min-w-0 items-center gap-3 overflow-x-auto pr-4">
+        {/* No overflow-x-auto here: dropdown panels render `absolute top-full`
+            beneath their trigger inside this row, and per the CSS overflow
+            spec, giving overflow-x anything but visible silently forces
+            overflow-y to auto too — clipping every dropdown and breaking its
+            click hit-testing. shrink-0 below already stops pills from being
+            squashed into wrapping; letting the row itself overflow visually
+            in extreme cases is the safer tradeoff. */}
+        <div className="hidden lg:flex items-center gap-3 pr-4">
           {/* Cluster 1: View & Display */}
           <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
             <LanguagePicker
