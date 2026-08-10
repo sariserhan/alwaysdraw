@@ -361,6 +361,44 @@ const neonGlow: BrushRenderer = ({ ctx, camera, viewportWidth, viewportHeight, p
   else strokePath(ctx, pts);
 };
 
+// Fixed screen-space dot grid (not stroke-relative), like real Ben-Day
+// halftone printing — dots line up into a consistent grid across the whole
+// stroke regardless of its angle, rather than each segment having its own
+// locally-rotated dot pattern.
+const halftone: BrushRenderer = ({ ctx, camera, viewportWidth, viewportHeight, points, color, width, opacity }) => {
+  const pts = toScreen(points, camera, viewportWidth, viewportHeight);
+  const r = Math.max(2, (width * camera.zoom) / 2);
+  const gridSize = Math.max(3, r * 0.9);
+  const dotRadius = gridSize * 0.42;
+
+  configureContext(ctx);
+  setAlpha(ctx, 0.9, opacity);
+  ctx.fillStyle = color;
+
+  const stamped = new Set<string>();
+  const stampNear = (p: Point) => {
+    const minGX = Math.floor((p.x - r) / gridSize);
+    const maxGX = Math.ceil((p.x + r) / gridSize);
+    const minGY = Math.floor((p.y - r) / gridSize);
+    const maxGY = Math.ceil((p.y + r) / gridSize);
+    for (let gx = minGX; gx <= maxGX; gx++) {
+      for (let gy = minGY; gy <= maxGY; gy++) {
+        const cx = gx * gridSize;
+        const cy = gy * gridSize;
+        if (Math.hypot(cx - p.x, cy - p.y) > r) continue;
+        const key = `${gx},${gy}`;
+        if (stamped.has(key)) continue;
+        stamped.add(key);
+        dot(ctx, { x: cx, y: cy }, dotRadius);
+      }
+    }
+  };
+
+  if (pts.length === 1) stampNear(pts[0]);
+  else walk(pts, Math.max(2, r * 0.5), stampNear);
+  ctx.globalAlpha = 1;
+};
+
 export const BRUSH_RENDERERS: Record<BrushType, BrushRenderer> = {
   brush,
   pencil,
@@ -374,6 +412,7 @@ export const BRUSH_RENDERERS: Record<BrushType, BrushRenderer> = {
   charcoal,
   glitter,
   neonGlow,
+  halftone,
 };
 
 export function renderBrushStroke(brushType: BrushType | undefined, args: BrushRenderArgs) {
@@ -394,4 +433,5 @@ export const BRUSH_CATALOG: Array<{ type: BrushType; label: string; category: "B
   { type: "charcoal", label: "Charcoal", category: "Artistic" },
   { type: "glitter", label: "Glitter", category: "Effects" },
   { type: "neonGlow", label: "Neon Glow", category: "Effects" },
+  { type: "halftone", label: "Halftone", category: "Effects" },
 ];

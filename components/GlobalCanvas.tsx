@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
+import { WORLD_WIDTH, WORLD_HEIGHT, MAX_COMMENT_LENGTH } from "@/convex/constants";
 import {
   type Camera,
   defaultCamera,
@@ -39,7 +39,8 @@ import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedC
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
-import { generateFloodFillPoints } from "@/lib/floodFill";
+import { floodFillMask } from "@/lib/floodFill";
+import { STICKER_CATALOG } from "@/lib/stickers";
 import { calculateSymmetricPoints } from "@/lib/symmetry";
 import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
@@ -93,6 +94,10 @@ const MIN_SHAPE_DRAG = 2;
 // commitment (scopes replay/export) than starting a shape, so a stray click
 // shouldn't silently create a near-zero-area region.
 const MIN_REGION_DRAG = 20;
+const FILL_CHUNK_SIZE = 90;
+// Hard ceiling regardless of the fill's true size, so one click can't blow
+// past the per-client rate limit (STROKES_PER_CLIENT_WINDOW) on its own.
+const MAX_FILL_CHUNKS = 60;
 const HOVER_SCREEN_RADIUS_PX = 8;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
@@ -205,6 +210,7 @@ export function GlobalCanvas() {
   const [brushType, setBrushType] = useState<BrushType>("brush");
   const [shapeType, setShapeType] = useState<ShapeType>("line");
   const [selectedStencil, setSelectedStencil] = useState<StencilType>("biohazard");
+  const [selectedSticker, setSelectedSticker] = useState<string>(STICKER_CATALOG[0].id);
   const [color, setColor] = useState("#17181a");
   const [brushWidth, setBrushWidth] = useState(8);
   const [opacity, setOpacity] = useState(1);
@@ -225,7 +231,6 @@ export function GlobalCanvas() {
   const [textStyle, setTextStyle] = useState<FontStyle>("sans");
   const [textSize, setTextSize] = useState<number>(32);
   const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>("off");
-  const [comments, setComments] = useState<CanvasComment[]>([]);
   const [commentInputPos, setCommentInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
   const [commentText, setCommentText] = useState("");
 
@@ -302,9 +307,25 @@ export function GlobalCanvas() {
   const convex = useConvex();
   const submitStroke = useMutation(api.strokes.submit);
   const heartbeat = useMutation(api.presence.heartbeat);
+  const createComment = useMutation(api.comments.create);
+  const removeComment = useMutation(api.comments.remove);
 
   const onlineCount = useQuery(api.presence.onlineCount);
   const presenceList = useQuery(api.presence.list);
+  const canvasCommentRows = useQuery(api.comments.list, {});
+  const comments = useMemo<CanvasComment[]>(
+    () =>
+      (canvasCommentRows ?? []).map((c) => ({
+        id: c._id,
+        author: c.username ?? c.clientId,
+        countryCode: c.countryCode,
+        text: c.text,
+        color: "#e0b13a",
+        worldPt: { x: c.x, y: c.y },
+        createdAt: c.createdAt,
+      })),
+    [canvasCommentRows],
+  );
   const liveTail = useQuery(
     api.strokes.listSince,
     liveTailCursor === null ? "skip" : { afterSequence: liveTailCursor },
@@ -1115,59 +1136,81 @@ export function GlobalCanvas() {
     return () => clearTimeout(id);
   }, [submitError]);
 
-  const drawBufferRef = useRef<StrokeBuffer | null>(null);
-  const lastDrawWorldRef = useRef<Point | null>(null);
+  // One StrokeBuffer per symmetry copy (1 for "off", up to 8 for mandala8) —
+  // each mirrored copy is its own independent connected line, not extra
+  // points tacked onto a single buffer, which would draw spurious lines
+  // jumping between the mirrored positions instead of parallel strokes.
+  const drawBuffersRef = useRef<StrokeBuffer[] | null>(null);
+  const lastDrawWorldsRef = useRef<Point[] | null>(null);
+  const symmetryCenterRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
 
   const beginDraw = useCallback(
     (worldPoint: Point) => {
-      const buffer = new StrokeBuffer(
-        clientId,
-        tool === "eraser" ? "erase" : "draw",
-        tool === "eraser" ? undefined : brushType,
-        color,
-        brushWidth,
-        opacity,
-        username,
-        countryCode,
-        commitOwnChunk,
+      // Locked in for the whole stroke, not recomputed per point — mirrors
+      // stay parallel even if the camera pans mid-stroke.
+      symmetryCenterRef.current = { x: cameraRef.current.x, y: cameraRef.current.y };
+      const mode = tool === "eraser" ? "off" : symmetryMode;
+      const points = calculateSymmetricPoints(worldPoint, mode, symmetryCenterRef.current);
+
+      drawBuffersRef.current = points.map(
+        () =>
+          new StrokeBuffer(
+            clientId,
+            tool === "eraser" ? "erase" : "draw",
+            tool === "eraser" ? undefined : brushType,
+            color,
+            brushWidth,
+            opacity,
+            username,
+            countryCode,
+            commitOwnChunk,
+          ),
       );
-      buffer.addPoint(worldPoint);
-      drawBufferRef.current = buffer;
-      lastDrawWorldRef.current = worldPoint;
+      drawBuffersRef.current.forEach((buffer, i) => buffer.addPoint(points[i]));
+      lastDrawWorldsRef.current = points;
     },
-    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity, username, countryCode],
+    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity, username, countryCode, symmetryMode],
   );
 
   const continueDraw = useCallback((worldPoint: Point) => {
-    const buffer = drawBufferRef.current;
-    if (!buffer) return;
+    const buffers = drawBuffersRef.current;
+    const lastPoints = lastDrawWorldsRef.current;
+    if (!buffers || !lastPoints) return;
+
+    const mode = buffers[0].mode === "erase" ? "off" : symmetryMode;
+    const points = calculateSymmetricPoints(worldPoint, mode, symmetryCenterRef.current);
+    if (points.length !== buffers.length) return; // symmetry mode changed mid-stroke; ignore rather than mismatch arrays
+
     const ctx = ctxRef.current;
-    const prev = lastDrawWorldRef.current;
-    if (ctx && prev) {
-      const { width, height } = viewportRef.current;
-      if (buffer.mode === "erase") {
-        drawStroke(ctx, cameraRef.current, width, height, [prev, worldPoint], "erase", buffer.color, buffer.width);
-      } else {
-        renderBrushStroke(buffer.brushType, {
-          ctx,
-          camera: cameraRef.current,
-          viewportWidth: width,
-          viewportHeight: height,
-          points: [prev, worldPoint],
-          color: buffer.color,
-          width: buffer.width,
-          opacity: buffer.opacity,
-        });
+    const { width, height } = viewportRef.current;
+    for (let i = 0; i < buffers.length; i++) {
+      const buffer = buffers[i];
+      const prev = lastPoints[i];
+      if (ctx) {
+        if (buffer.mode === "erase") {
+          drawStroke(ctx, cameraRef.current, width, height, [prev, points[i]], "erase", buffer.color, buffer.width);
+        } else {
+          renderBrushStroke(buffer.brushType, {
+            ctx,
+            camera: cameraRef.current,
+            viewportWidth: width,
+            viewportHeight: height,
+            points: [prev, points[i]],
+            color: buffer.color,
+            width: buffer.width,
+            opacity: buffer.opacity,
+          });
+        }
       }
+      buffer.addPoint(points[i]);
     }
-    buffer.addPoint(worldPoint);
-    lastDrawWorldRef.current = worldPoint;
-  }, []);
+    lastDrawWorldsRef.current = points;
+  }, [symmetryMode]);
 
   const endDraw = useCallback(() => {
-    drawBufferRef.current?.finish();
-    drawBufferRef.current = null;
-    lastDrawWorldRef.current = null;
+    drawBuffersRef.current?.forEach((buffer) => buffer.finish());
+    drawBuffersRef.current = null;
+    lastDrawWorldsRef.current = null;
   }, []);
 
   const activePointersRef = useRef<Map<number, Point>>(new Map());
@@ -1267,6 +1310,200 @@ export function GlobalCanvas() {
       return snapPointToGrid(pt, gridConfig);
     },
     [getScreenPoint, gridConfig],
+  );
+
+  const handleFloodFillAt = useCallback(
+    (worldPt: Point) => {
+      const worldCanvas = worldCanvasRef.current;
+      const strokesCanvas = canvasRef.current;
+      if (!worldCanvas || !strokesCanvas) return;
+      const { width, height } = viewportRef.current;
+      if (width === 0 || height === 0) return;
+
+      // Flood fill has to see what's actually on screen — background +
+      // committed strokes composited — not just the vector stroke data,
+      // since the boundary it respects is whatever's visibly drawn.
+      const composite = document.createElement("canvas");
+      composite.width = width;
+      composite.height = height;
+      const compositeCtx = composite.getContext("2d", { willReadFrequently: true });
+      if (!compositeCtx) return;
+      compositeCtx.drawImage(worldCanvas, 0, 0);
+      compositeCtx.drawImage(strokesCanvas, 0, 0);
+      const imageData = compositeCtx.getImageData(0, 0, width, height);
+
+      const screenSeed = worldToScreen(worldPt.x, worldPt.y, cameraRef.current, width, height);
+      const filledScreenPoints = floodFillMask(imageData, screenSeed.x, screenSeed.y, {
+        step: Math.max(2, Math.round(3 / cameraRef.current.zoom)),
+      });
+      if (filledScreenPoints.length === 0) return;
+
+      const worldPoints = filledScreenPoints.map((p) =>
+        clampToWorld(screenToWorld(p.x, p.y, cameraRef.current, width, height)),
+      );
+      const dabWidth = Math.max(3, Math.round((3 / cameraRef.current.zoom) * 1.6));
+
+      for (let i = 0; i < worldPoints.length && i < FILL_CHUNK_SIZE * MAX_FILL_CHUNKS; i += FILL_CHUNK_SIZE) {
+        const chunkPoints = worldPoints.slice(i, i + FILL_CHUNK_SIZE);
+        const tiles = getTileKeysForStroke(chunkPoints, dabWidth, WORLD_WIDTH, WORLD_HEIGHT);
+        const clientStrokeId = `${clientId}-fill-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+        const stroke: LocalStroke = {
+          clientStrokeId,
+          clientId,
+          username,
+          countryCode,
+          mode: "draw",
+          brushType: "pixel",
+          color,
+          width: dabWidth,
+          opacity,
+          points: chunkPoints,
+          tiles,
+          clientTimestamp: Date.now(),
+        };
+        pendingRef.current.set(stroke.clientStrokeId, stroke);
+
+        submitStroke({
+          clientStrokeId: stroke.clientStrokeId,
+          clientId,
+          username: stroke.username,
+          countryCode: stroke.countryCode,
+          mode: stroke.mode,
+          brushType: stroke.brushType,
+          color: stroke.color,
+          width: stroke.width,
+          opacity: stroke.opacity,
+          points: stroke.points,
+          clientTimestamp: stroke.clientTimestamp,
+        }).catch(() => {
+          pendingRef.current.delete(stroke.clientStrokeId);
+          scheduleRedraw({ world: true, strokes: true });
+        });
+      }
+      scheduleRedraw({ world: true, strokes: true });
+    },
+    [color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
+  );
+
+  const handleStampStickerAt = useCallback(
+    (worldPt: Point) => {
+      const sticker = STICKER_CATALOG.find((s) => s.id === selectedSticker) ?? STICKER_CATALOG[0];
+
+      // Rasterize the emoji glyph once at a fixed resolution, then stamp its
+      // pixels as world-space dabs — the same technique admin image upload
+      // already uses, which is what lets a full-color glyph (not just a
+      // single-color vector shape) persist and render identically for
+      // everyone, not just the client that placed it.
+      const RES = 64;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = RES;
+      offscreen.height = RES;
+      const octx = offscreen.getContext("2d", { willReadFrequently: true });
+      if (!octx) return;
+      octx.clearRect(0, 0, RES, RES);
+      octx.font = `${Math.round(RES * 0.75)}px sans-serif`;
+      octx.textAlign = "center";
+      octx.textBaseline = "middle";
+      octx.fillText(sticker.emoji, RES / 2, RES / 2 + RES * 0.05);
+      const imageData = octx.getImageData(0, 0, RES, RES);
+
+      const stickerWorldSize = Math.max(60, brushWidth * 8);
+      const worldPerPixel = stickerWorldSize / RES;
+
+      const pointsByColor = new Map<string, Point[]>();
+      for (let y = 0; y < RES; y++) {
+        for (let x = 0; x < RES; x++) {
+          const idx = (y * RES + x) * 4;
+          const a = imageData.data[idx + 3];
+          if (a < 40) continue;
+          const r = imageData.data[idx];
+          const g = imageData.data[idx + 1];
+          const b = imageData.data[idx + 2];
+          const qR = Math.round(r / 8) * 8;
+          const qG = Math.round(g / 8) * 8;
+          const qB = Math.round(b / 8) * 8;
+          const colorHex = `#${((1 << 24) + (qR << 16) + (qG << 8) + qB).toString(16).slice(1)}`;
+          const px = worldPt.x + (x - RES / 2) * worldPerPixel;
+          const py = worldPt.y + (y - RES / 2) * worldPerPixel;
+          if (px < 0 || px > WORLD_WIDTH || py < 0 || py > WORLD_HEIGHT) continue;
+          const existing = pointsByColor.get(colorHex);
+          if (existing) existing.push({ x: Math.round(px), y: Math.round(py) });
+          else pointsByColor.set(colorHex, [{ x: Math.round(px), y: Math.round(py) }]);
+        }
+      }
+
+      const dabWidth = Math.max(2, Math.round(worldPerPixel * 1.4));
+      let chunkIndex = 0;
+      for (const [dabColor, dabPoints] of pointsByColor.entries()) {
+        for (let i = 0; i < dabPoints.length; i += FILL_CHUNK_SIZE) {
+          if (chunkIndex >= MAX_FILL_CHUNKS) break;
+          const chunkPoints = dabPoints.slice(i, i + FILL_CHUNK_SIZE);
+          const tiles = getTileKeysForStroke(chunkPoints, dabWidth, WORLD_WIDTH, WORLD_HEIGHT);
+          const clientStrokeId = `${clientId}-sticker-${Date.now()}-${chunkIndex}-${Math.random().toString(36).slice(2, 7)}`;
+          const stroke: LocalStroke = {
+            clientStrokeId,
+            clientId,
+            username,
+            countryCode,
+            mode: "draw",
+            brushType: "pixel",
+            color: dabColor,
+            width: dabWidth,
+            opacity,
+            points: chunkPoints,
+            tiles,
+            clientTimestamp: Date.now(),
+          };
+          pendingRef.current.set(stroke.clientStrokeId, stroke);
+
+          submitStroke({
+            clientStrokeId: stroke.clientStrokeId,
+            clientId,
+            username: stroke.username,
+            countryCode: stroke.countryCode,
+            mode: stroke.mode,
+            brushType: stroke.brushType,
+            color: stroke.color,
+            width: stroke.width,
+            opacity: stroke.opacity,
+            points: stroke.points,
+            clientTimestamp: stroke.clientTimestamp,
+          }).catch(() => {
+            pendingRef.current.delete(stroke.clientStrokeId);
+            scheduleRedraw({ world: true, strokes: true });
+          });
+          chunkIndex++;
+        }
+      }
+      scheduleRedraw({ world: true, strokes: true });
+    },
+    [selectedSticker, brushWidth, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
+  );
+
+  const handleSubmitComment = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const text = commentText.trim();
+      if (!text || !commentInputPos) return;
+      createComment({
+        clientId,
+        username,
+        countryCode,
+        text,
+        x: Math.round(commentInputPos.world.x),
+        y: Math.round(commentInputPos.world.y),
+      }).catch(() => {});
+      setCommentText("");
+      setCommentInputPos(null);
+    },
+    [commentText, commentInputPos, clientId, username, countryCode, createComment],
+  );
+
+  const handleDeleteComment = useCallback(
+    (id: string) => {
+      removeComment({ commentId: id as Id<"canvasComments">, clientId }).catch(() => {});
+    },
+    [clientId, removeComment],
   );
 
   const stampStencilAt = useCallback(
@@ -1393,23 +1630,12 @@ export function GlobalCanvas() {
       }
 
       if (tool === "fill") {
-        const fillPts = generateFloodFillPoints(worldPt, brushWidth * 4);
-        if (fillPts.length >= 2) {
-          const buffer = new StrokeBuffer(
-            clientId,
-            "draw",
-            "brush",
-            color,
-            brushWidth,
-            opacity,
-            username,
-            countryCode,
-            commitOwnChunk,
-          );
-          for (const p of fillPts) buffer.addPoint(p);
-          buffer.finish();
-          scheduleRedraw({ strokes: true });
-        }
+        handleFloodFillAt(worldPt);
+        return;
+      }
+
+      if (tool === "sticker") {
+        handleStampStickerAt(worldPt);
         return;
       }
 
@@ -1467,6 +1693,8 @@ export function GlobalCanvas() {
       endDraw,
       getPointerWorld,
       getScreenPoint,
+      handleFloodFillAt,
+      handleStampStickerAt,
       isReplayMode,
       scheduleRedraw,
       stampStencilAt,
@@ -2200,6 +2428,61 @@ export function GlobalCanvas() {
         </div>
       )}
 
+      <CommentsOverlay
+        comments={comments}
+        camera={cameraSnapshot}
+        viewportWidth={viewportSize.width}
+        viewportHeight={viewportSize.height}
+        onDeleteComment={handleDeleteComment}
+      />
+
+      {commentInputPos && (
+        <div
+          className="absolute z-50 -translate-y-full"
+          style={{ left: commentInputPos.screen.x, top: commentInputPos.screen.y - 10 }}
+        >
+          <form
+            onSubmit={handleSubmitComment}
+            className="flex w-56 flex-col gap-1.5 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.85)] backdrop-blur-md"
+          >
+            <textarea
+              autoFocus
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setCommentInputPos(null);
+                  setCommentText("");
+                }
+              }}
+              placeholder={t(locale, "gallery_comment_placeholder")}
+              maxLength={MAX_COMMENT_LENGTH}
+              rows={2}
+              className="w-full resize-none rounded-sm border border-chrome-border bg-chrome-bg-raised px-2 py-1 font-mono text-xs text-ink placeholder:text-ink-dim/50 focus:border-rust focus:outline-none"
+            />
+            <div className="flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setCommentInputPos(null);
+                  setCommentText("");
+                }}
+                className="rounded-sm border border-chrome-border bg-chrome-bg px-2.5 py-1 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-crimson"
+              >
+                {t(locale, "close")}
+              </button>
+              <button
+                type="submit"
+                disabled={!commentText.trim()}
+                className="rounded-sm border border-rust bg-rust/30 px-2.5 py-1 font-mono text-[10px] font-bold text-ink transition-colors hover:bg-rust hover:text-white disabled:opacity-40"
+              >
+                📌 {t(locale, "save").toUpperCase()}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <FpsHud isOpen={fpsHudOpen} />
       <RateLimitToast />
 
@@ -2213,6 +2496,8 @@ export function GlobalCanvas() {
           onShapeTypeChange={setShapeType}
           selectedStencil={selectedStencil}
           onStencilSelect={setSelectedStencil}
+          selectedSticker={selectedSticker}
+          onStickerSelect={setSelectedSticker}
           color={color}
           onColorChange={setColor}
           width={brushWidth}
@@ -2224,6 +2509,8 @@ export function GlobalCanvas() {
           onZoomOut={() => zoomButton(1 / 1.2)}
           onResetView={resetView}
           onShare={handleShare}
+          symmetryMode={symmetryMode}
+          onSymmetryModeChange={setSymmetryMode}
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}

@@ -109,6 +109,20 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_bookmark", ["bookmarkId"]),
 
+  // Sticky notes/pins dropped directly on the canvas at a world point —
+  // distinct from bookmarkComments, which discuss a saved bookmarked view.
+  // Single-level only: no threaded replies or @mentions yet (see the
+  // "comment" tool pointer-down handler for why that's a deliberate cut).
+  canvasComments: defineTable({
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    text: v.string(),
+    x: v.number(),
+    y: v.number(),
+    createdAt: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+
   broadcasts: defineTable({
     message: v.string(),
     author: v.string(),

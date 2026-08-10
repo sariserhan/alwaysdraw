@@ -77,4 +77,5 @@ export const BRUSH_TYPES = [
   "charcoal",
   "glitter",
   "neonGlow",
+  "halftone",
 ] as const;

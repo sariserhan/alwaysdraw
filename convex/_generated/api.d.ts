@@ -12,6 +12,7 @@ import type * as abuse from "../abuse.js";
 import type * as admin from "../admin.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as canvas from "../canvas.js";
+import type * as comments from "../comments.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
 import type * as presence from "../presence.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   bookmarks: typeof bookmarks;
   canvas: typeof canvas;
+  comments: typeof comments;
   constants: typeof constants;
   crons: typeof crons;
   presence: typeof presence;
