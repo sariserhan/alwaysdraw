@@ -2273,8 +2273,6 @@ export function GlobalCanvas() {
                 zoomPercent={zoomPercent}
                 onZoomIn={() => zoomButton(1.2)}
                 onZoomOut={() => zoomButton(1 / 1.2)}
-                onResetView={resetView}
-                locale={locale}
               />
               <LanguagePicker
                 currentLocale={locale}
