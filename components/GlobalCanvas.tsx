@@ -12,7 +12,7 @@ import {
   clampZoom,
   distance,
 } from "@/lib/camera";
-import { screenToWorld, clampToWorld } from "@/lib/coordinates";
+import { screenToWorld, clampToWorld, isWithinWorld } from "@/lib/coordinates";
 import { clearCanvas, drawWorldBackground, drawStroke } from "@/lib/drawing";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
@@ -151,8 +151,25 @@ export function GlobalCanvas() {
   const updateCursorOverlay = useCallback(() => {
     const el = cursorElRef.current;
     const pos = lastScreenPosRef.current;
+    const canvas = canvasRef.current;
+    const isBrushTool = tool === "brush" || tool === "eraser";
+
+    if (!isBrushTool || !pos) {
+      if (el) el.style.display = "none";
+      // Let the Tailwind class (grab/crosshair/default) drive the cursor again.
+      if (canvas) canvas.style.cursor = "";
+      return;
+    }
+
+    // Off the wall (the void beyond the world bounds at low zoom / panned to
+    // an edge) gets the plain OS cursor back — nothing to draw on out there.
+    const { width, height } = viewportRef.current;
+    const worldPt = screenToWorld(pos.x, pos.y, cameraRef.current, width, height);
+    const onWall = isWithinWorld(worldPt);
+    if (canvas) canvas.style.cursor = onWall ? "" : "default";
+
     if (!el) return;
-    if (!pos || (tool !== "brush" && tool !== "eraser")) {
+    if (!onWall) {
       el.style.display = "none";
       return;
     }

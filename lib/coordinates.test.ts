@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screenToWorld, worldToScreen, clampToWorld } from "./coordinates";
+import { screenToWorld, worldToScreen, clampToWorld, isWithinWorld } from "./coordinates";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import type { Camera } from "./camera";
 
@@ -67,5 +67,20 @@ describe("clampToWorld", () => {
 
   it("clamps each axis independently", () => {
     expect(clampToWorld({ x: -10, y: WORLD_HEIGHT + 10 })).toEqual({ x: 0, y: WORLD_HEIGHT });
+  });
+});
+
+describe("isWithinWorld", () => {
+  it("is true for points inside the world, including the exact edges", () => {
+    expect(isWithinWorld({ x: 100, y: 200 })).toBe(true);
+    expect(isWithinWorld({ x: 0, y: 0 })).toBe(true);
+    expect(isWithinWorld({ x: WORLD_WIDTH, y: WORLD_HEIGHT })).toBe(true);
+  });
+
+  it("is false just past any edge", () => {
+    expect(isWithinWorld({ x: -1, y: 100 })).toBe(false);
+    expect(isWithinWorld({ x: 100, y: -1 })).toBe(false);
+    expect(isWithinWorld({ x: WORLD_WIDTH + 1, y: 100 })).toBe(false);
+    expect(isWithinWorld({ x: 100, y: WORLD_HEIGHT + 1 })).toBe(false);
   });
 });

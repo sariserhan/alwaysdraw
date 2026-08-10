@@ -35,3 +35,8 @@ export function clampToWorld(p: Point): Point {
     y: Math.min(WORLD_HEIGHT, Math.max(0, p.y)),
   };
 }
+
+/** True if a (possibly unclamped) world point falls on the wall itself, not the void beyond its edge. */
+export function isWithinWorld(p: Point): boolean {
+  return p.x >= 0 && p.x <= WORLD_WIDTH && p.y >= 0 && p.y <= WORLD_HEIGHT;
+}
