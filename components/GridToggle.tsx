@@ -82,7 +82,7 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
         <div
           role="menu"
           aria-label={t(locale, "grid_title")}
-          className="fixed right-3 sm:right-4 min-[1360px]:right-[228px] top-20 z-[1000] flex flex-col gap-2 w-52 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-2 w-52 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
         >
           <ChromeRivet className="top-1.5 left-1.5" />
           <ChromeRivet className="top-1.5 right-1.5" />
