@@ -55,7 +55,7 @@ export async function GET(request: Request) {
                 border: "1px solid #3a3b3e",
               }}
             >
-              2.5 BILLION PIXEL WORLD
+              SHARED COLLABORATIVE WORLD
             </div>
           </div>
 
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
               color: "#8c8d90",
             }}
           >
-            <span>Infinite Collaborative Shared Canvas</span>
+            <span>The World&apos;s Shared Canvas</span>
             <span>Real-Time Live Sync</span>
           </div>
         </div>

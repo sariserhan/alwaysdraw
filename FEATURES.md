@@ -80,7 +80,7 @@
 - **Canvas Snapshots & Fast Catch-up:** Periodic snapshot generation and sequence-based delta catch-up for fast initial page load times.
 - **Offline & Local-First Buffering (`StrokeBuffer`):** Pointer input renders instantly to canvas and buffers into ~40-point chunks flushed every ~40ms to prevent network latency.
 - **Comprehensive Test Coverage:**
-  - **100/100 Unit Tests (`vitest`):** Pure camera math, coordinate conversions, stroke validation, tiling, admin endpoints, and text vectorization.
+  - **100/100 Unit Tests (`vitest`):** Pure camera math, coordinate conversions, stroke validation, tiling, backend endpoints, and text vectorization.
   - **Playwright E2E Suite (`playwright test`):** Automated smoke tests and live two-browser multiplayer synchronization tests.
 
 ---

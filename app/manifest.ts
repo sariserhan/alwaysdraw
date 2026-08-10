@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "AlwaysDraw — The World's Shared Canvas",
     short_name: "AlwaysDraw",
     description:
-      "One world. One canvas. Always drawing. A single public 10,000×10,000 drawing wall shared by everyone on the internet in real time.",
+      "One world. One canvas. Always drawing. A single public drawing wall shared by everyone on the internet in real time.",
     start_url: "/",
     display: "standalone",
     background_color: "#121315",

@@ -57,9 +57,9 @@ const spaceMonoExt = localFont({
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.alwaysdraw.workers.dev";
 const SITE_NAME = "AlwaysDraw";
-const TITLE = "AlwaysDraw — The World's Shared Real-Time Drawing Canvas";
+const TITLE = "AlwaysDraw — The World's Shared Real-Time Canvas";
 const DESCRIPTION =
-  "One world. One canvas. Always drawing. Join a single public 10,000×10,000 drawing wall shared by everyone on the internet in real time. Draw, erase, spray paint, and doodle anonymously with 13 unique brush textures.";
+  "One world. One canvas. Always drawing. Join a single public drawing wall shared by everyone on the internet in real time. Draw, erase, spray paint, and doodle anonymously with 13 unique brush textures.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     "collaborative drawing board",
     "multiplayer paint",
     "digital graffiti wall",
-    "infinite whiteboard",
+    "collaborative whiteboard",
     "online doodle wall",
     "anonymous drawing",
     "interactive web canvas",
@@ -154,7 +154,7 @@ const jsonLd = {
     priceCurrency: "USD",
   },
   featureList: [
-    "10,000x10,000 shared public canvas",
+    "Shared public drawing canvas",
     "Real-time multiplayer drawing synchronization",
     "13 unique brush textures (Watercolor, Oil Paint, Neon Glow, Chalk, Calligraphy, Pixel, Glitter)",
     "Anonymous instant access with no sign-up or accounts required",
@@ -188,11 +188,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Visually hidden semantic text for crawlers and screen readers */}
         <noscript>
           <div style={{ padding: "20px", color: "#ffffff", backgroundColor: "#121315" }}>
-            <h1>AlwaysDraw — The World&apos;s Shared Real-Time Drawing Canvas</h1>
+            <h1>AlwaysDraw — The World&apos;s Shared Real-Time Canvas</h1>
             <p>
-              One world. One canvas. Always drawing. AlwaysDraw is a single public 10,000×10,000
-              drawing canvas shared by everyone on the internet in real time. Draw, erase, spray-paint,
-              or doodle anonymously with 13 unique brush textures without any accounts or login.
+              One world. One canvas. Always drawing. AlwaysDraw is a single public drawing canvas shared by everyone on the internet in real time. Draw, erase, spray-paint, or doodle anonymously with 13 unique brush textures without any accounts or login.
             </p>
           </div>
         </noscript>

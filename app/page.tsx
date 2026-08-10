@@ -18,9 +18,10 @@ export default function Home() {
 
       {/* Semantic HTML content for search engine crawlers & screen readers */}
       <section className="sr-only" aria-label="AlwaysDraw Product Summary">
+        <h1>AlwaysDraw — The World&apos;s Shared Real-Time Canvas</h1>
         <h2>About AlwaysDraw — The World&apos;s Shared Canvas</h2>
         <p>
-          AlwaysDraw is a single, permanent, public 10,000×10,000 drawing canvas shared by everyone on the internet simultaneously in real time.
+          AlwaysDraw is a single, permanent, public drawing canvas shared by everyone on the internet simultaneously in real time.
           No accounts, no rooms, no protected areas, and no undo. Anyone can draw, erase, or spray paint over anyone else&apos;s work.
         </p>
 

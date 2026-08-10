@@ -5,7 +5,7 @@ export type Camera = {
 };
 
 // Low enough that even a modest ~800px-wide viewport can still fit the whole
-// WORLD_WIDTH (10,000) at once — (viewport px) / MIN_ZOOM must stay well
+// WORLD_WIDTH at once — (viewport px) / MIN_ZOOM must stay well
 // above the world size. Re-check this whenever the world size changes; it
 // silently broke "see the whole wall" once already when the world grew and
 // this constant wasn't revisited.

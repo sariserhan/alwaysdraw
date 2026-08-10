@@ -74,7 +74,7 @@ lib/
 convex/
   schema.ts              Database schema definitions
   strokes.ts             Stroke submission (validated, sequenced, idempotent), listSince, listRecent
-  admin.ts               Protected zones, wipeArea, rollbackClient, telemetry
+  operations.ts          Protected zones, wipeArea, rollbackClient, telemetry
   presence.ts            Heartbeat, presence list, online counts
   bookmarks.ts           Saved location bookmarks & comments
 ```
