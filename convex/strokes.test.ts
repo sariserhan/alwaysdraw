@@ -3,7 +3,17 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
-import { WORLD_WIDTH, WORLD_HEIGHT, MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH, MIN_OPACITY, MAX_OPACITY } from "./constants";
+import {
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  MIN_BRUSH_WIDTH,
+  MAX_BRUSH_WIDTH,
+  MIN_OPACITY,
+  MAX_OPACITY,
+  MAX_CLIENT_ID_LENGTH,
+  MAX_CLIENT_STROKE_ID_LENGTH,
+  STROKES_PER_CLIENT_WINDOW,
+} from "./constants";
 import type { StrokeMode, BrushType, Point } from "../lib/types";
 
 const allModules = import.meta.glob("./**/*.*s");
@@ -134,6 +144,54 @@ describe("strokes.submit — validation boundaries", () => {
     const rows = await t.query(api.strokes.listSince, { afterSequence: 0 });
     const row = rows.find((r) => r.clientStrokeId === "o-default");
     expect(row?.opacity).toBe(1);
+  });
+
+  it("rejects empty or oversized anonymous identifiers", async () => {
+    await expect(
+      t.mutation(api.strokes.submit, strokeArgs({ clientStrokeId: "", clientId: "anon" })),
+    ).rejects.toThrow(/clientStrokeId/);
+    await expect(
+      t.mutation(
+        api.strokes.submit,
+        strokeArgs({
+          clientStrokeId: "x".repeat(MAX_CLIENT_STROKE_ID_LENGTH + 1),
+          clientId: "anon",
+        }),
+      ),
+    ).rejects.toThrow(/clientStrokeId/);
+    await expect(
+      t.mutation(
+        api.strokes.submit,
+        strokeArgs({
+          clientStrokeId: "valid-id",
+          clientId: "x".repeat(MAX_CLIENT_ID_LENGTH + 1),
+        }),
+      ),
+    ).rejects.toThrow(/clientId/);
+  });
+
+  it("rejects a non-finite client timestamp", async () => {
+    await expect(
+      t.mutation(
+        api.strokes.submit,
+        strokeArgs({ clientStrokeId: "bad-time", clientTimestamp: Infinity }),
+      ),
+    ).rejects.toThrow(/clientTimestamp/);
+  });
+
+  it("rate limits excessive chunks from one anonymous client", async () => {
+    for (let i = 0; i < STROKES_PER_CLIENT_WINDOW; i++) {
+      await t.mutation(
+        api.strokes.submit,
+        strokeArgs({ clientStrokeId: `rate-${i}`, clientId: "rate-client" }),
+      );
+    }
+    await expect(
+      t.mutation(
+        api.strokes.submit,
+        strokeArgs({ clientStrokeId: "rate-over", clientId: "rate-client" }),
+      ),
+    ).rejects.toThrow(/rate limit/);
   });
 });
 

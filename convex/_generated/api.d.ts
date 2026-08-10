@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as abuse from "../abuse.js";
 import type * as canvas from "../canvas.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
@@ -21,6 +22,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  abuse: typeof abuse;
   canvas: typeof canvas;
   constants: typeof constants;
   crons: typeof crons;

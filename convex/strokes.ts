@@ -13,7 +13,18 @@ import {
   MAX_LIST_LIMIT,
   COLOR_PATTERN,
   BRUSH_TYPES,
+  MAX_CLIENT_ID_LENGTH,
+  MAX_CLIENT_STROKE_ID_LENGTH,
+  MAX_COLOR_LENGTH,
+  RATE_LIMIT_WINDOW_MS,
+  STROKES_PER_CLIENT_WINDOW,
+  STROKES_GLOBAL_WINDOW,
 } from "./constants";
+import {
+  assertBoundedIdentifier,
+  assertWritesEnabled,
+  consumeRateLimit,
+} from "./abuse";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
 const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
@@ -48,6 +59,19 @@ export const submit = mutation({
   },
   returns: v.object({ sequence: v.number() }),
   handler: async (ctx, args) => {
+    assertWritesEnabled();
+    assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
+    assertBoundedIdentifier(
+      args.clientStrokeId,
+      "clientStrokeId",
+      MAX_CLIENT_STROKE_ID_LENGTH,
+    );
+    if (args.color.length > MAX_COLOR_LENGTH) {
+      throw new Error(`color must not exceed ${MAX_COLOR_LENGTH} characters`);
+    }
+    if (!Number.isFinite(args.clientTimestamp)) {
+      throw new Error("clientTimestamp must be a finite number");
+    }
     // --- Abuse boundary: validate hard, reject on violation ---
     if (
       !Number.isFinite(args.width) ||
@@ -97,6 +121,19 @@ export const submit = mutation({
     if (existing !== null) {
       return { sequence: existing.sequence };
     }
+
+    await consumeRateLimit(
+      ctx,
+      `strokes:client:${args.clientId}`,
+      STROKES_PER_CLIENT_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
+    await consumeRateLimit(
+      ctx,
+      "strokes:global",
+      STROKES_GLOBAL_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
 
     // --- Sequencing: transactional read-increment-write on the singleton ---
     let metadata = await ctx.db.query("canvasMetadata").first();

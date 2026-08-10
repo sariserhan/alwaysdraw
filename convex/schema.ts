@@ -33,6 +33,14 @@ export default defineSchema({
     height: v.number(),
   }),
 
+  rateLimits: defineTable({
+    key: v.string(),
+    windowStartedAt: v.number(),
+    count: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_windowStartedAt", ["windowStartedAt"]),
+
   presence: defineTable({
     clientId: v.string(),
     lastSeenAt: v.number(),

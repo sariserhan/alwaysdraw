@@ -23,7 +23,7 @@ Not a drawing tool — a single public object that everyone can continuously cha
 - Root URL opens directly into the canvas — desktop and mobile web, no app install.
 - Desktop input: left-drag to draw, mouse wheel to zoom, space+drag to pan.
 - Mobile input: one finger draws, two fingers pan/pinch-zoom.
-- The canvas is a fixed 5,000×5,000 logical-pixel world (V1); a viewport-sized `<canvas>` renders it via a camera (position + zoom), not a giant DOM element.
+- The canvas is a fixed 10,000×10,000 logical-pixel world (V1); a viewport-sized `<canvas>` renders it via a camera (position + zoom), not a giant DOM element.
 - History is append-only and permanent: erasing is stored as an operation, not a deletion, and there is no undo of anything already published to the shared canvas.
 - No moderation mechanics gate drawing in V1; abuse controls are limited to input validation and rate limits (brush width, point count, coordinate bounds, color format), not content review.
 
@@ -40,11 +40,11 @@ Not a drawing tool — a single public object that everyone can continuously cha
 
 - Name: **AlwaysDraw**.
 - Tagline: **"One world. One canvas. Always drawing."**
-- Visual identity (palette, typography, component language) is not yet defined — no DESIGN.md exists.
+- Visual identity is defined in `DESIGN.md`: “The Bolted Rack,” a riveted train-yard-wall system with fixed chrome, paper, and spray-paint roles.
 
 ## Evidence on Hand
 
-No real user content, testimonials, case studies, or press exist yet — this is a pre-launch build. No custom brand assets (logo, imagery) exist yet; `public/` only has the default Next.js starter icons. Future work must not fabricate usage stats, testimonials, or user counts.
+No verified testimonials, case studies, press, or durable usage metrics are recorded in this repository. Future work must not fabricate usage stats, testimonials, or user counts.
 
 ## Product Principles
 

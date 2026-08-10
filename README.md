@@ -114,7 +114,13 @@ NEXT_PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://<your-deployment>.convex.site
 ```
 
-No other secrets are required for V1 (no auth, no third-party APIs).
+Optional operational setting:
+
+```text
+ALWAYSDRAW_READ_ONLY=1
+```
+
+Set it on the Convex deployment to reject new strokes and presence heartbeats during an incident. Unset it (or set a value other than `1`) for normal operation. No third-party API secrets are required for V1.
 
 ## 6. Deployment instructions
 
@@ -140,16 +146,26 @@ Cloudflare doesn't run Next.js natively — the [OpenNext](https://opennext.js.o
    ```
    (Or `npx wrangler login` first if this is the first deploy from this machine.) The Worker's `*.workers.dev` URL — or a custom domain attached in the Cloudflare dashboard — opens directly into the canvas.
 
+The repository does not currently track `wrangler.jsonc`, `open-next.config.ts`, a production URL, or a deployed revision record. Do not treat deployment as verified from this checkout alone; complete `DEPLOYMENT.md` after the next verified release.
+
 ## 7. Testing instructions
 
 ```bash
 npm test          # runs lib/*.test.ts once (Vitest)
 npm run test:watch
+npm run build
+npm run test:e2e  # non-mutating Chromium smoke + mobile toolbar tests against the production build
+```
+
+The live two-browser synchronization/reload test writes permanent disposable strokes and must only target a non-production Convex deployment:
+
+```bash
+npm run test:e2e:live
 ```
 
 Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed.
 
-Convex function tests (`convex/strokes.test.ts`, via [convex-test](https://github.com/get-convex/convex-test)) cover `strokes.submit`'s abuse-boundary validation (width/point-count/coordinate/color/opacity limits, rejected at the boundary and accepted just inside it), retry idempotency on a repeated `clientStrokeId`, gapless/duplicate-free sequence numbering under both sequential and concurrent submits, `listSince` pagination and ordering (including that an erase reliably lands after the draw it erases), and `listRecent`'s live-tail ordering.
+Convex function tests (`convex/strokes.test.ts`, via [convex-test](https://github.com/get-convex/convex-test)) cover `strokes.submit`'s abuse-boundary validation, identifier limits, rate limiting, retry idempotency, gapless/duplicate-free sequencing, `listSince` pagination and ordering, and `listRecent` ordering. Playwright covers initial rendering, theme/tool interactions, the mobile toolbar, and an opt-in two-browser live synchronization/reload path.
 
 Manual verification performed for this build:
 
@@ -166,7 +182,7 @@ To repeat the two-browser check by hand: open `http://localhost:3000` in two win
 - **Live-tail window, not true cursor-based catch-up**: the reactive subscription (`strokes.listRecent`) returns the most recent 300 strokes. A client that's open but network-stalled for long enough to miss more than 300 strokes will only fully catch up on next reload (which does a full replay). Fine at V1 traffic; V2's snapshot system removes this ceiling.
 - **Full-history replay on every load**, capped at 20,000 strokes (dev safety valve, not a real limit) — gets expensive as history grows. This is explicitly deferred to V2 (snapshots) per the spec.
 - **`onlineCount`/presence `list`/stale cleanup** use `.collect()`/`.take()` over an index range rather than a running counter — fine at hundreds of concurrent users, not thousands.
-- **No rate limiting beyond input validation** (width/point-count/coordinate/color bounds, 100 pts/mutation). A malicious client could still spam many small mutations; acceptable for V1 per spec ("add reasonable limits if practical"), worth hardening before real public traffic.
+- **Anonymous abuse remains possible**: transactional per-client and global fixed-window limits bound stroke and presence writes, identifiers/payload fields are length-checked, and operators have a read-only switch. Because identity is anonymous and client-supplied, these controls limit cost rather than proving identity or preventing a distributed attack.
 - **`app/page.tsx` opts the canvas out of SSR** (`next/dynamic(..., { ssr: false })`). The app is one imperative `<canvas>` plus entirely browser-only state (camera, websocket, anonymous identity in `localStorage`) — server-rendering it added nothing and only produced hydration mismatches, so it's skipped outright. This means the very first paint is a client-side render (brief blank/loading frame), not server-rendered HTML.
 - **No accounts, no moderation** — by design for V1, per spec.
 
@@ -176,6 +192,7 @@ To repeat the two-browser check by hand: open `http://localhost:3000` in two win
 - Camera state lives in a `ref`, not React state, so panning/zooming don't trigger React re-renders — only a `requestAnimationFrame`-throttled full canvas redraw plus a lightweight state sync (zoom %, cursor overlay) once per frame.
 - New remote strokes are drawn incrementally on top of the existing canvas bitmap (no full history redraw) except when the camera itself changes, which inherently requires repainting every visible stroke at the new transform.
 - Each stroke document caps at 100 points and each mutation is independently validated and sequenced — no unbounded payloads.
+- Fonts are packaged locally through `@fontsource` and loaded with `next/font/local`, so production builds do not depend on reaching Google Fonts.
 
 ## 10. Recommendations for Version 2
 

@@ -10,4 +10,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "clear expired write rate limits",
+  { minutes: 1 },
+  internal.abuse.clearExpiredRateLimits,
+  {},
+);
+
 export default crons;

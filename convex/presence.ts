@@ -6,7 +6,16 @@ import {
   PRESENCE_ONLINE_WINDOW_MS,
   PRESENCE_STALE_MS,
   MAX_PRESENCE_LIST,
+  MAX_CLIENT_ID_LENGTH,
+  RATE_LIMIT_WINDOW_MS,
+  HEARTBEATS_PER_CLIENT_WINDOW,
+  HEARTBEATS_GLOBAL_WINDOW,
 } from "./constants";
+import {
+  assertBoundedIdentifier,
+  assertWritesEnabled,
+  consumeRateLimit,
+} from "./abuse";
 
 // Cursor coordinates are just for rendering — clamp rather than reject.
 function clamp(value: number, max: number): number {
@@ -22,6 +31,20 @@ export const heartbeat = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    assertWritesEnabled();
+    assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
+    await consumeRateLimit(
+      ctx,
+      `presence:client:${args.clientId}`,
+      HEARTBEATS_PER_CLIENT_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
+    await consumeRateLimit(
+      ctx,
+      "presence:global",
+      HEARTBEATS_GLOBAL_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
     const cursorX = clamp(args.cursorX, WORLD_WIDTH);
     const cursorY = clamp(args.cursorY, WORLD_HEIGHT);
     const existing = await ctx.db
