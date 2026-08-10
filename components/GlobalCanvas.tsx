@@ -50,11 +50,12 @@ import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
-import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
+import { ExploreMenu } from "./ExploreMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
-import { HighlightsModal } from "./HighlightsModal";
+import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
+import { type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
 import { SpatialCompass } from "./SpatialCompass";
@@ -160,7 +161,23 @@ export function GlobalCanvas() {
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [locale, setLocale] = useState<Locale>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("alwaysdraw_locale") as Locale | null;
+      if (saved && ["en", "fr", "ar", "ru", "es", "pt", "tr", "ja"].includes(saved)) {
+        return saved;
+      }
+    }
+    return "en";
+  });
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -1407,6 +1424,13 @@ export function GlobalCanvas() {
         <div className="hidden lg:flex items-center gap-3 pr-4">
           {/* Preferences: how the app looks/sounds to you */}
           <div className="flex items-center gap-2">
+            <LanguagePicker
+              currentLocale={locale}
+              onLocaleChange={(loc) => {
+                setLocale(loc);
+                localStorage.setItem("alwaysdraw_locale", loc);
+              }}
+            />
             <ThemeToggle />
             <GridToggle config={gridConfig} onChange={setGridConfig} />
           </div>
@@ -1416,16 +1440,11 @@ export function GlobalCanvas() {
           {/* Discover: take me somewhere on the wall */}
           <div className="flex items-center gap-2">
             <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
-            <SpatialDiscoveryMenu
+            <ExploreMenu
               onJumpToPoint={handleJumpToPoint}
               getBusiestPoint={getBusiestPoint}
               getRandomActivePoint={getRandomActivePoint}
               getLatestActivityPoint={getLatestActivityPoint}
-            />
-            <HighlightsModal
-              onJumpToPoint={handleJumpToPoint}
-              getBusiestPoint={getBusiestPoint}
-              getRandomActivePoint={getRandomActivePoint}
               onlineCount={onlineCount ?? 1}
             />
             <BookmarkMenu
@@ -1524,6 +1543,15 @@ export function GlobalCanvas() {
             <MobileGroupLabel>Preferences</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <LanguagePicker
+                  currentLocale={locale}
+                  onLocaleChange={(loc) => {
+                    setLocale(loc);
+                    localStorage.setItem("alwaysdraw_locale", loc);
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <GridToggle config={gridConfig} onChange={setGridConfig} />
               </div>
             </div>
@@ -1534,18 +1562,11 @@ export function GlobalCanvas() {
                 <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <SpatialDiscoveryMenu
+                <ExploreMenu
                   onJumpToPoint={handleJumpToPoint}
                   getBusiestPoint={getBusiestPoint}
                   getRandomActivePoint={getRandomActivePoint}
                   getLatestActivityPoint={getLatestActivityPoint}
-                />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <HighlightsModal
-                  onJumpToPoint={handleJumpToPoint}
-                  getBusiestPoint={getBusiestPoint}
-                  getRandomActivePoint={getRandomActivePoint}
                   onlineCount={onlineCount ?? 1}
                 />
               </div>
@@ -1658,6 +1679,7 @@ export function GlobalCanvas() {
           onShare={handleShare}
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
+          locale={locale}
         />
       </nav>
     </div>

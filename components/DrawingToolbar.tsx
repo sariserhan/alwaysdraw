@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useRef } from "react";
+import { t, type Locale } from "@/lib/i18n";
 import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
@@ -514,6 +515,7 @@ export function DrawingToolbar({
   onShare,
   showHeatmap,
   onToggleHeatmap,
+  locale = "en",
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
@@ -536,6 +538,7 @@ export function DrawingToolbar({
   onShare: () => void | Promise<void>;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
+  locale?: Locale;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
@@ -604,7 +607,7 @@ export function DrawingToolbar({
             }`}
           >
             <EraserIcon />
-            <span className="hidden sm:inline">Erase</span>
+            <span className="hidden sm:inline">{t(locale, "erase")}</span>
           </button>
           <button
             type="button"
@@ -768,7 +771,7 @@ export function DrawingToolbar({
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <RulerIcon />
-            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Size</span>
+            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "size")}</span>
           </span>
           <input
             type="range"
@@ -785,7 +788,7 @@ export function DrawingToolbar({
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <DropletIcon />
-            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Opacity</span>
+            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "opacity")}</span>
           </span>
           <input
             type="range"
