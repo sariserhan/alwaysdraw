@@ -2,11 +2,12 @@
 
 import { useState, useRef } from "react";
 import { t, type Locale } from "@/lib/i18n";
-import type { BrushType, Tool } from "@/lib/types";
+import type { BrushType, Tool, SymmetryMode } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
 import { PALETTE_PRESETS, type Palette } from "@/lib/palettes";
+import { STICKER_CATALOG } from "@/lib/stickers";
 import { ChromeRivet } from "./ChromeRivet";
 
 
@@ -173,6 +174,32 @@ function TextIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M4 7V4h16v3M12 4v16m-3 0h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BucketIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m19 11-8-8-8.5 8.5a3 3 0 0 0 0 4.24l2.83 2.83a3 3 0 0 0 4.24 0L18 10zM14 6l4 4" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M22 19a2 2 0 1 1-4 0c0-1.5 2-3 2-3s2 1.5 2 3z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StickerIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M12 15a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -561,6 +588,8 @@ export function DrawingToolbar({
   onZoomOut,
   onResetView,
   onShare,
+  symmetryMode = "off",
+  onSymmetryModeChange = () => {},
   showHeatmap,
   onToggleHeatmap,
   locale = "en",
@@ -584,6 +613,8 @@ export function DrawingToolbar({
   onZoomOut: () => void;
   onResetView: () => void;
   onShare: () => void | Promise<void>;
+  symmetryMode?: SymmetryMode;
+  onSymmetryModeChange?: (m: SymmetryMode) => void;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
   locale?: Locale;
@@ -739,12 +770,58 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange("text")}
             aria-pressed={tool === "text"}
-            title="Text Tool (T)"
+            title="Text Tool (X)"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "text" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <TextIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToolChange("fill")}
+            aria-pressed={tool === "fill"}
+            title="Flood Fill Bucket (F)"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "fill" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <BucketIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToolChange("comment")}
+            aria-pressed={tool === "comment"}
+            title="Post Sticky Note (C)"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "comment" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <CommentIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextMode: Record<SymmetryMode, SymmetryMode> = {
+                off: "mirror2",
+                mirror2: "mirror4",
+                mirror4: "mandala8",
+                mandala8: "off",
+              };
+              onSymmetryModeChange(nextMode[symmetryMode]);
+            }}
+            aria-pressed={symmetryMode !== "off"}
+            title={`Symmetry Mode: ${symmetryMode.toUpperCase()}`}
+            className={`flex items-center gap-1 rounded-sm px-2 py-1.5 font-mono text-[10px] font-bold uppercase transition ${
+              symmetryMode !== "off"
+                ? "border border-rust bg-rust/40 text-accent-yellow shadow-md"
+                : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <span>🔮</span>
+            <span className="hidden sm:inline">
+              {symmetryMode === "off" ? "SYM OFF" : symmetryMode.toUpperCase()}
+            </span>
           </button>
           <button
             type="button"

@@ -44,7 +44,8 @@ import { calculateSymmetricPoints } from "@/lib/symmetry";
 import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
-import type { LocalStroke, ServerStroke, Point, Tool, BrushType, SymmetryMode } from "@/lib/types";
+import type { LocalStroke, ServerStroke, Point, Tool, BrushType, SymmetryMode, WorldRect } from "@/lib/types";
+import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
@@ -88,6 +89,10 @@ const MAGNIFIER_SIZE_PX = 160;
 const MAGNIFIER_FACTOR = 2.5;
 const MAGNIFIER_OFFSET_PX = 24;
 const MIN_SHAPE_DRAG = 2;
+// Larger than MIN_SHAPE_DRAG on purpose — a region selection is a bigger
+// commitment (scopes replay/export) than starting a shape, so a stray click
+// shouldn't silently create a near-zero-area region.
+const MIN_REGION_DRAG = 20;
 const HOVER_SCREEN_RADIUS_PX = 8;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
@@ -119,6 +124,8 @@ export function GlobalCanvas() {
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const shapePreviewRef = useRef<LocalStroke | null>(null);
+  const regionDragRef = useRef<{ start: Point; current: Point } | null>(null);
+  const [replayRegion, setReplayRegion] = useState<WorldRect | null>(null);
   const isStencilDraggingRef = useRef(false);
   const lastStencilWorldRef = useRef<Point | null>(null);
   const laserTrailsRef = useRef<LaserTrail[]>([]);
@@ -404,6 +411,9 @@ export function GlobalCanvas() {
             continue; // Culled off-screen stroke for 60 FPS performance
           }
         }
+        if (isReplayMode && replayRegion && !strokeIntersectsRegion(s.points, replayRegion)) {
+          continue;
+        }
         paintOneStroke(ctx, width, height, s);
       }
     }
@@ -435,7 +445,22 @@ export function GlobalCanvas() {
         ctx.restore();
       }
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color]);
+
+    const liveRegionDrag = regionDragRef.current;
+    const regionToDraw = liveRegionDrag
+      ? normalizeRect(liveRegionDrag.start, liveRegionDrag.current)
+      : replayRegion;
+    if (regionToDraw) {
+      const topLeft = worldToScreen(regionToDraw.minX, regionToDraw.minY, cameraRef.current, width, height);
+      const bottomRight = worldToScreen(regionToDraw.maxX, regionToDraw.maxY, cameraRef.current, width, height);
+      ctx.save();
+      ctx.strokeStyle = "#e0b13a";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.restore();
+    }
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1396,6 +1421,11 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "region") {
+        regionDragRef.current = { start: worldPt, current: worldPt };
+        return;
+      }
+
       if (tool === "stencil") {
         isStencilDraggingRef.current = true;
         lastStencilWorldRef.current = worldPt;
@@ -1554,6 +1584,14 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "region") {
+        const drag = regionDragRef.current;
+        if (!drag) return;
+        drag.current = worldPt;
+        scheduleRedraw({ strokes: true });
+        return;
+      }
+
       if (tool === "stencil") {
         if (isStencilDraggingRef.current && lastStencilWorldRef.current) {
           const minSpacing = Math.max(30, brushWidth * 3);
@@ -1620,6 +1658,16 @@ export function GlobalCanvas() {
         scheduleRedraw({ strokes: true });
       }
 
+      if (tool === "region") {
+        const drag = regionDragRef.current;
+        regionDragRef.current = null;
+        if (drag && distance(drag.start, drag.current) >= MIN_REGION_DRAG) {
+          setReplayRegion(normalizeRect(drag.start, drag.current));
+        }
+        setTool("brush");
+        scheduleRedraw({ strokes: true });
+      }
+
       if (tool === "ruler") {
         rulerDragRef.current = null;
         updateRuler();
@@ -1653,6 +1701,26 @@ export function GlobalCanvas() {
     const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
     navigator.clipboard?.writeText(url).catch(() => {});
     captureEvent("view_shared");
+  }, []);
+
+  const handleEnterReplay = useCallback(() => {
+    setIsReplayMode(true);
+    setReplaySequenceIndex(snapshotSequenceRef.current);
+    setIsPlayingReplay(true);
+    if (replayRegion) {
+      const fitted = fitCameraToRegion(replayRegion, viewportRef.current.width, viewportRef.current.height);
+      cameraRef.current = fitted;
+      setCameraSnapshot(fitted);
+    }
+    scheduleRedraw({ world: true, strokes: true });
+  }, [replayRegion, scheduleRedraw]);
+
+  const handleSelectRegion = useCallback(() => {
+    setTool("region");
+  }, []);
+
+  const handleClearRegion = useCallback(() => {
+    setReplayRegion(null);
   }, []);
 
   const handleToolChange = useCallback((nextTool: Tool) => {
@@ -1919,11 +1987,10 @@ export function GlobalCanvas() {
                 setIsPlayingReplay(false);
                 scheduleRedraw({ world: true, strokes: true });
               }}
-              onEnterReplay={() => {
-                setIsReplayMode(true);
-                setReplaySequenceIndex(snapshotSequenceRef.current);
-                setIsPlayingReplay(true);
-              }}
+              onEnterReplay={handleEnterReplay}
+              region={replayRegion}
+              onSelectRegion={handleSelectRegion}
+              onClearRegion={handleClearRegion}
               locale={locale}
             />
             <ExportModal
@@ -1934,6 +2001,7 @@ export function GlobalCanvas() {
               viewportHeight={viewportSize.height}
               worldWidth={WORLD_WIDTH}
               worldHeight={WORLD_HEIGHT}
+              region={replayRegion}
               locale={locale}
             />
           </div>
@@ -2058,11 +2126,10 @@ export function GlobalCanvas() {
                     setIsPlayingReplay(false);
                     scheduleRedraw({ world: true, strokes: true });
                   }}
-                  onEnterReplay={() => {
-                    setIsReplayMode(true);
-                    setReplaySequenceIndex(snapshotSequenceRef.current);
-                    setIsPlayingReplay(true);
-                  }}
+                  onEnterReplay={handleEnterReplay}
+                  region={replayRegion}
+                  onSelectRegion={handleSelectRegion}
+                  onClearRegion={handleClearRegion}
                   locale={locale}
                 />
               </div>
@@ -2075,6 +2142,7 @@ export function GlobalCanvas() {
                   viewportHeight={viewportSize.height}
                   worldWidth={WORLD_WIDTH}
                   worldHeight={WORLD_HEIGHT}
+                  region={replayRegion}
                   locale={locale}
                 />
               </div>
@@ -2120,6 +2188,12 @@ export function GlobalCanvas() {
       {shapeMetricsLabel && (
         <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border border-rust bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-yellow shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
           📐 {shapeMetricsLabel}
+        </div>
+      )}
+
+      {tool === "region" && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border border-accent-yellow bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-yellow shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          ⬚ {t(locale, "region_select_hint")}
         </div>
       )}
 

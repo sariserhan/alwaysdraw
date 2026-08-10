@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 import { downloadCanvasPNG, generateTimelapseVideo } from "@/lib/exportMedia";
-import type { ServerStroke } from "@/lib/types";
+import { strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
+import type { ServerStroke, WorldRect } from "@/lib/types";
 import type { Camera } from "@/lib/camera";
 import { t, type Locale } from "@/lib/i18n";
 
@@ -15,6 +16,9 @@ export interface ExportModalProps {
   viewportHeight: number;
   worldWidth: number;
   worldHeight: number;
+  /** Drag-selected world-space rectangle — when set, the timelapse export is
+   * cropped to strokes in this region with a camera fit to match. */
+  region: WorldRect | null;
   locale: Locale;
 }
 
@@ -26,6 +30,7 @@ export function ExportModal({
   viewportHeight,
   worldWidth,
   worldHeight,
+  region,
   locale,
 }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,16 +70,23 @@ export function ExportModal({
   };
 
   const handleGenerateTimelapse = async () => {
-    const strokes = getCommittedStrokes();
+    const allStrokes = getCommittedStrokes();
+    const strokes = region
+      ? allStrokes.filter((s) => strokeIntersectsRegion(s.points, region))
+      : allStrokes;
     if (strokes.length === 0 || isExporting) return;
 
     try {
       setIsExporting(true);
       setProgress(0);
 
+      const camera = region
+        ? fitCameraToRegion(region, viewportWidth || 1200, viewportHeight || 800)
+        : currentCamera;
+
       const blob = await generateTimelapseVideo({
         strokes,
-        camera: currentCamera,
+        camera,
         viewportWidth: viewportWidth || 1200,
         viewportHeight: viewportHeight || 800,
         worldWidth,
@@ -164,7 +176,11 @@ export function ExportModal({
             </div>
             <div className="flex flex-col">
               <span className="font-mono text-xs font-bold text-ink">{t(locale, "timelapse_webm")}</span>
-              <span className="font-mono text-[10px] text-ink-dim">{t(locale, "timelapse_desc")}</span>
+              <span className="font-mono text-[10px] text-ink-dim">
+                {region
+                  ? `${t(locale, "region")}: ${Math.round(region.maxX - region.minX)}×${Math.round(region.maxY - region.minY)}px`
+                  : t(locale, "timelapse_desc")}
+              </span>
             </div>
           </button>
 

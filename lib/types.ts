@@ -30,5 +30,25 @@ export type ServerStroke = LocalStroke & {
   serverTimestamp: number;
 };
 
+export type SymmetryMode = "off" | "mirror2" | "mirror4" | "mandala8";
+
+/** An axis-aligned world-space rectangle, e.g. a drag-selected region for
+ * scoped replay/export. */
+export type WorldRect = { minX: number; minY: number; maxX: number; maxY: number };
+
 /** Tool the pointer is currently bound to — what a drag/tap on the canvas does. */
-export type Tool = "brush" | "eraser" | "pan" | "magnifier" | "shape" | "ruler" | "stencil" | "laser" | "eyedropper" | "text";
+export type Tool =
+  | "brush"
+  | "eraser"
+  | "pan"
+  | "magnifier"
+  | "shape"
+  | "ruler"
+  | "stencil"
+  | "laser"
+  | "eyedropper"
+  | "text"
+  | "fill"
+  | "comment"
+  | "sticker"
+  | "region";

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
+import type { WorldRect } from "@/lib/types";
 
 export interface TimeTravelMenuProps {
   isReplayMode: boolean;
@@ -17,6 +18,11 @@ export interface TimeTravelMenuProps {
   onSpeedChange: (speed: number) => void;
   onExitReplay: () => void;
   onEnterReplay: () => void;
+  /** Drag-selected world-space rectangle scoping replay to a region — null
+   * means the whole canvas. */
+  region: WorldRect | null;
+  onSelectRegion: () => void;
+  onClearRegion: () => void;
   locale: Locale;
 }
 
@@ -35,6 +41,9 @@ export function TimeTravelMenu({
   onSpeedChange,
   onExitReplay,
   onEnterReplay,
+  region,
+  onSelectRegion,
+  onClearRegion,
   locale,
 }: TimeTravelMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,6 +91,11 @@ export function TimeTravelMenu({
 
   const handleExit = () => {
     onExitReplay();
+    setIsOpen(false);
+  };
+
+  const handleSelectRegionClick = () => {
+    onSelectRegion();
     setIsOpen(false);
   };
 
@@ -136,6 +150,33 @@ export function TimeTravelMenu({
               <span>{t(locale, "live").toUpperCase()}</span>
               <span className="h-1.5 w-1.5 rounded-full bg-accent-crimson" />
             </button>
+          </div>
+
+          {/* Region scope */}
+          <div className="flex items-center justify-between gap-2 rounded border border-chrome-border/60 bg-chrome-bg-raised/60 px-2 py-1.5">
+            <span className="min-w-0 truncate font-mono text-[10px] text-ink-dim">
+              {region
+                ? `${t(locale, "region")}: ${Math.round(region.maxX - region.minX)}×${Math.round(region.maxY - region.minY)}px`
+                : t(locale, "whole_canvas")}
+            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleSelectRegionClick}
+                className="rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-yellow"
+              >
+                {t(locale, "select_region")}
+              </button>
+              {region && (
+                <button
+                  type="button"
+                  onClick={onClearRegion}
+                  className="rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-crimson"
+                >
+                  {t(locale, "clear_region")}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Scrubber slider */}
