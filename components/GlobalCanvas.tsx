@@ -56,7 +56,9 @@ import { SoundToggle } from "./SoundToggle";
 import { HighlightsModal } from "./HighlightsModal";
 import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
+import { RateLimitToast } from "./RateLimitToast";
 import { playBrushSound } from "@/lib/audio";
+import { rateLimitTracker } from "@/lib/rateLimitTracker";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
 import { getVisibleTileKeys, getTileKeysForStroke, TILE_SIZE } from "@/lib/tiling";
@@ -685,9 +687,11 @@ export function GlobalCanvas() {
         firstMarkTrackedRef.current = true;
         captureEvent("first_mark", { mode: chunk.mode, brush: chunk.brushType });
       }
+      rateLimitTracker.recordSubmission();
       pendingRef.current.set(chunk.clientStrokeId, chunk);
       submitStroke(chunk).catch((err) => {
         console.error("stroke submit rejected", err);
+        rateLimitTracker.recordRateLimitError();
         captureOperationalError(err, "stroke_submit", { mode: chunk.mode });
         pendingRef.current.delete(chunk.clientStrokeId);
         setSubmitError("a mark didn't stick — try again");
@@ -1348,6 +1352,8 @@ export function GlobalCanvas() {
           </div>
         </div>
       )}
+
+      <RateLimitToast />
 
       <nav id="drawing-toolbar-nav" aria-label="Drawing Tools Toolbar">
         <DrawingToolbar
