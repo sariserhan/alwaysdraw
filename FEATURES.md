@@ -90,3 +90,53 @@
 - **Comprehensive Test Coverage:**
   - **100/100 Unit Tests (`vitest`):** Pure camera math, coordinate conversions, stroke validation, tiling, admin endpoints, and text vectorization.
   - **Playwright E2E Suite (`playwright test`):** Automated smoke tests and live two-browser multiplayer synchronization tests.
+
+---
+
+## 🔬 9. How It Works — Technical Implementation Deep Dive
+
+### 9.1 Local-First Instant Drawing & `StrokeBuffer` (`lib/strokeBuffer.ts`)
+- **0ms Input Latency:** Pointer events map directly to 2D canvas drawing calls (`ctx.lineTo`) on the active screen canvas frame, rendering instantly without waiting for a server round-trip.
+- **Batching & Chunking:** Pointer points are collected into `StrokeBuffer`. Every ~40ms or 40 points, `StrokeBuffer.flush()` creates a discrete `LocalStroke` chunk payload assigned a unique UUID.
+- **Boundary Continuity:** Consecutive chunks copy the last point of the preceding chunk as their starting point, ensuring zero visual gap between batch flushes.
+
+### 9.2 Reactive Backend & Sequence Ordering (`convex/strokes.ts`)
+- **Authoritative Sequencing:** When `strokes.submit` executes on Convex, it runs inside an atomic transaction that increments `canvasMetadata.currentSequence` and assigns this sequence ID to the inserted stroke.
+- **Idempotent Retry Safety:** Each stroke carries a client-generated `clientStrokeId`. Retrying a dropped network request will hit the unique index on `clientStrokeId` and return the existing sequence number without duplicate insertions.
+- **Live Tail Syncing:** Clients subscribe to `strokes.listRecent` or `strokes.listSince(afterSequence)`. When new sequence IDs are committed by any online player, all connected browsers apply the new strokes to their local canvas in sequence order.
+
+### 9.3 Vector Text Font Engine (`lib/textToPoints.ts`)
+- **Normalized Glyph Maps:** Contains normalized stroke polyline paths ($[0..1] \times [0..1]$) for every letter in the alphabet, numbers, and symbols (`GLYPHS`).
+- **Path Generation (`convertTextToStrokePaths`):** Translates input text string into world-coordinate vector paths (`Point[][]`), scaling by selected font size (`textSize`) and adding letter/line spacing.
+- **Zero Zig-Zag Webbing:** Each letter path is flushed as separate continuous stroke lines via `StrokeBuffer`, preventing cross-line artifacts and producing sharp, crisp vector text across all clients.
+
+### 9.4 Symmetry & Kaleidoscope Engine (`lib/symmetry.ts`)
+- **Trigonometric Reflection (`calculateSymmetricPoints`):**
+  - **Mirror 2-Way:** Calculates horizontal axis mirror point $X_{mirror} = 2 \cdot C_x - X$.
+  - **Mirror 4-Way:** Calculates 4-quadrant reflection points across $(C_x, C_y)$.
+  - **Mandala 8-Way:** Calculates 8 rotational points at $45^\circ$ angle increments around origin $(C_x, C_y)$ using polar coordinates:  
+    $$X_i = C_x + r \cdot \cos(\theta_0 + i \cdot \frac{\pi}{4}), \quad Y_i = C_y + r \cdot \sin(\theta_0 + i \cdot \frac{\pi}{4})$$
+- **Multi-Buffer Dispatch:** Symmetrical points are pushed to parallel `StrokeBuffer` instances, committing synchronized strokes in real time.
+
+### 9.5 Flood Fill Engine (`lib/floodFill.ts`)
+- **Spiral Fill Generator:** `generateFloodFillPoints` calculates an expanding spiral path originating from target click coordinates $(X_0, Y_0)$ with radial step spacing.
+- **Server Persistence:** The generated spiral points are submitted as standard stroke mutations, allowing filled areas to be stored, tile-indexed, snapshot-cached, and synced across players.
+
+### 9.6 Deterministic Brush Texture Rendering (`lib/brushes.ts`)
+- **Flicker-Free Textures:** Texture grain and scatter (for Chalk, Charcoal, Oil Paint, Glitter, and Neon Glow) are generated using a deterministic integer hash function (`hash(seed)` and `pointSeed(point, salt)`) seeded by world coordinates.
+- **Zero Redraw Flicker:** Because `hash(point)` returns the exact same pseudo-random value for any point coordinate, re-rendering visible strokes when panning or zooming never causes texture flicker or grain jittering.
+
+### 9.7 Spatial Tiling & Viewport Culling (`lib/tiling.ts`)
+- **500×500 Spatial Cell Grid:** The 20,000×20,000 canvas is indexed into 500×500 px spatial tile cells (`tile_X_Y`).
+- **Bounding Box Calculation:** When a stroke is submitted, `getTileKeysForStroke` computes all tile keys spanned by the stroke's bounding box.
+- **Viewport Culling:** During redraws, `getVisibleTileKeys(camera, viewportWidth, viewportHeight)` determines which 500x500 cell tiles intersect the screen camera view frustum, filtering out off-screen strokes before invoking 2D canvas draw operations.
+
+### 9.8 Protected Canvas Zones / Mural Shield (`convex/admin.ts` & `ProtectedZonesOverlay.tsx`)
+- **Server-Enforced Bounding Box Shield:** Active protected zone rectangles are stored in `protectedZones`. During `strokes.submit`, server loops through protected zones and rejects any stroke whose points intersect a zone unless `clientId` starts with `"ADMIN_"`.
+- **Dynamic Overlay & Edge Safety:** `ProtectedZonesOverlay` projects yellow dashed bounding boxes onto the screen overlay using `worldToScreen`. Badge labels dynamically adjust vertical offsets (`topLeft.y < 24 ? "top-1" : "-top-4"`) to prevent clipping at the top edge of the browser viewport.
+
+### 9.9 Focal-Point Camera Math (`lib/camera.ts` & `lib/coordinates.ts`)
+- **Focal-Point Zooming:** `zoomAt(camera, mouseScreenPt, zoomFactor)` computes new camera pan offsets such that the world coordinate directly under the mouse cursor remains in the exact same screen location after zooming.
+- **Reversible Coordinate Transforms:** `screenToWorld` and `worldToScreen` perform exact inverse matrix transforms:
+  $$X_{screen} = (X_{world} - X_{cam}) \cdot \text{zoom} + \frac{W_{vw}}{2}$$
+  $$X_{world} = \frac{X_{screen} - \frac{W_{vw}}{2}}{\text{zoom}} + X_{cam}$$
