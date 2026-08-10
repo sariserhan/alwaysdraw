@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 
 export interface TimeTravelMenuProps {
@@ -33,12 +33,43 @@ export function TimeTravelMenu({
   onEnterReplay,
 }: TimeTravelMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: Event) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onExitReplay();
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onExitReplay();
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onExitReplay]);
 
   const handleToggle = () => {
-    if (!isOpen && !isReplayMode) {
-      onEnterReplay();
+    if (!isOpen) {
+      if (!isReplayMode) {
+        onEnterReplay();
+      }
+      setIsOpen(true);
+    } else {
+      onExitReplay();
+      setIsOpen(false);
     }
-    setIsOpen((prev) => !prev);
   };
 
   const handleExit = () => {
@@ -47,7 +78,7 @@ export function TimeTravelMenu({
   };
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={handleToggle}
