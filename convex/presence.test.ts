@@ -40,6 +40,18 @@ describe("presence.onlineCount — cached counter", () => {
     const rowCount = await t.run(async (ctx) => (await ctx.db.query("presenceStats").take(2)).length);
     expect(rowCount).toBe(1);
   });
+
+  it("stores and lists remote laserTrail data", async () => {
+    await t.mutation(api.presence.heartbeat, {
+      clientId: "laserGuy",
+      cursorX: 100,
+      cursorY: 200,
+      laserTrail: [{ x: 100, y: 200, timestamp: 1000 }],
+    });
+    const list = await t.query(api.presence.list, {});
+    expect(list).toHaveLength(1);
+    expect(list[0].laserTrail).toEqual([{ x: 100, y: 200, timestamp: 1000 }]);
+  });
 });
 
 describe("presence.onlineCount — staleness window", () => {

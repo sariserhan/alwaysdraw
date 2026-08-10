@@ -678,15 +678,41 @@ export function GlobalCanvas() {
 
   const lastCursorWorldRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
   useEffect(() => {
+    if (!presenceList) return;
+    const now = Date.now();
+    for (const p of presenceList) {
+      if (p.clientId === clientId) continue;
+      if (p.laserTrail && p.laserTrail.length > 0) {
+        const validPoints = p.laserTrail.filter((pt) => now - pt.timestamp < 1500);
+        if (validPoints.length > 0) {
+          const existing = laserTrailsRef.current.find((t) => t.id === `remote-${p.clientId}`);
+          if (existing) {
+            existing.points = validPoints;
+          } else {
+            laserTrailsRef.current.push({
+              id: `remote-${p.clientId}`,
+              color: "#39c07a",
+              points: validPoints,
+            });
+          }
+        }
+      }
+    }
+    scheduleRedraw({ strokes: true });
+  }, [presenceList, clientId, scheduleRedraw]);
+
+  useEffect(() => {
     const send = () => {
+      const myTrail = laserTrailsRef.current.find((t) => !t.id.startsWith("remote-"));
       heartbeat({
         clientId,
         cursorX: lastCursorWorldRef.current.x,
         cursorY: lastCursorWorldRef.current.y,
+        laserTrail: myTrail ? myTrail.points : undefined,
       }).catch(() => {});
     };
     send();
-    const id = setInterval(send, 5000);
+    const id = setInterval(send, 3000);
     return () => clearInterval(id);
   }, [heartbeat, clientId]);
 

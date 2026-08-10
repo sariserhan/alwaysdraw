@@ -48,6 +48,15 @@ export default defineSchema({
     lastSeenAt: v.number(),
     cursorX: v.number(),
     cursorY: v.number(),
+    laserTrail: v.optional(
+      v.array(
+        v.object({
+          x: v.number(),
+          y: v.number(),
+          timestamp: v.number(),
+        }),
+      ),
+    ),
   })
     .index("by_clientId", ["clientId"])
     .index("by_lastSeenAt", ["lastSeenAt"]),

@@ -28,6 +28,15 @@ export const heartbeat = mutation({
     clientId: v.string(),
     cursorX: v.number(),
     cursorY: v.number(),
+    laserTrail: v.optional(
+      v.array(
+        v.object({
+          x: v.number(),
+          y: v.number(),
+          timestamp: v.number(),
+        }),
+      ),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -55,6 +64,7 @@ export const heartbeat = mutation({
       await ctx.db.patch(existing._id, {
         cursorX,
         cursorY,
+        laserTrail: args.laserTrail,
         lastSeenAt: Date.now(),
       });
     } else {
@@ -62,6 +72,7 @@ export const heartbeat = mutation({
         clientId: args.clientId,
         cursorX,
         cursorY,
+        laserTrail: args.laserTrail,
         lastSeenAt: Date.now(),
       });
     }
@@ -76,6 +87,15 @@ export const list = query({
       clientId: v.string(),
       cursorX: v.number(),
       cursorY: v.number(),
+      laserTrail: v.optional(
+        v.array(
+          v.object({
+            x: v.number(),
+            y: v.number(),
+            timestamp: v.number(),
+          }),
+        ),
+      ),
     }),
   ),
   handler: async (ctx) => {
@@ -88,6 +108,7 @@ export const list = query({
       clientId: r.clientId,
       cursorX: r.cursorX,
       cursorY: r.cursorY,
+      laserTrail: r.laserTrail,
     }));
   },
 });
