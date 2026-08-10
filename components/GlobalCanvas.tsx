@@ -2057,14 +2057,13 @@ export function GlobalCanvas() {
               ▸
             </button>
           </div>
-          <div className="flex flex-col items-start gap-1.5 w-full">
+          <div className="flex flex-col items-start gap-2 w-full">
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
-            <div className="grid grid-cols-3 gap-1.5 w-full">
-              <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
-              <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
-              <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
-              <HeatmapToggle showHeatmap={showHeatmap} onToggle={handleToggleHeatmap} locale={locale} />
-              <ShareButton onShare={handleShare} locale={locale} />
+            <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
+            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
+            <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
+            
+            <div className="grid grid-cols-3 gap-1.5 w-full pt-0.5">
               <ZoomPill
                 zoomPercent={zoomPercent}
                 onZoomIn={() => zoomButton(1.2)}
@@ -2072,73 +2071,79 @@ export function GlobalCanvas() {
                 onResetView={resetView}
                 locale={locale}
               />
+              <HeatmapToggle showHeatmap={showHeatmap} onToggle={handleToggleHeatmap} locale={locale} />
+              <ShareButton onShare={handleShare} locale={locale} />
             </div>
           </div>
 
           <div className="border-t border-chrome-border/60" />
 
-          <div className="flex flex-col items-start gap-1.5 w-full">
+          <div className="flex flex-col items-start gap-2 w-full">
             <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
-            <div className="grid grid-cols-3 gap-1.5 w-full">
-              <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
-              <ExploreMenu
-                onJumpToPoint={handleJumpToPoint}
-                getBusiestPoint={getBusiestPoint}
-                getRandomActivePoint={getRandomActivePoint}
-                getLatestActivityPoint={getLatestActivityPoint}
-                onlineCount={onlineCount ?? 1}
-                locale={locale}
-              />
-              <BookmarkMenu
-                currentCamera={cameraSnapshot}
-                clientId={clientId}
-                onTeleport={handleBookmarkTeleport}
-                locale={locale}
-              />
-              <CommunityGalleryModal
-                clientId={clientId}
-                username={username}
-                onTeleport={handleBookmarkTeleport}
-                locale={locale}
-              />
-              <TimeTravelMenu
-                isReplayMode={isReplayMode}
-                isPlaying={isPlayingReplay}
-                currentSequence={replaySequenceIndex}
-                minSequence={minSequence}
-                maxSequence={maxSequence}
-                playbackSpeed={playbackSpeed}
-                onTogglePlay={() => setIsPlayingReplay((v) => !v)}
-                onSeek={(seq) => setReplaySequenceIndex(seq)}
-                onStep={(delta) =>
-                  setReplaySequenceIndex((prev) =>
-                    Math.max(minSequence, Math.min(maxSequence, prev + delta)),
-                  )
-                }
-                onSpeedChange={setPlaybackSpeed}
-                onExitReplay={() => {
-                  setIsReplayMode(false);
-                  setIsPlayingReplay(false);
-                  scheduleRedraw({ world: true, strokes: true });
-                }}
-                onEnterReplay={handleEnterReplay}
-                region={replayRegion}
-                onSelectRegion={handleSelectRegion}
-                onClearRegion={handleClearRegion}
-                locale={locale}
-              />
-              <ExportModal
-                getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
-                getCommittedStrokes={() => committedRef.current}
-                currentCamera={cameraSnapshot}
-                viewportWidth={viewportSize.width}
-                viewportHeight={viewportSize.height}
-                worldWidth={WORLD_WIDTH}
-                worldHeight={WORLD_HEIGHT}
-                region={replayRegion}
-                locale={locale}
-              />
-            </div>
+            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
+            <ExploreMenu
+              onJumpToPoint={handleJumpToPoint}
+              getBusiestPoint={getBusiestPoint}
+              getRandomActivePoint={getRandomActivePoint}
+              getLatestActivityPoint={getLatestActivityPoint}
+              onlineCount={onlineCount ?? 1}
+              locale={locale}
+            />
+            <BookmarkMenu
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+            />
+            <CommunityGalleryModal
+              clientId={clientId}
+              username={username}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+            />
+          </div>
+
+          <div className="border-t border-chrome-border/60" />
+
+          <div className="flex flex-col items-start gap-2 w-full">
+            <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
+            <TimeTravelMenu
+              isReplayMode={isReplayMode}
+              isPlaying={isPlayingReplay}
+              currentSequence={replaySequenceIndex}
+              minSequence={minSequence}
+              maxSequence={maxSequence}
+              playbackSpeed={playbackSpeed}
+              onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+              onSeek={(seq) => setReplaySequenceIndex(seq)}
+              onStep={(delta) =>
+                setReplaySequenceIndex((prev) =>
+                  Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                )
+              }
+              onSpeedChange={setPlaybackSpeed}
+              onExitReplay={() => {
+                setIsReplayMode(false);
+                setIsPlayingReplay(false);
+                scheduleRedraw({ world: true, strokes: true });
+              }}
+              onEnterReplay={handleEnterReplay}
+              region={replayRegion}
+              onSelectRegion={handleSelectRegion}
+              onClearRegion={handleClearRegion}
+              locale={locale}
+            />
+            <ExportModal
+              getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+              getCommittedStrokes={() => committedRef.current}
+              currentCamera={cameraSnapshot}
+              viewportWidth={viewportSize.width}
+              viewportHeight={viewportSize.height}
+              worldWidth={WORLD_WIDTH}
+              worldHeight={WORLD_HEIGHT}
+              region={replayRegion}
+              locale={locale}
+            />
           </div>
 
         </aside>
