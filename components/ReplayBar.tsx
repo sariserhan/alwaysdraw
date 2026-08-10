@@ -90,7 +90,7 @@ export function TimeTravelMenu({
       <button
         type="button"
         onClick={handleToggle}
-        className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isReplayMode || isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -130,7 +130,7 @@ export function TimeTravelMenu({
             <button
               type="button"
               onClick={handleExit}
-              className="flex items-center gap-1 rounded-sm border border-accent-crimson/50 bg-accent-crimson/20 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-crimson transition-colors hover:bg-accent-crimson hover:text-white"
+              className="flex items-center gap-1 whitespace-nowrap rounded-sm border border-accent-crimson/50 bg-accent-crimson/20 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-crimson transition-colors hover:bg-accent-crimson hover:text-white"
               title={t(locale, "live")}
             >
               <span>{t(locale, "live").toUpperCase()}</span>
@@ -174,7 +174,7 @@ export function TimeTravelMenu({
               <button
                 type="button"
                 onClick={onTogglePlay}
-                className="flex items-center gap-1 rounded border border-rust bg-rust/30 px-3 py-1 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white"
+                className="flex items-center gap-1 whitespace-nowrap rounded border border-rust bg-rust/30 px-3 py-1 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white"
                 aria-label={isPlaying ? "Pause Replay" : "Play Replay"}
               >
                 {isPlaying ? (
