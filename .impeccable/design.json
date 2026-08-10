@@ -64,8 +64,8 @@
       "concrete": {
         "role": "neutral",
         "displayName": "Concrete",
-        "canonical": "#e8e0c9",
-        "tonalRamp": ["#2a2721", "#433e35", "#615a4d", "#8f8676", "#c9bfa4", "#e8e0c9", "#f0ead9", "#f8f4e8"]
+        "canonical": "#f0ebd9",
+        "tonalRamp": ["#2a2721", "#433e35", "#615a4d", "#8f8676", "#d1c8ae", "#e8e0c9", "#f0ebd9", "#f8f4e8"]
       },
       "ink": {
         "role": "neutral",

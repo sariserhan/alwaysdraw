@@ -71,7 +71,7 @@ export function clearCanvas(ctx: CanvasRenderingContext2D, viewportWidth: number
   void viewportHeight;
 }
 
-const CONCRETE_FILL = "#e8e0c9";
+const CONCRETE_FILL = "#f0ebd9";
 const RUST = "#b5502c";
 
 /**

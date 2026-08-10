@@ -10,7 +10,7 @@ colors:
   chrome-bg-recessed: "#101112"
   chrome-border: "#3a3530"
   rust: "#b5502c"
-  concrete: "#e8e0c9"
+  concrete: "#f0ebd9"
   ink: "#f5f1e6"
   ink-dim: "#cdc7b8"
   accent-crimson: "#e0432b"
@@ -104,7 +104,7 @@ A near-black steel-and-rust neutral system carries the interface; a four-color s
 - **Chrome Raised** (`#202224`): one step up from Chrome Black — toolbar body, status pills, the color-swatch tray. Never used for full-bleed backgrounds.
 - **Chrome Recessed** (`#101112`): one step down from Chrome Black — the toolbar's own internal gradient floor, implying the panel is lit from above.
 - **Steel Border** (`#3a3530`): all structural hairline borders on chrome surfaces.
-- **Concrete** (`#e8e0c9`): the canvas ground — a plain flat warm-paper fill (not stark white), deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it. Kept the token name from the original material study; the tone itself reads as paper, not poured concrete.
+- **Concrete** (`#f0ebd9`): the canvas ground — a plain flat warm-paper fill (not stark white), deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it. Kept the token name from the original material study; the tone itself reads as paper, not poured concrete.
 - **Stencil Ink** (`#f5f1e6`): primary text on chrome.
 - **Ink Dim** (`#b8b3a6`): secondary/label text on chrome (tool labels, "online"/"live" captions, size labels).
 - **On-Accent** (`#f5f1e6`): text sitting directly on a saturated accent fill (the active Brush/Erase button, `::selection`). Fixed — does not swap with theme, since the accent fill beneath it doesn't either.
