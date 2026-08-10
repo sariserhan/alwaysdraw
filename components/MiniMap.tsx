@@ -10,21 +10,11 @@ export const MINI_MAP_SIZE_PX = 128;
 const FALLBACK_TOP_PX = 68;
 const GAP_BELOW_HEADER_PX = 12;
 
-export function MiniMap({
-  canvasRef,
-  viewportRectRef,
-  onJump,
-}: {
-  canvasRef: RefObject<HTMLCanvasElement | null>;
-  viewportRectRef: RefObject<HTMLDivElement | null>;
-  onJump: (screenFractionX: number, screenFractionY: number) => void;
-}) {
-  const jumpFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    onJump((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
-  };
-
-  const [top, setTop] = useState(FALLBACK_TOP_PX);
+/** Top offset that sticks to the bottom of #header-bar, plus `extraPx` —
+ * shared by the mini-map itself and anything stacked below it (e.g. the
+ * desktop sidebar), so they stay aligned as the header's height changes. */
+export function useHeaderBottomOffset(extraPx: number = 0) {
+  const [top, setTop] = useState(FALLBACK_TOP_PX + extraPx);
 
   useEffect(() => {
     const update = () => {
@@ -32,11 +22,11 @@ export function MiniMap({
       if (header) {
         const rect = header.getBoundingClientRect();
         if (rect.bottom > 0) {
-          setTop(Math.max(64, rect.bottom + GAP_BELOW_HEADER_PX));
+          setTop(Math.max(64, rect.bottom + GAP_BELOW_HEADER_PX) + extraPx);
           return;
         }
       }
-      setTop(FALLBACK_TOP_PX);
+      setTop(FALLBACK_TOP_PX + extraPx);
     };
 
     update();
@@ -57,7 +47,26 @@ export function MiniMap({
       if (ro) ro.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [extraPx]);
+
+  return top;
+}
+
+export function MiniMap({
+  canvasRef,
+  viewportRectRef,
+  onJump,
+}: {
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+  viewportRectRef: RefObject<HTMLDivElement | null>;
+  onJump: (screenFractionX: number, screenFractionY: number) => void;
+}) {
+  const jumpFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    onJump((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
+  };
+
+  const top = useHeaderBottomOffset();
 
   return (
     <div
