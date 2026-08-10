@@ -569,11 +569,8 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              if (tool === "brush") {
-                setPickerOpen((v) => !v);
-              } else {
-                onToolChange("brush");
-              }
+              onToolChange("brush");
+              setPickerOpen((v) => !v);
             }}
             aria-pressed={tool === "brush"}
             aria-haspopup="true"
@@ -634,11 +631,8 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              if (tool === "shape") {
-                setShapePickerOpen((v) => !v);
-              } else {
-                onToolChange("shape");
-              }
+              onToolChange("shape");
+              setShapePickerOpen((v) => !v);
             }}
             aria-pressed={tool === "shape"}
             aria-haspopup="true"
@@ -663,11 +657,8 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              if (tool === "stencil") {
-                setStencilPickerOpen((v) => !v);
-              } else {
-                onToolChange("stencil");
-              }
+              onToolChange("stencil");
+              setStencilPickerOpen((v) => !v);
             }}
             aria-pressed={tool === "stencil"}
             aria-haspopup="true"
