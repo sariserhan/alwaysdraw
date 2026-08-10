@@ -78,7 +78,7 @@ Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex,
 
 - [ ] **Snapshot system** — rendered snapshot + "strokes since snapshot," removing the full-replay cost as history grows (the #1 scaling wall right now)
 - [ ] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
-- [ ] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button; cheap given `lib/coordinates.ts` already isolates the camera math
+- [x] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button
 - [ ] Historical replay (play/pause/scrub/speed) and read-only time travel
 - [ ] Heatmap of drawing activity by region
 - [ ] Mini-map overview
@@ -126,9 +126,9 @@ Near-term, concrete, not tied to a specific numbered version:
 
 - [ ] Verify and record production deployment (public URL, deployed Git commit, Convex deployment, smoke result, and rollback target); this checkout has no tracked OpenNext/Wrangler configuration yet
 - [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
-- [ ] Revisit the presence/online-count queries before concurrent users gets past the hundreds (documented `ponytail:` ceiling in `convex/presence.ts`)
-- [ ] Decide whether the live-tail's fixed 300-stroke window needs to become cursor-based before or as part of V2's snapshot work
-- [ ] Sentry/PostHog observability (frontend errors, Convex errors, websocket disconnects, snapshot failures) — spec'd for later, not started
+- [x] Scale online-count reads with a cron-maintained singleton; remote cursor fan-out remains intentionally capped
+- [ ] Finish and verify the in-progress cursor-based live catch-up before marking it shipped
+- [ ] Activate Sentry/PostHog with real production project keys and verify receipt; optional privacy-safe instrumentation is implemented
 - [x] Public-write guardrails: bounded identifiers, per-client/global fixed-window limits for strokes and presence, and an `ALWAYSDRAW_READ_ONLY=1` incident switch
 - [x] Browser smoke coverage for desktop/mobile plus an opt-in, non-production two-browser synchronization/reload test
 

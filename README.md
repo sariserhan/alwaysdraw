@@ -122,6 +122,24 @@ ALWAYSDRAW_READ_ONLY=1
 
 Set it on the Convex deployment to reject new strokes and presence heartbeats during an incident. Unset it (or set a value other than `1`) for normal operation. No third-party API secrets are required for V1.
 
+Optional observability variables (the integrations make no third-party requests when their keys are absent):
+
+```text
+NEXT_PUBLIC_APP_ENV=production
+NEXT_PUBLIC_APP_RELEASE=<git-commit-or-release-id>
+NEXT_PUBLIC_SENTRY_DSN=<public-dsn>
+NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.05
+SENTRY_TRACES_SAMPLE_RATE=0.05
+SENTRY_AUTH_TOKEN=<ci-only-source-map-upload-token>
+SENTRY_ORG=<org-slug>
+SENTRY_PROJECT=<project-slug>
+SENTRY_RELEASE=<git-commit-or-release-id>
+NEXT_PUBLIC_POSTHOG_KEY=<public-project-key>
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+PostHog is configured for explicit events only: autocapture and session recording are disabled, persistence is memory-only, Do Not Track is respected, and no stroke content, coordinates, colors, or client IDs are sent.
+
 ## 6. Deployment instructions
 
 **Convex (backend):**
@@ -163,6 +181,14 @@ The live two-browser synchronization/reload test writes permanent disposable str
 npm run test:e2e:live
 ```
 
+After deploying, run the non-destructive production smoke check:
+
+```bash
+ALWAYSDRAW_SMOKE_URL=https://your-production-host npm run smoke:production
+```
+
+It verifies HTTP success, the rendered product identity, a primary tool interaction, and browser console health without drawing on the permanent wall.
+
 Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed.
 
 Convex function tests (`convex/strokes.test.ts`, via [convex-test](https://github.com/get-convex/convex-test)) cover `strokes.submit`'s abuse-boundary validation, identifier limits, rate limiting, retry idempotency, gapless/duplicate-free sequencing, `listSince` pagination and ordering, and `listRecent` ordering. Playwright covers initial rendering, theme/tool interactions, the mobile toolbar, and an opt-in two-browser live synchronization/reload path.
@@ -181,7 +207,7 @@ To repeat the two-browser check by hand: open `http://localhost:3000` in two win
 
 - **Live-tail window, not true cursor-based catch-up**: the reactive subscription (`strokes.listRecent`) returns the most recent 300 strokes. A client that's open but network-stalled for long enough to miss more than 300 strokes will only fully catch up on next reload (which does a full replay). Fine at V1 traffic; V2's snapshot system removes this ceiling.
 - **Full-history replay on every load**, capped at 20,000 strokes (dev safety valve, not a real limit) — gets expensive as history grows. This is explicitly deferred to V2 (snapshots) per the spec.
-- **`onlineCount`/presence `list`/stale cleanup** use `.collect()`/`.take()` over an index range rather than a running counter — fine at hundreds of concurrent users, not thousands.
+- **Presence cursor fan-out remains bounded**: the public online count is an O(1) cron-maintained value, but remote cursor listing is intentionally capped and is not a high-scale spatial presence system.
 - **Anonymous abuse remains possible**: transactional per-client and global fixed-window limits bound stroke and presence writes, identifiers/payload fields are length-checked, and operators have a read-only switch. Because identity is anonymous and client-supplied, these controls limit cost rather than proving identity or preventing a distributed attack.
 - **`app/page.tsx` opts the canvas out of SSR** (`next/dynamic(..., { ssr: false })`). The app is one imperative `<canvas>` plus entirely browser-only state (camera, websocket, anonymous identity in `localStorage`) — server-rendering it added nothing and only produced hydration mismatches, so it's skipped outright. This means the very first paint is a client-side render (brief blank/loading frame), not server-rendered HTML.
 - **No accounts, no moderation** — by design for V1, per spec.

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { WebVitals } from "@/components/WebVitals";
 import "./globals.css";
 
 const spaceGrotesk = localFont({
@@ -72,6 +73,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the
 finish review, the verdict, and DESIGN.md
         */}
         <ConvexClientProvider>{children}</ConvexClientProvider>
+        <WebVitals />
       </body>
     </html>
   );

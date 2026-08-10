@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 test("loads the wall and primary controls respond", async ({ page }) => {
+  const thirdPartyTelemetryRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/posthog\.com|sentry\.io/.test(request.url())) {
+      thirdPartyTelemetryRequests.push(request.url());
+    }
+  });
   await page.goto("/");
 
   await expect(page).toHaveTitle("AlwaysDraw");
@@ -15,6 +21,7 @@ test("loads the wall and primary controls respond", async ({ page }) => {
 
   await page.getByTitle("Pan").click();
   await expect(page.getByTitle("Pan")).toHaveAttribute("aria-pressed", "true");
+  expect(thirdPartyTelemetryRequests).toEqual([]);
 });
 
 test("toolbar remains operable at a mobile viewport", async ({ page }) => {

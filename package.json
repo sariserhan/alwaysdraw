@@ -10,13 +10,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:live": "ALWAYSDRAW_E2E_LIVE=1 playwright test e2e/multiplayer.spec.ts"
+    "test:e2e:live": "ALWAYSDRAW_E2E_LIVE=1 playwright test e2e/multiplayer.spec.ts",
+    "smoke:production": "node scripts/smoke-production.mjs"
   },
   "dependencies": {
     "@fontsource/space-grotesk": "^5.3.0",
     "@fontsource/space-mono": "^5.3.0",
+    "@sentry/nextjs": "^10.69.0",
     "convex": "^1.43.0",
     "next": "16.3.0",
+    "posthog-js": "^1.414.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
