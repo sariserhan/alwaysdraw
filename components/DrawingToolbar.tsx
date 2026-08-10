@@ -47,16 +47,23 @@ function DripEdge() {
   );
 }
 
-function MountBracket({ side }: { side: "left" | "right" }) {
+// The rivet-bearing bracket tabs double as the collapse toggle — the
+// hardware you'd actually unbolt to fold the rack down. A dedicated
+// separate button would duplicate a control this metaphor already offers.
+function MountBracket({ side, collapsed, onClick }: { side: "left" | "right"; collapsed: boolean; onClick: () => void }) {
   return (
-    <div
-      aria-hidden
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={collapsed ? "expand toolbar" : "collapse toolbar"}
+      title={collapsed ? "Expand" : "Collapse"}
+      aria-pressed={collapsed}
       className={`absolute -top-2.5 h-3 w-6 rounded-t-sm border border-b-0 border-chrome-border bg-chrome-bg-raised ${
         side === "left" ? "left-3" : "right-3"
       }`}
     >
       <ChromeRivet className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-    </div>
+    </button>
   );
 }
 
@@ -155,17 +162,37 @@ function ChevronDownIcon() {
   );
 }
 
-function CollapseHandle({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
+// Chevron tab, top-center: hides the whole rack (distinct from the
+// side-rivet collapse toggle, which only shrinks it to the tool row).
+function HideHandle({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={collapsed ? "expand toolbar" : "collapse toolbar"}
-      title={collapsed ? "Expand" : "Collapse"}
+      aria-label="hide toolbar"
+      title="Hide toolbar"
       className="absolute -top-3.5 left-1/2 flex h-3.5 w-10 -translate-x-1/2 items-center justify-center rounded-t-sm border border-b-0 border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
     >
-      {collapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+      <ChevronDownIcon />
     </button>
+  );
+}
+
+// What's left docked at the bottom edge when the rack is hidden — tap to
+// bring it back.
+function ShowTab({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-2">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="show toolbar"
+        title="Show toolbar"
+        className="pointer-events-auto flex h-6 w-14 items-center justify-center rounded-sm border-2 border-chrome-border bg-chrome-bg-raised text-ink-dim shadow-[0_6px_16px_rgba(0,0,0,0.4)] hover:text-ink"
+      >
+        <ChevronUpIcon />
+      </button>
+    </div>
   );
 }
 
@@ -279,7 +306,12 @@ export function DrawingToolbar({
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
+
+  if (hidden) {
+    return <ShowTab onClick={() => setHidden(false)} />;
+  }
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-2 sm:px-4">
@@ -289,9 +321,9 @@ export function DrawingToolbar({
           backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
         }}
       >
-        <MountBracket side="left" />
-        <MountBracket side="right" />
-        <CollapseHandle collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
+        <MountBracket side="left" collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
+        <MountBracket side="right" collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
+        <HideHandle onClick={() => setHidden(true)} />
         {!collapsed && <DripEdge />}
 
         <div className="relative flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
