@@ -33,9 +33,12 @@ export function HelpModal() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="help-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-start overflow-y-auto bg-black/80 p-4 pt-16 sm:pt-20 backdrop-blur-md animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsOpen(false);
+          }}
         >
-          <div className="relative w-full max-w-xl rounded-sm border-2 border-rust bg-chrome-bg p-6 text-ink shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+          <div className="relative my-auto w-full max-w-xl rounded-sm border-2 border-rust bg-chrome-bg p-5 sm:p-6 text-ink shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
             <ChromeRivet className="top-2 left-2" />
             <ChromeRivet className="top-2 right-2" />
             <ChromeRivet className="bottom-2 left-2" />
@@ -66,7 +69,7 @@ export function HelpModal() {
             </div>
 
             {/* Body */}
-            <div className="mt-4 space-y-4 font-mono text-xs text-ink-dim leading-relaxed max-h-[70vh] overflow-y-auto pr-1">
+            <div className="mt-4 space-y-4 font-mono text-xs text-ink-dim leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
               <div>
                 <h3 className="font-display text-sm font-bold text-ink uppercase tracking-wide mb-1">
                   What is this?
