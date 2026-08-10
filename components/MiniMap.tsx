@@ -7,17 +7,9 @@ export const MINI_MAP_SIZE_PX = 128;
 // Header height varies (it wraps to 1-3 rows depending on viewport width),
 // so the mini-map's top offset is measured from the live #header-bar rect
 // instead of a hardcoded breakpoint value that assumed a fixed row count.
-const FALLBACK_TOP_PX = 80;
+const FALLBACK_TOP_PX = 68;
 const GAP_BELOW_HEADER_PX = 12;
 
-/**
- * A fixed-size overview of the whole wall in the corner, with a rectangle
- * marking the current viewport — for a 10,000x10,000 canvas where it's easy
- * to lose track of where you are after panning. Canvas content and the
- * viewport rectangle are both updated imperatively by the parent (redrawn
- * strokes, camera-driven rect position) — same reasoning as BrushCursor/
- * MagnifierLoupe/RulerOverlay: too high-frequency for React state.
- */
 export function MiniMap({
   canvasRef,
   viewportRectRef,
@@ -35,15 +27,34 @@ export function MiniMap({
   const [top, setTop] = useState(FALLBACK_TOP_PX);
 
   useEffect(() => {
-    const header = document.getElementById("header-bar");
-    if (!header) return;
-    const update = () => setTop(header.getBoundingClientRect().bottom + GAP_BELOW_HEADER_PX);
+    const update = () => {
+      const header = document.getElementById("header-bar");
+      if (header) {
+        const rect = header.getBoundingClientRect();
+        if (rect.bottom > 0) {
+          setTop(Math.max(64, rect.bottom + GAP_BELOW_HEADER_PX));
+          return;
+        }
+      }
+      setTop(FALLBACK_TOP_PX);
+    };
+
     update();
-    const ro = new ResizeObserver(update);
-    ro.observe(header);
+    const rafId = requestAnimationFrame(update);
+    const timeoutId = setTimeout(update, 100);
+
+    const header = document.getElementById("header-bar");
+    let ro: ResizeObserver | null = null;
+    if (header) {
+      ro = new ResizeObserver(update);
+      ro.observe(header);
+    }
     window.addEventListener("resize", update);
+
     return () => {
-      ro.disconnect();
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+      if (ro) ro.disconnect();
       window.removeEventListener("resize", update);
     };
   }, []);
