@@ -1347,10 +1347,13 @@ export function GlobalCanvas() {
       if (e.pointerType === "mouse" && e.button !== 0) return;
 
       // Time Travel is meant to be read-only: allow inspection tools
-      // (pan/magnifier/ruler) but block anything that commits a mark.
+      // (pan/magnifier/ruler/region) but block anything that commits a mark.
       // An allowlist, not a denylist, so a newly added drawing tool is
-      // blocked by default rather than silently slipping through.
-      if (isReplayMode && tool !== "pan" && tool !== "magnifier" && tool !== "ruler") return;
+      // blocked by default rather than silently slipping through. Region
+      // selection commits nothing to the canvas either, and opening Time
+      // Travel itself enters replay mode before "Select Region" is ever
+      // clicked — without this, the drag silently no-ops.
+      if (isReplayMode && tool !== "pan" && tool !== "magnifier" && tool !== "ruler" && tool !== "region") return;
 
       if (tool === "pan") {
         isPanningRef.current = true;
