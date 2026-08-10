@@ -2233,7 +2233,7 @@ export function GlobalCanvas() {
 
         {/* Mobile Drawer Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="min-[1360px]:hidden absolute right-0 top-full z-50 mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          <div className="min-[1360px]:hidden absolute right-0 top-full z-[1000] mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
               <span className="whitespace-nowrap">🛠️ {t(locale, "canvas_tools_panels")}</span>
               <span className="whitespace-nowrap text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
@@ -2459,7 +2459,7 @@ export function GlobalCanvas() {
 
       {textInputPos && (
         <div
-          className="fixed z-50 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] flex flex-col gap-2.5"
+          className="fixed z-[1000] rounded-sm border-2 border-rust bg-chrome-bg/95 p-3.5 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] flex flex-col gap-2.5"
           style={{
             left: Math.min(Math.max(10, textInputPos.screen.x), (viewportSize.width || 800) - 330),
             top: Math.min(Math.max(10, textInputPos.screen.y), (viewportSize.height || 600) - 220),

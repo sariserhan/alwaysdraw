@@ -85,7 +85,7 @@ export function ExploreMenu({
         <div
           role="menu"
           aria-label={t(locale, "explore_wall_title")}
-          className="fixed right-3 sm:right-4 min-[1360px]:right-[228px] top-20 z-50 flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[300px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed right-3 sm:right-4 min-[1360px]:right-[228px] top-20 z-[1000] flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[300px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />

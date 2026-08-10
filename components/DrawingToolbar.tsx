@@ -327,8 +327,8 @@ function BrushPicker({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-20 mb-3 w-56 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+      <div className="fixed inset-0 z-[1000]" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-[1001] mb-3 w-56 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
         {CATEGORIES.map((category) => (
           <div key={category} className="mb-1.5 last:mb-0">
             <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
@@ -372,8 +372,8 @@ function StencilPicker({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-20 mb-3 w-52 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+      <div className="fixed inset-0 z-[1000]" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-[1001] mb-3 w-52 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
         <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
           Spray Stencils
         </div>
@@ -467,8 +467,8 @@ function ShapePicker({
 }) {
   return (
     <>
-      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-20 mb-3 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+      <div className="fixed inset-0 z-[1000]" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-[1001] mb-3 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
         <div className="flex items-center gap-1">
           {SHAPE_CATALOG.map((s) => (
             <button
@@ -523,7 +523,7 @@ function PalettePicker({
         <div
           role="menu"
           aria-label="Color Palettes"
-          className="absolute bottom-full right-0 mb-2 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[220px]"
+          className="absolute bottom-full right-0 mb-2 z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[220px]"
         >
           <div className="border-b border-chrome-border/60 pb-1 font-mono text-xs font-bold uppercase text-accent-yellow">
             Color Palettes
