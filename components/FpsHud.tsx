@@ -9,7 +9,7 @@ export function FpsHud({ isOpen }: { isOpen: boolean }) {
     fps: 60,
     frameTimeMs: 16.6,
     visibleTiles: 1,
-    totalTiles: 10000,
+    totalTiles: 1600,
     committedStrokes: 0,
     memoryEstimateMb: 1.0,
   });

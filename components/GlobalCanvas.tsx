@@ -44,6 +44,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors } from "./RemoteCursors";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChromeRivet } from "./ChromeRivet";
+import { HeaderSeam, MobileGroupLabel } from "./HeaderSeam";
 import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
@@ -1372,71 +1373,98 @@ export function GlobalCanvas() {
             title="Active 500x500 spatial tiles in current camera viewport"
           >
             <span className="text-ink-dim">TILES:</span>
-            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/10000</span>
+            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} />
         </div>
 
-        {/* Desktop Controls (>= lg) */}
-        <div className="hidden lg:flex items-center gap-2 pr-4">
-          <SoundToggle />
-          <GridToggle config={gridConfig} onChange={setGridConfig} />
-          <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
-          <HighlightsModal
-            onJumpToPoint={handleJumpToPoint}
-            getBusiestPoint={getBusiestPoint}
-            getRandomActivePoint={getRandomActivePoint}
-            onlineCount={onlineCount ?? 1}
-          />
-          <SpatialDiscoveryMenu
-            onJumpToPoint={handleJumpToPoint}
-            getBusiestPoint={getBusiestPoint}
-            getRandomActivePoint={getRandomActivePoint}
-            getLatestActivityPoint={getLatestActivityPoint}
-          />
-          <BookmarkMenu
-            currentCamera={cameraSnapshot}
-            clientId={clientId}
-            onTeleport={handleBookmarkTeleport}
-          />
-          <ExportModal
-            getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
-            getCommittedStrokes={() => committedRef.current}
-            currentCamera={cameraSnapshot}
-            viewportWidth={viewportSize.width}
-            viewportHeight={viewportSize.height}
-            worldWidth={WORLD_WIDTH}
-            worldHeight={WORLD_HEIGHT}
-          />
-          <TimeTravelMenu
-            isReplayMode={isReplayMode}
-            isPlaying={isPlayingReplay}
-            currentSequence={replaySequenceIndex}
-            minSequence={minSequence}
-            maxSequence={maxSequence}
-            playbackSpeed={playbackSpeed}
-            onTogglePlay={() => setIsPlayingReplay((v) => !v)}
-            onSeek={(seq) => setReplaySequenceIndex(seq)}
-            onStep={(delta) =>
-              setReplaySequenceIndex((prev) =>
-                Math.max(minSequence, Math.min(maxSequence, prev + delta)),
-              )
-            }
-            onSpeedChange={setPlaybackSpeed}
-            onExitReplay={() => {
-              setIsReplayMode(false);
-              setIsPlayingReplay(false);
-              scheduleRedraw({ world: true, strokes: true });
-            }}
-            onEnterReplay={() => {
-              setIsReplayMode(true);
-              setReplaySequenceIndex(snapshotSequenceRef.current);
-              setIsPlayingReplay(true);
-            }}
-          />
-          <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
-          <HelpModal />
-          <ThemeToggle />
+        {/* Desktop Controls (>= lg) — grouped into clusters (was one flat
+            12-item row) separated by a thin seam, the same panel-seam
+            language ChromeRivet/DripEdge already use elsewhere, rather than
+            wrapping each already-self-bordered chip in a second border. */}
+        <div className="hidden lg:flex items-center gap-3 pr-4">
+          {/* Preferences: how the app looks/sounds to you */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SoundToggle />
+            <GridToggle config={gridConfig} onChange={setGridConfig} />
+          </div>
+
+          <HeaderSeam />
+
+          {/* Discover: take me somewhere on the wall */}
+          <div className="flex items-center gap-2">
+            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
+            <SpatialDiscoveryMenu
+              onJumpToPoint={handleJumpToPoint}
+              getBusiestPoint={getBusiestPoint}
+              getRandomActivePoint={getRandomActivePoint}
+              getLatestActivityPoint={getLatestActivityPoint}
+            />
+            <HighlightsModal
+              onJumpToPoint={handleJumpToPoint}
+              getBusiestPoint={getBusiestPoint}
+              getRandomActivePoint={getRandomActivePoint}
+              onlineCount={onlineCount ?? 1}
+            />
+            <BookmarkMenu
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              onTeleport={handleBookmarkTeleport}
+            />
+          </div>
+
+          <HeaderSeam />
+
+          {/* History & export: do something with the wall's data */}
+          <div className="flex items-center gap-2">
+            <TimeTravelMenu
+              isReplayMode={isReplayMode}
+              isPlaying={isPlayingReplay}
+              currentSequence={replaySequenceIndex}
+              minSequence={minSequence}
+              maxSequence={maxSequence}
+              playbackSpeed={playbackSpeed}
+              onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+              onSeek={(seq) => setReplaySequenceIndex(seq)}
+              onStep={(delta) =>
+                setReplaySequenceIndex((prev) =>
+                  Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                )
+              }
+              onSpeedChange={setPlaybackSpeed}
+              onExitReplay={() => {
+                setIsReplayMode(false);
+                setIsPlayingReplay(false);
+                scheduleRedraw({ world: true, strokes: true });
+              }}
+              onEnterReplay={() => {
+                setIsReplayMode(true);
+                setReplaySequenceIndex(snapshotSequenceRef.current);
+                setIsPlayingReplay(true);
+              }}
+            />
+            <ExportModal
+              getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+              getCommittedStrokes={() => committedRef.current}
+              currentCamera={cameraSnapshot}
+              viewportWidth={viewportSize.width}
+              viewportHeight={viewportSize.height}
+              worldWidth={WORLD_WIDTH}
+              worldHeight={WORLD_HEIGHT}
+            />
+          </div>
+
+          <HeaderSeam />
+
+          {/* Reference */}
+          <div className="flex items-center gap-2">
+            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
+            <HelpModal />
+          </div>
+
+          <HeaderSeam />
+
           <ConnectionStatus />
         </div>
 
@@ -1469,26 +1497,23 @@ export function GlobalCanvas() {
           <div className="lg:hidden absolute top-full left-0 right-0 z-50 border-b-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
             <div className="mb-2 flex items-center justify-between border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
               <span>🛠️ CANVAS TOOLS & PANELS</span>
-              <span className="text-accent-yellow">TILES: {visibleTileCount || 1}/10000</span>
+              <span className="text-accent-yellow">TILES: {visibleTileCount || 1}/1600</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <MobileGroupLabel>Preferences</MobileGroupLabel>
+            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <SoundToggle />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <GridToggle config={gridConfig} onChange={setGridConfig} />
               </div>
+            </div>
+
+            <MobileGroupLabel>Discover</MobileGroupLabel>
+            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <HighlightsModal
-                  onJumpToPoint={handleJumpToPoint}
-                  getBusiestPoint={getBusiestPoint}
-                  getRandomActivePoint={getRandomActivePoint}
-                  onlineCount={onlineCount ?? 1}
-                />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <SpatialDiscoveryMenu
@@ -1499,23 +1524,24 @@ export function GlobalCanvas() {
                 />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <HighlightsModal
+                  onJumpToPoint={handleJumpToPoint}
+                  getBusiestPoint={getBusiestPoint}
+                  getRandomActivePoint={getRandomActivePoint}
+                  onlineCount={onlineCount ?? 1}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <BookmarkMenu
                   currentCamera={cameraSnapshot}
                   clientId={clientId}
                   onTeleport={handleBookmarkTeleport}
                 />
               </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ExportModal
-                  getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
-                  getCommittedStrokes={() => committedRef.current}
-                  currentCamera={cameraSnapshot}
-                  viewportWidth={viewportSize.width}
-                  viewportHeight={viewportSize.height}
-                  worldWidth={WORLD_WIDTH}
-                  worldHeight={WORLD_HEIGHT}
-                />
-              </div>
+            </div>
+
+            <MobileGroupLabel>History &amp; Export</MobileGroupLabel>
+            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <TimeTravelMenu
                   isReplayMode={isReplayMode}
@@ -1544,6 +1570,21 @@ export function GlobalCanvas() {
                   }}
                 />
               </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <ExportModal
+                  getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+                  getCommittedStrokes={() => committedRef.current}
+                  currentCamera={cameraSnapshot}
+                  viewportWidth={viewportSize.width}
+                  viewportHeight={viewportSize.height}
+                  worldWidth={WORLD_WIDTH}
+                  worldHeight={WORLD_HEIGHT}
+                />
+              </div>
+            </div>
+
+            <MobileGroupLabel>Reference &amp; Status</MobileGroupLabel>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
               </div>

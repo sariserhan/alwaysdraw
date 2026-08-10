@@ -9,7 +9,7 @@ export type Camera = {
 // above the world size. Re-check this whenever the world size changes; it
 // silently broke "see the whole wall" once already when the world grew and
 // this constant wasn't revisited.
-export const MIN_ZOOM = 0.05;
+export const MIN_ZOOM = 0.025;
 export const MAX_ZOOM = 8;
 
 export function clampZoom(zoom: number): number {
