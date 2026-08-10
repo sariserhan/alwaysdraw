@@ -67,12 +67,9 @@
 
 ---
 
-## 🛡️ 7. Admin Moderation & Mural Shield
+## 🛡️ 7. Mural Shield & Canvas Protection
 
-- **Admin Operations Control Center (`Shift+A`):** Authenticated modal panel for canvas maintenance.
-- **Protected Canvas Zones (Mural Shield):** Lock designated canvas rectangular regions to prevent community artwork from being edited or overwritten by regular users.
-- **Admin Image Stamping:** Upload images, scale aspect ratios, preview placement on canvas, and rasterize them into world strokes with rate-limit error toasts.
-- **Area Wipe & Client Rollback:** Bounding-box stroke purge (`wipeArea`) and target client stroke rollback (`rollbackClient`).
+- **Protected Canvas Zones (Mural Shield):** Lock designated canvas rectangular regions to prevent community artwork from being edited or overwritten.
 - **Global Broadcast Banner:** Publish live announcement banners to all online visitors.
 - **System Telemetry:** Real-time telemetry monitoring stroke counts, active presence, snapshots, and sequence counters.
 
@@ -119,8 +116,8 @@
 - **Bounding Box Calculation:** When a stroke is submitted, `getTileKeysForStroke` computes all tile keys spanned by the stroke's bounding box.
 - **Viewport Culling:** During redraws, `getVisibleTileKeys(camera, viewportWidth, viewportHeight)` determines which 500x500 cell tiles intersect the screen camera view frustum, filtering out off-screen strokes before invoking 2D canvas draw operations.
 
-### 9.8 Protected Canvas Zones / Mural Shield (`convex/admin.ts` & `ProtectedZonesOverlay.tsx`)
-- **Server-Enforced Bounding Box Shield:** Active protected zone rectangles are stored in `protectedZones`. During `strokes.submit`, server loops through protected zones and rejects any stroke whose points intersect a zone unless `clientId` starts with `"ADMIN_"`.
+### 9.8 Protected Canvas Zones / Mural Shield (`ProtectedZonesOverlay.tsx`)
+- **Server-Enforced Bounding Box Shield:** Active protected zone rectangles are stored in `protectedZones`. During `strokes.submit`, server loops through protected zones and rejects any stroke whose points intersect a zone.
 - **Dynamic Overlay & Edge Safety:** `ProtectedZonesOverlay` projects yellow dashed bounding boxes onto the screen overlay using `worldToScreen`. Badge labels dynamically adjust vertical offsets (`topLeft.y < 24 ? "top-1" : "-top-4"`) to prevent clipping at the top edge of the browser viewport.
 
 ### 9.9 Focal-Point Camera Math (`lib/camera.ts` & `lib/coordinates.ts`)

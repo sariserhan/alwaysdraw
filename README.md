@@ -17,7 +17,7 @@ A single public drawing canvas shared in real time by everyone on the internet. 
 - **Navigation & Exploration:** Smooth focal-point pan & zoom, MiniMap viewport tracker, Activity Heatmap overlay, and Viewport Bookmarks with URL deep-linking.
 - **Collaboration & Sticky Notes:** Live remote cursors, country flag indicators, and interactive Sticky Note comment pins.
 - **Time-Travel Replay:** Replay wall history stroke-by-stroke with speed controls (1x, 2x, 5x, 10x).
-- **Admin Moderation & Mural Shield:** Protected canvas zones to lock community artwork, image stamping, area wipe, client rollback, and live broadcast banners.
+- **Mural Shield & Canvas Protection:** Protected canvas zones to lock community artwork and live broadcast banners.
 
 ---
 
@@ -37,7 +37,7 @@ Browser (Next.js App Router, client-only canvas component)
   │
   └─ Convex Reactive Backend
        ├─ strokes table — server-sequenced append-only stroke chunks
-       ├─ protectedZones table — admin-locked canvas regions (Mural Shield)
+       ├─ protectedZones table — locked canvas regions (Mural Shield)
        ├─ broadcasts & presence tables — live banners, cursor positions, and online counts
        └─ snapshots & bookmarks tables — rendered canvas state and saved locations
 ```
@@ -55,10 +55,9 @@ app/
 components/
   GlobalCanvas.tsx       Main canvas coordinator (camera, pointer input, tool modes, redraw loop)
   DrawingToolbar.tsx      Toolbar controls (brushes, shapes, text, fill, stickers, color, opacity, zoom)
-  ProtectedZonesOverlay.tsx Visual shield overlay for admin-protected canvas areas
+  ProtectedZonesOverlay.tsx Visual shield overlay for protected canvas areas
   CommentsOverlay.tsx    Interactive sticky note comments overlay
   MiniMap.tsx            MiniMap navigation widget & viewport tracker
-  AdminPanelModal.tsx    Admin operations control center & moderation tools
   ReplayBar.tsx          Time-travel history replay controls
   ExploreMenu.tsx & BookmarkMenu.tsx Viewport discovery and saved location bookmarks
 
@@ -76,7 +75,7 @@ lib/
 convex/
   schema.ts              Database schema definitions
   strokes.ts             Stroke submission (validated, sequenced, idempotent), listSince, listRecent
-  admin.ts               Admin passcode verification, protected zones, wipeArea, rollbackClient, telemetry
+  admin.ts               Protected zones, wipeArea, rollbackClient, telemetry
   presence.ts            Heartbeat, presence list, online counts
   bookmarks.ts           Saved location bookmarks & comments
 ```

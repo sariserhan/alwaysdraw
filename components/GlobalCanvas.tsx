@@ -217,6 +217,7 @@ export function GlobalCanvas() {
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminPasscode, setAdminPasscode] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -302,7 +303,7 @@ export function GlobalCanvas() {
   // under the header — chained offsets so both stay aligned as the header's
   // height changes (it wraps to 1-3 rows depending on viewport width).
   const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
-  const [sidebarHidden, setSidebarHidden] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
