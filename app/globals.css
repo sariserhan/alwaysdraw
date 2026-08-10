@@ -1,9 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  /* Yard Wall — rusted steel chrome over a shared concrete surface. */
+  /* Yard Wall — rusted steel chrome over a shared concrete surface.
+     Dark is the default, deliberate scene (an underpass/yard at night);
+     light is an available override, not a second default. */
   --chrome-bg: #17181a;
   --chrome-bg-raised: #202224;
+  --chrome-bg-recessed: #101112;
   --chrome-border: #3a3530;
   --rust: #b5502c;
   --concrete: #b7b0a1;
@@ -14,9 +17,21 @@
   --accent-green: #39c07a;
   --accent-blue: #2f9fe0;
   --accent-yellow: #e0b13a;
+  /* Always-light text for saturated accent fills (e.g. the active toolbar
+     button) — independent of theme, since the fill itself doesn't change. */
+  --on-accent: #f5f1e6;
 
   --background: var(--chrome-bg);
   --foreground: var(--ink);
+}
+
+:root[data-theme="light"] {
+  --chrome-bg: #e7e3d9;
+  --chrome-bg-raised: #f4f1e8;
+  --chrome-bg-recessed: #d8d3c4;
+  --chrome-border: #a89f8c;
+  --ink: #201d18;
+  --ink-dim: #62594a;
 }
 
 @theme inline {
@@ -24,6 +39,7 @@
   --color-foreground: var(--foreground);
   --color-chrome-bg: var(--chrome-bg);
   --color-chrome-bg-raised: var(--chrome-bg-raised);
+  --color-chrome-bg-recessed: var(--chrome-bg-recessed);
   --color-chrome-border: var(--chrome-border);
   --color-rust: var(--rust);
   --color-concrete: var(--concrete);
@@ -34,6 +50,7 @@
   --color-accent-green: var(--accent-green);
   --color-accent-blue: var(--accent-blue);
   --color-accent-yellow: var(--accent-yellow);
+  --color-on-accent: var(--on-accent);
   --font-sans: var(--font-display);
   --font-mono: var(--font-mono);
 }
@@ -46,7 +63,7 @@ body {
 
 ::selection {
   background: var(--accent-crimson);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 
 * {

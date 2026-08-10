@@ -115,13 +115,20 @@ npx convex deploy   # pushes convex/ to your production deployment
 
 ## 7. Testing instructions
 
-No test suite exists yet (spec's "Testing" section covers coordinate math, camera, sequencing, replay — good candidates for unit tests, not built for V1). Manual verification performed for this build:
+```bash
+npm test          # runs lib/*.test.ts once (Vitest)
+npm run test:watch
+```
+
+Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed. Stroke sequencing/replay and Convex function validation have no automated tests yet — good next candidates, not built for V1.
+
+Manual verification performed for this build:
 
 - Two browser sessions, same page: draw in A → appears in B within ~1s; erase in B over A's stroke → A updates live.
 - Reload mid-session: full history replays correctly (session B loaded fresh and saw session A's prior stroke).
 - Pan (space+drag), wheel-zoom (focal-point correct), 2-finger touch pinch-zoom + pan, and the toolbar's zoom/reset buttons all verified via synthetic pointer/wheel events.
 - Mobile viewport (390×844): toolbar wraps and remains usable; touch drawing and pinch both work.
-- `npx tsc --noEmit` and `npx eslint .` are clean.
+- `npx tsc --noEmit`, `npx eslint .`, and `npm test` are all clean.
 
 To repeat the two-browser check by hand: open `http://localhost:3000` in two windows and draw in both.
 

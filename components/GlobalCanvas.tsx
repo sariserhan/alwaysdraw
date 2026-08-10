@@ -22,6 +22,7 @@ import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors } from "./RemoteCursors";
+import { ThemeToggle } from "./ThemeToggle";
 import { ChromeRivet } from "./ChromeRivet";
 
 const LIVE_TAIL_LIMIT = 300;
@@ -535,6 +536,7 @@ export function GlobalCanvas() {
           </span>
         </div>
         <div className="pointer-events-auto flex items-center gap-2 pr-4">
+          <ThemeToggle />
           <ConnectionStatus />
           <OnlineCount count={onlineCount ?? 0} />
         </div>

@@ -32,7 +32,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full overscroll-none antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Dark is the committed default; set before paint so a returning
+            visitor's saved "light" choice never flashes dark first. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('alwaysdraw:theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();",
+          }}
+        />
+      </head>
       <body className="h-full overflow-hidden overscroll-none">
         {/*
 THESIS: One rusted train-yard wall the whole internet keeps tagging, not a
@@ -44,7 +55,7 @@ stencil-numeral labels, spray-drip edges, rivet-bolted toolbar.
 STORY: A visitor understands instantly this wall already belongs to
 strangers, their mark will get buried too, and there's nothing to set up —
 they draw immediately.
-FIRST VIEWPORT: Full-bleed cracked-concrete canvas edge to edge; a thin
+FIRST VIEWPORT: Full-bleed plain concrete canvas edge to edge; a thin
 riveted steel strip on top carries a stenciled wordmark left and a rust-red
 online-count plate right; a bolted spray-can rack toolbar floats
 bottom-center; no other chrome.

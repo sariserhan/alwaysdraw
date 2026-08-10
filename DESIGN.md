@@ -2,8 +2,12 @@
 name: AlwaysDraw
 description: One world. One canvas. Always drawing.
 colors:
+  # Dark values (the default theme). See Colors > Theming below for the
+  # light-theme override values — this frontmatter carries one canonical
+  # set per the DESIGN.md spec, so light values live in prose, not here.
   chrome-bg: "#17181a"
   chrome-bg-raised: "#202224"
+  chrome-bg-recessed: "#101112"
   chrome-border: "#3a3530"
   rust: "#b5502c"
   concrete: "#b7b0a1"
@@ -14,6 +18,7 @@ colors:
   accent-green: "#39c07a"
   accent-blue: "#2f9fe0"
   accent-yellow: "#e0b13a"
+  on-accent: "#f5f1e6"
 typography:
   display:
     fontFamily: "Space Grotesk, system-ui, sans-serif"
@@ -54,7 +59,7 @@ components:
     padding: "4px 10px"
   button-active:
     backgroundColor: "{colors.accent-crimson-deep}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.on-accent}"
     rounded: "{rounded.sm}"
     padding: "6px 10px"
   button-inactive:
@@ -97,10 +102,26 @@ A near-black steel-and-rust neutral system carries the interface; a four-color s
 ### Neutral
 - **Chrome Black** (`#17181a`): the base chrome surface — page background, top bar, inset control wells.
 - **Chrome Raised** (`#202224`): one step up from Chrome Black — toolbar body, status pills, the color-swatch tray. Never used for full-bleed backgrounds.
+- **Chrome Recessed** (`#101112`): one step down from Chrome Black — the toolbar's own internal gradient floor, implying the panel is lit from above.
 - **Steel Border** (`#3a3530`): all structural hairline borders on chrome surfaces.
 - **Concrete** (`#b7b0a1`): the canvas ground — a plain flat fill, deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it.
 - **Stencil Ink** (`#f5f1e6`): primary text on chrome.
 - **Ink Dim** (`#b8b3a6`): secondary/label text on chrome (tool labels, "online"/"live" captions, size labels).
+- **On-Accent** (`#f5f1e6`): text sitting directly on a saturated accent fill (the active Brush/Erase button, `::selection`). Fixed — does not swap with theme, since the accent fill beneath it doesn't either.
+
+### Theming
+Dark is the committed default — a deliberate scene (an underpass at night), not a system-preference default — but a light variant exists as a manual, persisted override (the sun/moon toggle in the top bar). Only the five chrome/text tokens above swap; Rust, Concrete, and the four accent colors are identical in both themes, since they're the wall's own material, not UI chrome.
+
+| Token | Dark (default) | Light |
+|---|---|---|
+| Chrome Black | `#17181a` | `#e7e3d9` |
+| Chrome Raised | `#202224` | `#f4f1e8` |
+| Chrome Recessed | `#101112` | `#d8d3c4` |
+| Steel Border | `#3a3530` | `#a89f8c` |
+| Stencil Ink | `#f5f1e6` | `#201d18` |
+| Ink Dim | `#b8b3a6` | `#62594a` |
+
+**The Wall Doesn't Change Rule.** Theme only ever swaps chrome (steel/text). The Concrete canvas, Rust, and the four spray-paint accents are the same in both themes — the shared wall is one object regardless of what time of day you're looking at your own screen in.
 
 ### Named Rules
 **The One Surface, One Voice Rule.** Chrome (steel, near-black, rust) and canvas (concrete, warm gray) never swap roles. If it's a control or status element, it lives on chrome. If it's paintable world, it's concrete.
@@ -115,12 +136,13 @@ A near-black steel-and-rust neutral system carries the interface; a four-color s
 **Character:** A technical, slightly industrial grotesk paired with a mechanical mono — the same pairing an equipment placard or shipping-crate stencil would use. Space Grotesk carries every word; Space Mono is reserved strictly for things that count or measure.
 
 ### Hierarchy
-- **Wordmark** (700, 0.875rem / 14px, tracked 0.22em, uppercase, stencil-cut): the "AlwaysDraw" mark in the top bar — the only place the full stencil-bridge mask is used at this size.
-- **Label** (600, 0.75rem / 12px, uppercase, tracked wide): tool button labels (Brush/Erase), the "Size" caption, status pill captions ("live"/"online").
-- **Measurement** (400, 0.75rem / 12px, Space Mono, tabular-nums, stencil-cut-sm): every live number — online count, zoom percentage, brush-size value. Always the small stencil-bridge mask, never plain.
+- **Wordmark** (700, 0.875rem / 14px, tracked 0.22em, uppercase, stencil-cut): the "AlwaysDraw" mark in the top bar — the only place the stencil-bridge mask is used.
+- **Label** (600, 0.75rem / 12px, uppercase, tracked wide, stencil-cut-sm on Space Grotesk words only): tool button labels (Brush/Erase), the "Size" caption, status pill captions ("live"/"online").
+- **Measurement** (400, 0.75rem / 12px, Space Mono, tabular-nums, plain — no mask): every live number — online count, zoom percentage, brush-size value.
 
 ### Named Rules
-**The Numerals-Are-Instruments Rule.** Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono with the small stencil-cut mask. Static UI words never use Space Mono or the stencil mask — that combination is reserved for live measurements.
+**The Numerals-Are-Instruments Rule.** Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono, always plain. Static UI words never use Space Mono.
+**The Mask-Needs-Mass Rule.** The stencil-cut bridge mask only goes on bold Space Grotesk letterforms (the wordmark, short labels) thick enough to survive a cut. Thin monospace digit strokes broke visibly under it in testing — numerals stay unmasked so the live counts stay instantly legible.
 
 ## Layout
 
@@ -149,7 +171,7 @@ Additional signature geometry: small teardrop drip shapes hanging from the toolb
 
 ### Buttons (tool toggle, zoom controls)
 - **Shape:** rectilinear, `rounded-sm` (2px), never pill-shaped.
-- **Active state:** solid Deep Crimson fill (`#b8371f`) with Stencil Ink text — the AA-safe crimson, not the brighter Crimson used for swatches/sliders.
+- **Active state:** solid Deep Crimson fill (`#b8371f`) with On-Accent text — the AA-safe crimson, not the brighter Crimson used for swatches/sliders, and a theme-fixed text color since the fill beneath it doesn't change with theme.
 - **Inactive state:** Ink Dim text, no fill, hover raises to Chrome Raised background + Stencil Ink text.
 - **Icons:** authored inline SVG, one consistent 1.75-2px stroke weight — never a Unicode glyph or emoji standing in for an icon.
 
@@ -173,7 +195,7 @@ The system's one distinctive custom component. A rectilinear rack (`rounded-sm`,
 
 ### Do:
 - **Do** keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.
-- **Do** apply the stencil-cut mask (`.stencil-cut` / `.stencil-cut-sm`) only to the wordmark and to live numeric measurements — never to body prose or static labels.
+- **Do** apply the stencil-cut mask (`.stencil-cut` / `.stencil-cut-sm`) only to bold Space Grotesk words (the wordmark, short labels) — never to numerals, body prose, or anything set in Space Mono.
 - **Do** give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it; a panel with none of the three will read as a floating card.
 - **Do** reserve fully circular shapes for hardware/indicators (rivets, caps, dots, cursors); keep panels and buttons rectilinear at the `2px` radius.
 - **Do** author any new texture (grain, wear, damage) as explicit, deterministic vector geometry — polylines, filled shapes, gradients along a path — never a repeating/random noise pattern.

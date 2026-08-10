@@ -8,7 +8,7 @@ export function OnlineCount({ count }: { count: number }) {
       }}
     >
       <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent-green shadow-[0_0_6px_var(--accent-green)]" />
-      <span className="stencil-cut-sm font-mono tabular-nums text-ink">{count}</span>
+      <span className="font-mono tabular-nums text-ink">{count}</span>
       <span className="tracking-wide text-ink-dim uppercase">online</span>
     </div>
   );

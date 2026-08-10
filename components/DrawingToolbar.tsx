@@ -144,8 +144,7 @@ export function DrawingToolbar({
       <div
         className="pointer-events-auto relative flex flex-wrap items-center justify-center gap-3 rounded-sm border-2 border-chrome-border px-3 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25"
         style={{
-          backgroundImage:
-            "linear-gradient(180deg, var(--chrome-bg-raised), color-mix(in srgb, var(--chrome-bg) 70%, black))",
+          backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
         }}
       >
         <MountBracket side="left" />
@@ -158,7 +157,7 @@ export function DrawingToolbar({
             onClick={() => onToolChange("brush")}
             aria-pressed={tool === "brush"}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "brush" ? "bg-accent-crimson-deep text-ink" : "text-ink-dim hover:text-ink"
+              tool === "brush" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <BrushIcon />
@@ -169,7 +168,7 @@ export function DrawingToolbar({
             onClick={() => onToolChange("eraser")}
             aria-pressed={tool === "eraser"}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "eraser" ? "bg-accent-crimson-deep text-ink" : "text-ink-dim hover:text-ink"
+              tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
             <EraserIcon />
@@ -222,9 +221,7 @@ export function DrawingToolbar({
             className="w-20 accent-accent-crimson sm:w-24"
             aria-label="brush size"
           />
-          <span className="stencil-cut-sm w-6 text-right font-mono text-xs tabular-nums text-ink">
-            {width}
-          </span>
+          <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
         </div>
 
         <div className="flex items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
@@ -236,9 +233,7 @@ export function DrawingToolbar({
           >
             <MinusIcon />
           </button>
-          <span className="stencil-cut-sm w-11 text-center font-mono text-xs tabular-nums text-ink">
-            {zoomPercent}%
-          </span>
+          <span className="w-11 text-center font-mono text-xs tabular-nums text-ink">{zoomPercent}%</span>
           <button
             type="button"
             onClick={onZoomIn}

@@ -51,6 +51,11 @@
         "displayName": "Chrome Raised",
         "canonical": "#202224"
       },
+      "chrome-bg-recessed": {
+        "role": "neutral",
+        "displayName": "Chrome Recessed",
+        "canonical": "#101112"
+      },
       "chrome-border": {
         "role": "neutral",
         "displayName": "Steel Border",
@@ -71,7 +76,16 @@
         "role": "neutral",
         "displayName": "Ink Dim",
         "canonical": "#b8b3a6"
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On-Accent",
+        "canonical": "#f5f1e6"
       }
+    },
+    "themes": {
+      "dark": { "default": true, "chrome-bg": "#17181a", "chrome-bg-raised": "#202224", "chrome-bg-recessed": "#101112", "chrome-border": "#3a3530", "ink": "#f5f1e6", "ink-dim": "#b8b3a6" },
+      "light": { "default": false, "chrome-bg": "#e7e3d9", "chrome-bg-raised": "#f4f1e8", "chrome-bg-recessed": "#d8d3c4", "chrome-border": "#a89f8c", "ink": "#201d18", "ink-dim": "#62594a" }
     },
     "typographyMeta": {
       "display": { "displayName": "Wordmark", "purpose": "The stencil-cut 'AlwaysDraw' mark in the top bar only." },
@@ -139,7 +153,8 @@
     "rules": [
       { "name": "The One Surface, One Voice Rule", "body": "Chrome (steel, near-black, rust) and canvas (concrete, warm gray) never swap roles. If it's a control or status element, it lives on chrome. If it's paintable world, it's concrete.", "section": "colors" },
       { "name": "The Reserved Accent Rule", "body": "Each accent color has exactly one system meaning — green means live, yellow means attention, rust means 'this plate is a live-count instrument,' crimson-deep means 'this control is active.' None of the four are ever used interchangeably as generic decoration.", "section": "colors" },
-      { "name": "The Numerals-Are-Instruments Rule", "body": "Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono with the small stencil-cut mask. Static UI words never use Space Mono or the stencil mask.", "section": "typography" },
+      { "name": "The Numerals-Are-Instruments Rule", "body": "Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono, always plain, never masked. Static UI words never use Space Mono.", "section": "typography" },
+      { "name": "The Mask-Needs-Mass Rule", "body": "The stencil-cut bridge mask only goes on bold Space Grotesk letterforms (the wordmark, short labels) thick enough to survive a cut. Thin monospace digit strokes broke visibly under it in testing, so numerals stay unmasked.", "section": "typography" },
       { "name": "The No Floating Card Rule", "body": "Nothing in this system is a rounded, softly-shadowed card hovering over the canvas. Every fixture is bolted (rivets/brackets), bordered, and grounded with a hard directional shadow.", "section": "elevation" },
       { "name": "The Round-Is-Hardware Rule", "body": "Fully circular geometry is reserved for literal fasteners, caps, and indicators: rivets, color swatches, the custom-color picker, remote-cursor paint-drips, and status dots. Every panel, button, and input well stays rectilinear at a small 2px radius or square — never the 8-16px soft-card radius common to whiteboard apps.", "section": "elevation" }
     ],
