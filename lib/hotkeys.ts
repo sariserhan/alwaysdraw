@@ -26,5 +26,4 @@ export const HOTKEY_MAP: HotkeyAction[] = [
   { key: "-", label: "Zoom Out", description: "Zoom camera out to see wider wall", action: "zoomOut" },
   { key: "0", label: "Reset View", description: "Reset camera zoom and center view", action: "resetView" },
   { key: "?", label: "Hotkeys Map", description: "Show this keyboard shortcuts menu", action: "toggleHelp" },
-  { key: "Shift+A", label: "Admin Panel", description: "Open Moderation & Operations Control Center" },
 ];
