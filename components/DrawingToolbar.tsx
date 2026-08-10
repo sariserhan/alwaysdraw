@@ -5,17 +5,10 @@ import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
+import { PALETTE_PRESETS, type Palette } from "@/lib/palettes";
 import { ChromeRivet } from "./ChromeRivet";
 
-const SWATCHES = [
-  "#f5f1e6", // stencil white
-  "#e0432b", // crimson
-  "#e0b13a", // warning yellow
-  "#39c07a", // acid green
-  "#2f9fe0", // electric blue
-  "#c14fd6", // magenta
-  "#17181a", // ink black
-];
+
 
 const DRIPS = [
   { left: "8%", width: 5, height: 11 },
@@ -439,6 +432,66 @@ function ShapePicker({
   );
 }
 
+function PalettePicker({
+  activePaletteId,
+  onSelectPalette,
+}: {
+  activePaletteId: string;
+  onSelectPalette: (palette: Palette) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        title="Color Palette Presets"
+        className="flex h-7 items-center gap-1 rounded border border-chrome-border bg-chrome-bg px-2 font-mono text-[10px] font-bold text-ink-dim hover:border-rust hover:text-accent-yellow transition-colors"
+      >
+        <span>🎨</span>
+        <span className="hidden sm:inline">PALETTES</span>
+      </button>
+
+      {isOpen && (
+        <div
+          role="menu"
+          aria-label="Color Palettes"
+          className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[220px]"
+        >
+          <div className="border-b border-chrome-border/60 pb-1 font-mono text-xs font-bold uppercase text-accent-yellow">
+            Color Palettes
+          </div>
+          <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+            {PALETTE_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  onSelectPalette(p);
+                  setIsOpen(false);
+                }}
+                className={`flex flex-col gap-1 rounded border p-1.5 text-left font-mono transition-colors ${
+                  activePaletteId === p.id
+                    ? "border-rust bg-rust/30 text-accent-yellow"
+                    : "border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
+                }`}
+              >
+                <span className="text-[10px] font-bold truncate">{p.name}</span>
+                <div className="flex gap-1">
+                  {p.colors.map((c, i) => (
+                    <span key={i} className="h-3 w-3 rounded-full border border-black/40" style={{ background: c }} />
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DrawingToolbar({
   tool,
   onToolChange,
@@ -487,6 +540,7 @@ export function DrawingToolbar({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
   const [stencilPickerOpen, setStencilPickerOpen] = useState(false);
+  const [activePalette, setActivePalette] = useState<Palette>(PALETTE_PRESETS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -662,7 +716,7 @@ export function DrawingToolbar({
         {!collapsed && (
         <>
         <div className="flex items-center gap-2">
-          {SWATCHES.map((sw) => (
+          {activePalette.colors.map((sw) => (
             <button
               key={sw}
               type="button"
@@ -684,7 +738,7 @@ export function DrawingToolbar({
           ))}
           <label
             className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
-              !SWATCHES.includes(color)
+              !activePalette.colors.includes(color)
                 ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
                 : "h-6 w-6"
             }`}
@@ -703,7 +757,7 @@ export function DrawingToolbar({
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               aria-label="custom color"
             />
-            {!SWATCHES.includes(color) && (
+            {!activePalette.colors.includes(color) && (
               <span
                 aria-hidden
                 className="pointer-events-none absolute inset-[3px] rounded-full"
@@ -711,6 +765,13 @@ export function DrawingToolbar({
               />
             )}
           </label>
+          <PalettePicker
+            activePaletteId={activePalette.id}
+            onSelectPalette={(p) => {
+              setActivePalette(p);
+              onColorChange(p.colors[0]);
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
