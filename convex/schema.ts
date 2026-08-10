@@ -8,6 +8,11 @@ export default defineSchema({
   strokes: defineTable({
     clientStrokeId: v.string(),
     clientId: v.string(),
+    // Author display fields are a snapshot at draw time, not a live pointer
+    // to a profile — renaming later doesn't rewrite the attribution on past
+    // strokes, same as a signature.
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
     mode: v.union(v.literal("draw"), v.literal("erase")),
     brushType: v.optional(brushTypeValidator),
     color: v.string(),
