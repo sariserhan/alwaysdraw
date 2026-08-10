@@ -2,7 +2,7 @@
 
 **One world. One canvas. Always drawing.**
 
-A single public 20,000×20,000 drawing canvas shared in real time by everyone on the internet. Anyone can draw, erase, add vector shapes, type vector text, post sticky notes, or paint with 12 distinct brush textures across an infinite collaborative wall.
+A single public drawing canvas shared in real time by everyone on the internet. Anyone can draw, erase, add vector shapes, type vector text, post sticky notes, or paint with 12 distinct brush textures across a shared collaborative wall.
 
 > 📖 **Full Features Showcase:** See [FEATURES.md](./FEATURES.md) for a detailed breakdown of all tools, creative features, moderation controls, and keyboard shortcuts.
 

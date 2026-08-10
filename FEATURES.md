@@ -1,7 +1,7 @@
 # AlwaysDraw — Features & Capabilities Guide
 
 > **One world. One canvas. Always drawing.**  
-> A real-time, infinite 20,000×20,000 collaborative drawing wall powered by Next.js, HTML5 Canvas, and Convex.
+> A real-time collaborative drawing wall powered by Next.js, HTML5 Canvas, and Convex.
 
 ---
 
@@ -55,7 +55,7 @@
 
 - **Smooth Pan & Focal-Point Zooming:** Pan (`H` or Space+Drag) and focal-point zoom (`+`/`-`/Wheel/Pinch) keeping the point under the cursor stationary.
 - **MiniMap Navigation:** Fixed mini-map widget showing viewport bounding box, active stroke density, and click-to-teleport navigation.
-- **Activity Density Heatmap (`G`):** Toggleable spatial heatmap overlay visualizing high-activity drawing hotspots across the 20,000x20,000 wall.
+- **Activity Density Heatmap (`G`):** Toggleable spatial heatmap overlay visualizing high-activity drawing hotspots across the wall.
 - **Spatial Compass & Coordinates:** Real-time HUD displaying camera coordinates, zoom level, and origin teleport button.
 
 ---
@@ -115,7 +115,7 @@
 - **Zero Redraw Flicker:** Because `hash(point)` returns the exact same pseudo-random value for any point coordinate, re-rendering visible strokes when panning or zooming never causes texture flicker or grain jittering.
 
 ### 9.7 Spatial Tiling & Viewport Culling (`lib/tiling.ts`)
-- **500×500 Spatial Cell Grid:** The 20,000×20,000 canvas is indexed into 500×500 px spatial tile cells (`tile_X_Y`).
+- **500×500 Spatial Cell Grid:** The canvas is indexed into 500×500 px spatial tile cells (`tile_X_Y`).
 - **Bounding Box Calculation:** When a stroke is submitted, `getTileKeysForStroke` computes all tile keys spanned by the stroke's bounding box.
 - **Viewport Culling:** During redraws, `getVisibleTileKeys(camera, viewportWidth, viewportHeight)` determines which 500x500 cell tiles intersect the screen camera view frustum, filtering out off-screen strokes before invoking 2D canvas draw operations.
 

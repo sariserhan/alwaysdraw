@@ -33,7 +33,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Features & Usage Guide",
     modalSubtitle: "One world. One canvas. Always drawing.",
     introTitle: "🎨 Welcome to AlwaysDraw!",
-    introDesc1: "AlwaysDraw is a single, infinite 20,000×20,000 public drawing wall shared in real time by everyone on the internet. Pick a brush texture, choose a color or vector tool, and click or touch anywhere on the canvas to start drawing instantly with 0ms input lag. Pan around with Space + Drag and zoom in to explore artwork created by collaborators from across the globe.",
+    introDesc1: "AlwaysDraw is a single public drawing wall shared in real time by everyone on the internet. Pick a brush texture, choose a color or vector tool, and click or touch anywhere on the canvas to start drawing instantly with 0ms input lag. Pan around with Space + Drag and zoom in to explore artwork created by collaborators from across the globe.",
     introDesc2: "Who is it for? AlwaysDraw is built for digital artists, pixel artists, casual doodlers, creative teams, and anyone who loves spontaneous collaborative art. There are no private rooms, logins, or paywalls—just one massive shared canvas where every stroke becomes part of a living digital mural.",
     gotItBtn: "GOT IT, LET'S DRAW!",
     categories: {
@@ -60,7 +60,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Guide des Fonctionnalités",
     modalSubtitle: "Un monde. Une toile. Toujours en dessin.",
     introTitle: "🎨 Bienvenue sur AlwaysDraw !",
-    introDesc1: "AlwaysDraw est un mur de dessin public géant de 20 000×20 000 pixels, partagé en direct par tous les utilisateurs d'Internet. Choisissez une texture de pinceau, une couleur ou une forme vectorielle, puis cliquez ou touchez la toile pour dessiner instantanément sans latence. Déplacez-vous avec Espace + Glisser pour explorer les œuvres du monde entier.",
+    introDesc1: "AlwaysDraw est un mur de dessin public partagé en direct par tous les utilisateurs d'Internet. Choisissez une texture de pinceau, une couleur ou une forme vectorielle, puis cliquez ou touchez la toile pour dessiner instantanément sans latence. Déplacez-vous avec Espace + Glisser pour explorer les œuvres du monde entier.",
     introDesc2: "Pour qui est-ce fait ? AlwaysDraw s'adresse aux artistes numériques, amateurs de pixel art, gribouilleurs créatifs et équipes souhaitant collaborer librement. Sans inscription ni salon privé, chaque coup de pinceau enrichit une fresque collective mondiale.",
     gotItBtn: "COMPRIS, DESSINONS !",
     categories: {
@@ -87,8 +87,8 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — دليل الميزات والاستخدام",
     modalSubtitle: "عالم واحد. لوحة واحدة. رسم مستمر.",
     introTitle: "🎨 مرحبًا بك في AlwaysDraw!",
-    introDesc1: "AlwaysDraw هي لوحة رسم عامة غير محدودة بحجم 20,000×20,000 بكسل، مشتركة في الوقت الفعلي بين جميع مستخدمي الإنترنت. اختر الفرشاة واللون أو الشكل الهندسي وابدأ الرسم مباشرة على الشاشة بدون أي تأخير. تحرك بالسحب واستكشف الأعمال الفنية من كل مكان.",
-    introDesc2: "لمن هذه اللوحة؟ صُممت اللوحة للفنانين الرقميين، عشاق البيكسل، والفرق الإبداعية، ولكل من يحب الرسم الجماعي العفوي. لا توجد غرف خاصة أو تسجيل دخول—لوحة واحدة ضخمة تجمع كل الرسامين في جدارية حية.",
+    introDesc1: "AlwaysDraw هي لوحة رسم عامة مشتركة في الوقت الفعلي بين جميع مستخدمي الإنترنت. اختر الفرشاة واللون أو الشكل الهندسي وابدأ الرسم مباشرة على الشاشة بدون أي تأخير. تحرك بالسحب واستكشف الأعمال الفنية من كل مكان.",
+    introDesc2: "لمن هذه اللوحة؟ صُممت اللوحة للفنانين الرقميين، عشاق البيكسل، والفرق الإبداعية، ولكل من يحب الرسم الجماعي العفوي. لا توجد غرف خاصة أو تسجيل دخول—لوحة واحدة تجمع كل الرسامين في جدارية حية.",
     gotItBtn: "فهمت، لنبدأ الرسم!",
     categories: {
       brushesTitle: "🎨 الفرش ونظام الألوان",
@@ -114,7 +114,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Руководство по функциям",
     modalSubtitle: "Один мир. Один холст. Постоянное рисование.",
     introTitle: "🎨 Добро пожаловать в AlwaysDraw!",
-    introDesc1: "AlwaysDraw — это огромный публичный холст 20,000×20,000 пикселей, доступный в реальном времени каждому в интернете. Выберите текстуру кисти, цвет или векторную фигуру и рисуйте мгновенно без задержек. Перемещайтесь с помощью Пробел + Перетаскивание для исследования творческих работ со всего мира.",
+    introDesc1: "AlwaysDraw — это публичный холст, доступный в реальном времени каждому в интернете. Выберите текстуру кисти, цвет или векторную фигуру и рисуйте мгновенно без задержек. Перемещайтесь с помощью Пробел + Перетаскивание для исследования творческих работ со всего мира.",
     introDesc2: "Для кого это? AlwaysDraw создан для цифровых художников, любителей пиксель-арта, творческих команд и всех, кто любит спонтанное совместное творчество. Без регистрации и приватных комнат — один общий холст для всего мира.",
     gotItBtn: "ПОНЯТНО, РИСУЕМ!",
     categories: {
@@ -141,7 +141,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Guía de Funciones y Uso",
     modalSubtitle: "Un mundo. Un lienzo. Siempre dibujando.",
     introTitle: "🎨 ¡Bienvenido a AlwaysDraw!",
-    introDesc1: "AlwaysDraw es un muro de dibujo público e infinito de 20.000×20.000 píxeles compartido en tiempo real por todo el mundo. Elige un pincel, un color o una forma vectorial y dibuja al instante sin retraso. Muévete con Espacio + Arrastrar para explorar obras creadas en todo el planeta.",
+    introDesc1: "AlwaysDraw es un muro de dibujo público compartido en tiempo real por todo el mundo. Elige un pincel, un color o una forma vectorial y dibuja al instante sin retraso. Muévete con Espacio + Arrastrar para explorar obras creadas en todo el planeta.",
     introDesc2: "¿Para quién es? Diseñado para artistas digitales, amantes del pixel art, equipos creativos y cualquier persona que disfrute del arte colaborativo. Sin registros ni salas privadas, cada trazo forma parte de un mural global.",
     gotItBtn: "¡ENTENDIDO, A DIBUJAR!",
     categories: {
@@ -168,7 +168,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Guia de Funcionalidades",
     modalSubtitle: "Um mundo. Uma tela. Sempre a desenhar.",
     introTitle: "🎨 Bem-vindo ao AlwaysDraw!",
-    introDesc1: "AlwaysDraw é um mural de desenho público de 20.000×20.000 píxeis partilhado em tempo real por todos na internet. Escolha um pincel, cor ou forma e comece a desenhar instantaneamente sem latência. Navegue com Espaço + Arrastar para explorar arte criada por colaboradores de todo o mundo.",
+    introDesc1: "AlwaysDraw é um mural de desenho público partilhado em tempo real por todos na internet. Escolha um pincel, cor ou forma e comece a desenhar instantaneamente sem latência. Navegue com Espaço + Arrastar para explorar arte criada por colaboradores de todo o mundo.",
     introDesc2: "Para quem é? Criado para artistas digitais, fãs de pixel art, equipas criativas e qualquer pessoa que adore arte colaborativa espontânea. Sem registos nem salas privadas—uma grande tela comunitária onde cada traço faz parte de uma grande pintura viva.",
     gotItBtn: "ENTENDIDO, VAMOS DESENHAR!",
     categories: {
@@ -195,7 +195,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — Özellikler ve Kullanım Kılavuzu",
     modalSubtitle: "Tek bir dünya. Tek bir tuval. Daima çizimde.",
     introTitle: "🎨 AlwaysDraw'a Hoş Geldiniz!",
-    introDesc1: "AlwaysDraw, dünyadaki herkes tarafından canlı olarak paylaşılan 20.000×20.000 piksellik devasa bir açık çizim duvarıdır. Bir fırça dokusu, renk veya vektör şekil seçin ve tuval üzerinde gecikmesiz çizim yapmaya başlayın. Space + Sürükle ile tuvalde gezinerek dünyanın dört bir yanından sanatçıların eserlerini keşfedin.",
+    introDesc1: "AlwaysDraw, dünyadaki herkes tarafından canlı olarak paylaşılan açık bir çizim duvarıdır. Bir fırça dokusu, renk veya vektör şekil seçin ve tuval üzerinde gecikmesiz çizim yapmaya başlayın. Space + Sürükle ile tuvalde gezinerek dünyanın dört bir yanından sanatçıların eserlerini keşfedin.",
     introDesc2: "Kimler içindir? Dijital sanatçılar, piksel sanatçıları, hobi çizenler ve ortak yaratıcılığı seven herkes için tasarlanmıştır. Üyelik veya özel oda yok—her çizginin küresel bir dijital duvar resmine dönüştüğü tek bir ortak tuval var.",
     gotItBtn: "ANLADIM, ÇİZİME BAŞLA!",
     categories: {
@@ -222,7 +222,7 @@ export const HELP_TRANSLATIONS: Record<Locale, HelpTranslation> = {
     modalTitle: "AlwaysDraw — 機能＆使い方ガイド",
     modalSubtitle: "ひとつの世界。ひとつのキャンバス。常に描く。",
     introTitle: "🎨 AlwaysDraw へようこそ！",
-    introDesc1: "AlwaysDrawは、世界中のユーザーがリアルタイムで共有する20,000×20,000ピクセルの巨大なパブリック描画キャンバスです。ブラシ、カラー、ベクター図形を選び、遅延なしで即座に描画できます。Space + ドラッグでキャンバス内を移動し、世界中のアーティストの作品を探索しましょう。",
+    introDesc1: "AlwaysDrawは、世界中のユーザーがリアルタイムで共有するパブリック描画キャンバスです。ブラシ、カラー、ベクター図形を選び、遅延なしで即座に描画できます。Space + ドラッグでキャンバス内を移動し、世界中のアーティストの作品を探索しましょう。",
     introDesc2: "誰のためのアプリ？ デジタルアーティスト、ピクセルアートファン、クリエイティブなチーム、気軽に落書きを楽しみたいすべての人のための場所です。ログイン不要で、1つの巨大な壁画を世界中で共同制作できます。",
     gotItBtn: "了解、描き始めよう！",
     categories: {
