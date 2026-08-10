@@ -205,7 +205,7 @@ To repeat the two-browser check by hand: open `http://localhost:3000` in two win
 
 ## 8. Known limitations
 
-- **Live-tail window, not true cursor-based catch-up**: the reactive subscription (`strokes.listRecent`) returns the most recent 300 strokes. A client that's open but network-stalled for long enough to miss more than 300 strokes will only fully catch up on next reload (which does a full replay). Fine at V1 traffic; V2's snapshot system removes this ceiling.
+- **Live catch-up is sequence-cursor based**: after initial replay, the reactive client queries `strokes.listSince` from its last applied server sequence and advances until caught up, so a long network stall no longer silently drops strokes.
 - **Full-history replay on every load**, capped at 20,000 strokes (dev safety valve, not a real limit) — gets expensive as history grows. This is explicitly deferred to V2 (snapshots) per the spec.
 - **Presence cursor fan-out remains bounded**: the public online count is an O(1) cron-maintained value, but remote cursor listing is intentionally capped and is not a high-scale spatial presence system.
 - **Anonymous abuse remains possible**: transactional per-client and global fixed-window limits bound stroke and presence writes, identifiers/payload fields are length-checked, and operators have a read-only switch. Because identity is anonymous and client-supplied, these controls limit cost rather than proving identity or preventing a distributed attack.
@@ -224,7 +224,5 @@ To repeat the two-browser check by hand: open `http://localhost:3000` in two win
 
 Per the spec, in priority order:
 1. **Snapshot system** — the full-replay-on-load cost is the first real scaling wall; a periodic rendered snapshot + "strokes since snapshot" would remove the 20k-stroke dev cap entirely.
-2. **Cursor-based live catch-up** replacing the fixed 300-stroke `listRecent` window, so reconnects after a longer gap don't require a full reload to catch up.
-3. **Viewport URLs** (`?x=&y=&z=`) — small, high-value, and it's the one V2 feature that's nearly free given `lib/coordinates.ts` already isolates the camera math.
-4. **Heatmap / mini-map** — needs the presence/stroke data already being collected; mostly a new read-side aggregation, not a data model change.
-5. Everything else in the spec's V2 list (replay/time-travel, featured locations) builds on #1 and #2, so sequencing them after snapshots exist will be significantly less work than building them against the current full-replay model.
+2. **Heatmap / mini-map** — needs the presence/stroke data already being collected; mostly a new read-side aggregation, not a data model change.
+3. Historical replay/time-travel and featured locations should follow snapshots, rather than being built against the current full-replay model.

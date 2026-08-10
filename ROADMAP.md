@@ -64,7 +64,7 @@ Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
 - [x] Convex function tests via `convex-test` (`convex/strokes.test.ts`) — validation boundaries, retry idempotency, gapless/duplicate-free sequencing (sequential and concurrent), `listSince` pagination/ordering (including draw-before-erase), `listRecent` live-tail ordering — 17 tests
 
 ### Known gaps (see README §8 for full detail)
-- Live-tail catch-up window is capped at 300 strokes; a long network stall still needs a full reload to catch up completely
+- Live updates now catch up from the last applied server sequence after a network stall
 - Full-history replay on load, dev-capped at 20,000 strokes — no snapshot system yet
 - Presence/online-count queries don't scale past ~hundreds of concurrent users
 - No rate limiting beyond input validation
@@ -77,7 +77,7 @@ Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
 Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex, no Durable Objects yet.
 
 - [ ] **Snapshot system** — rendered snapshot + "strokes since snapshot," removing the full-replay cost as history grows (the #1 scaling wall right now)
-- [ ] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
+- [x] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
 - [x] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button
 - [ ] Historical replay (play/pause/scrub/speed) and read-only time travel
 - [ ] Heatmap of drawing activity by region
@@ -127,7 +127,7 @@ Near-term, concrete, not tied to a specific numbered version:
 - [ ] Verify and record production deployment (public URL, deployed Git commit, Convex deployment, smoke result, and rollback target); this checkout has no tracked OpenNext/Wrangler configuration yet
 - [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
 - [x] Scale online-count reads with a cron-maintained singleton; remote cursor fan-out remains intentionally capped
-- [ ] Finish and verify the in-progress cursor-based live catch-up before marking it shipped
+- [x] Cursor-based live catch-up shipped with sequence-cursor coverage
 - [ ] Activate Sentry/PostHog with real production project keys and verify receipt; optional privacy-safe instrumentation is implemented
 - [x] Public-write guardrails: bounded identifiers, per-client/global fixed-window limits for strokes and presence, and an `ALWAYSDRAW_READ_ONLY=1` incident switch
 - [x] Browser smoke coverage for desktop/mobile plus an opt-in, non-production two-browser synchronization/reload test
