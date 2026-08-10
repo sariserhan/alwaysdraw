@@ -1152,6 +1152,8 @@ export function GlobalCanvas() {
         setTool("ruler");
       } else if (key === "l") {
         setTool("laser");
+      } else if (key === "i" || key === "8") {
+        setTool("eyedropper");
       } else if (key === "g") {
         setGridConfig((prev) => ({
           ...prev,
@@ -1289,6 +1291,26 @@ export function GlobalCanvas() {
       }
 
       if (tool === "magnifier") return;
+
+      if (tool === "eyedropper") {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const screenX = Math.round(e.clientX - rect.left);
+          const screenY = Math.round(e.clientY - rect.top);
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            const pixel = ctx.getImageData(screenX, screenY, 1, 1).data;
+            if (pixel[3] > 0) {
+              const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+              setColor(hex);
+              setSubmitError(`SAMPLED COLOR: ${hex.toUpperCase()}`);
+            }
+          }
+        }
+        setTool("brush");
+        return;
+      }
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
