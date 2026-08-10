@@ -1270,7 +1270,7 @@ export function GlobalCanvas() {
                 ? "cursor-grab active:cursor-grabbing"
                 : tool === "magnifier"
                   ? "cursor-default"
-                  : tool === "shape" || tool === "ruler"
+                  : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil"
                     ? "cursor-crosshair"
                     : "cursor-none"
             }`}
