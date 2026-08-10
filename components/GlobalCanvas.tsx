@@ -56,7 +56,7 @@ import { HeaderSeam, MobileGroupLabel } from "./HeaderSeam";
 import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
-import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
+import { MiniMap, MINI_MAP_SIZE_PX, useHeaderBottomOffset } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { ExploreMenu } from "./ExploreMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
