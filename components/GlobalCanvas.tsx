@@ -2170,20 +2170,6 @@ export function GlobalCanvas() {
             />
           </div>
 
-          <div className="border-t border-chrome-border/60" />
-
-          <div className="flex flex-col items-start gap-2">
-            <MobileGroupLabel>⚙️ {t(locale, "group_preferences")}</MobileGroupLabel>
-            <LanguagePicker
-              currentLocale={locale}
-              onLocaleChange={(loc) => {
-                setLocale(loc);
-                localStorage.setItem("alwaysdraw_locale", loc);
-              }}
-            />
-            <ThemeToggle />
-            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
-          </div>
         </aside>
         )}
 

@@ -66,7 +66,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
         <div
           role="menu"
           aria-label="Supported Languages"
-          className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-1 w-48 rounded-sm border-2 border-rust bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md max-[1359px]:fixed! max-[1359px]:inset-x-3! max-[1359px]:top-20! max-[1359px]:w-auto! max-[1359px]:max-h-[calc(100vh-6rem)]! max-[1359px]:overflow-y-auto!"
+          className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-1 w-48 rounded-sm border-2 border-rust bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md fixed! right-3! sm:right-4! top-20! max-w-[calc(100vw-1.5rem)]! max-h-[calc(100vh-6rem)]! overflow-y-auto!"
         >
           <ChromeRivet className="top-1.5 left-1.5" />
           <ChromeRivet className="top-1.5 right-1.5" />
