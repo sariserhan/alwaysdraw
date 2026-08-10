@@ -81,7 +81,7 @@ Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex,
 - [x] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button
 - [ ] Historical replay (play/pause/scrub/speed) and read-only time travel
 - [ ] Heatmap of drawing activity by region
-- [ ] Mini-map overview
+- [x] **Mini-map overview** — fixed-size corner panel showing the whole wall, a rectangle marking the current viewport, click/drag to jump the camera there
 - [ ] Featured/active-location discovery (never protected — still fully editable)
 - [ ] Performance: canvas state stays out of React re-renders, incremental drawing (already true for V1's architecture — this just extends it as data volume grows)
 

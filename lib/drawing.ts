@@ -2,6 +2,8 @@ import type { Camera } from "./camera";
 import { worldToScreen } from "./coordinates";
 import type { Point, StrokeMode } from "./types";
 
+export const CONCRETE_FILL = "#f0ebd9";
+
 export function configureContext(ctx: CanvasRenderingContext2D) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -71,7 +73,6 @@ export function clearCanvas(ctx: CanvasRenderingContext2D, viewportWidth: number
   void viewportHeight;
 }
 
-const CONCRETE_FILL = "#f0ebd9";
 const RUST = "#b5502c";
 
 /**
@@ -103,4 +104,53 @@ export function drawWorldBackground(
   ctx.lineWidth = 1;
   ctx.strokeRect(rectX, rectY, rectW, rectH);
   ctx.globalAlpha = 1;
+}
+
+export function fillMiniMapBackground(ctx: CanvasRenderingContext2D, size: number) {
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = CONCRETE_FILL;
+  ctx.fillRect(0, 0, size, size);
+}
+
+/**
+ * Paints strokes onto the mini-map at a flat linear world->minimap scale (the
+ * minimap always shows the whole fixed world, so no camera/zoom is involved).
+ * Deliberately simplified vs. the real brush renderers — a thin colored line
+ * per stroke — since texture is invisible at this scale and full brush
+ * rendering for thousands of strokes would be wasted work. Erase is painted
+ * with the background color rather than destination-out: unlike the main
+ * view (background + strokes on two separate canvas layers, so erasing only
+ * clears the strokes layer), the minimap is one flat canvas with the
+ * background baked in — destination-out there would punch a genuinely
+ * transparent hole through the background too. Appends onto whatever's
+ * already there; does not clear.
+ */
+export function paintMiniMapStrokes(
+  ctx: CanvasRenderingContext2D,
+  strokes: Array<{ mode: StrokeMode; color: string; points: Point[] }>,
+  size: number,
+  worldWidth: number,
+  worldHeight: number,
+) {
+  const scaleX = size / worldWidth;
+  const scaleY = size / worldHeight;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 1.25;
+  ctx.globalCompositeOperation = "source-over";
+  for (const s of strokes) {
+    if (s.points.length === 0) continue;
+    ctx.strokeStyle = s.mode === "erase" ? CONCRETE_FILL : s.color;
+    ctx.beginPath();
+    const first = s.points[0];
+    ctx.moveTo(first.x * scaleX, first.y * scaleY);
+    if (s.points.length === 1) {
+      ctx.lineTo(first.x * scaleX + 0.01, first.y * scaleY + 0.01); // dot: a visible pixel, not a zero-length no-op path
+    } else {
+      for (let i = 1; i < s.points.length; i++) {
+        ctx.lineTo(s.points[i].x * scaleX, s.points[i].y * scaleY);
+      }
+    }
+    ctx.stroke();
+  }
 }

@@ -13,7 +13,7 @@ import {
   distance,
 } from "@/lib/camera";
 import { screenToWorld, clampToWorld, isWithinWorld } from "@/lib/coordinates";
-import { clearCanvas, drawWorldBackground, drawStroke } from "@/lib/drawing";
+import { clearCanvas, drawWorldBackground, drawStroke, fillMiniMapBackground, paintMiniMapStrokes } from "@/lib/drawing";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
@@ -30,6 +30,7 @@ import { ChromeRivet } from "./ChromeRivet";
 import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
+import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
@@ -57,6 +58,9 @@ export function GlobalCanvas() {
   const cursorElRef = useRef<HTMLDivElement>(null);
   const magnifierElRef = useRef<HTMLCanvasElement>(null);
   const rulerElRef = useRef<HTMLDivElement>(null);
+  const miniMapCanvasRef = useRef<HTMLCanvasElement>(null);
+  const miniMapCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const miniMapViewportRectRef = useRef<HTMLDivElement>(null);
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const shapePreviewRef = useRef<LocalStroke | null>(null);
@@ -277,6 +281,24 @@ export function GlobalCanvas() {
     updateRuler();
   }, [tool, updateRuler]);
 
+  // Mini-map viewport rectangle: where the main camera currently looks,
+  // mapped onto the fixed-size overview. Content (the strokes) is repainted
+  // separately, only when new strokes arrive — this just repositions a div.
+  const updateMiniMapViewportRect = useCallback(() => {
+    const el = miniMapViewportRectRef.current;
+    if (!el) return;
+    const { width, height } = viewportRef.current;
+    const camera = cameraRef.current;
+    const scaleX = MINI_MAP_SIZE_PX / WORLD_WIDTH;
+    const scaleY = MINI_MAP_SIZE_PX / WORLD_HEIGHT;
+    const worldVisibleW = width / camera.zoom;
+    const worldVisibleH = height / camera.zoom;
+    el.style.left = `${(camera.x - worldVisibleW / 2) * scaleX}px`;
+    el.style.top = `${(camera.y - worldVisibleH / 2) * scaleY}px`;
+    el.style.width = `${Math.max(2, worldVisibleW * scaleX)}px`;
+    el.style.height = `${Math.max(2, worldVisibleH * scaleY)}px`;
+  }, []);
+
   const rafRef = useRef<number | null>(null);
   const dirtyRef = useRef({ world: true, strokes: true });
   const scheduleRedraw = useCallback(
@@ -289,6 +311,7 @@ export function GlobalCanvas() {
         if (dirtyRef.current.world) {
           redrawWorld();
           dirtyRef.current.world = false;
+          updateMiniMapViewportRect();
           // Debounced so a pan/zoom gesture doesn't hammer the History API —
           // only the settled view ends up shareable via the address bar.
           if (urlSyncTimerRef.current) clearTimeout(urlSyncTimerRef.current);
@@ -310,7 +333,7 @@ export function GlobalCanvas() {
         updateMagnifier();
       });
     },
-    [redrawWorld, redrawStrokes, updateCursorOverlay, updateMagnifier],
+    [redrawWorld, redrawStrokes, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect],
   );
 
   const hideCursorOverlay = useCallback(() => {
@@ -353,13 +376,31 @@ export function GlobalCanvas() {
       }
       redrawWorld();
       redrawStrokes();
+
+      // Fixed CSS size regardless of viewport — only needs resizing if dpr
+      // itself changes (moved to a different-density monitor mid-session).
+      const miniMap = miniMapCanvasRef.current;
+      if (miniMap) {
+        const miniMapSize = Math.round(MINI_MAP_SIZE_PX * dpr);
+        if (miniMap.width !== miniMapSize || miniMap.height !== miniMapSize) {
+          miniMap.width = miniMapSize;
+          miniMap.height = miniMapSize;
+          const miniMapCtx = miniMap.getContext("2d");
+          if (miniMapCtx) {
+            miniMapCtxRef.current = miniMapCtx;
+            fillMiniMapBackground(miniMapCtx, miniMapSize);
+            paintMiniMapStrokes(miniMapCtx, committedRef.current, miniMapSize, WORLD_WIDTH, WORLD_HEIGHT);
+          }
+        }
+      }
+      updateMiniMapViewportRect();
     };
 
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     return () => ro.disconnect();
-  }, [redrawWorld, redrawStrokes]);
+  }, [redrawWorld, redrawStrokes, updateMiniMapViewportRect]);
 
   // Non-passive wheel listener so we can preventDefault (stop page/browser zoom).
   useEffect(() => {
@@ -406,6 +447,15 @@ export function GlobalCanvas() {
         if (!cancelled) {
           setReplayDone(true);
           setLiveTailCursor(after);
+          if (miniMapCtxRef.current && miniMapCanvasRef.current) {
+            paintMiniMapStrokes(
+              miniMapCtxRef.current,
+              committedRef.current,
+              miniMapCanvasRef.current.width,
+              WORLD_WIDTH,
+              WORLD_HEIGHT,
+            );
+          }
           captureEvent("wall_loaded", {
             duration_ms: Math.round(
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
@@ -440,19 +490,30 @@ export function GlobalCanvas() {
     // React's own blessed effect use case, just made async to satisfy the
     // compiler's stricter static check).
     queueMicrotask(() => {
-      let changed = false;
+      const newlyApplied: ServerStroke[] = [];
       for (const s of liveTail) {
         if (appliedIdsRef.current.has(s.clientStrokeId)) continue;
         appliedIdsRef.current.add(s.clientStrokeId);
         pendingRef.current.delete(s.clientStrokeId);
         committedRef.current.push(s);
-        changed = true;
+        newlyApplied.push(s);
       }
-      if (changed) scheduleRedraw();
-      // Advance regardless of `changed` — listSince's afterSequence bound
-      // means everything here is new-to-the-cursor even if it happened to
-      // already be applied locally (e.g. our own optimistic stroke), so
-      // re-querying the same range forever would just waste bandwidth.
+      if (newlyApplied.length > 0) {
+        scheduleRedraw();
+        if (miniMapCtxRef.current && miniMapCanvasRef.current) {
+          paintMiniMapStrokes(
+            miniMapCtxRef.current,
+            newlyApplied,
+            miniMapCanvasRef.current.width,
+            WORLD_WIDTH,
+            WORLD_HEIGHT,
+          );
+        }
+      }
+      // Advance regardless of whether anything was newly applied — listSince's
+      // afterSequence bound means everything here is new-to-the-cursor even if
+      // it happened to already be applied locally (e.g. our own optimistic
+      // stroke), so re-querying the same range forever would just waste bandwidth.
       setLiveTailCursor(liveTail[liveTail.length - 1].sequence);
     });
   }, [liveTail, replayDone, scheduleRedraw]);
@@ -838,6 +899,17 @@ export function GlobalCanvas() {
     captureEvent("tool_selected", { tool: nextTool });
   }, []);
 
+  // fracX/fracY are 0..1 across the mini-map's own box — recenters the
+  // camera there, keeping the current zoom level.
+  const handleMiniMapJump = useCallback(
+    (fracX: number, fracY: number) => {
+      const target = clampToWorld({ x: fracX * WORLD_WIDTH, y: fracY * WORLD_HEIGHT });
+      cameraRef.current = { ...cameraRef.current, x: target.x, y: target.y };
+      scheduleRedraw({ world: true, strokes: true });
+    },
+    [scheduleRedraw],
+  );
+
   return (
     <div className="relative h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
       <div ref={containerRef} className="absolute inset-0">
@@ -870,6 +942,12 @@ export function GlobalCanvas() {
         camera={cameraSnapshot}
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
+      />
+
+      <MiniMap
+        canvasRef={miniMapCanvasRef}
+        viewportRectRef={miniMapViewportRectRef}
+        onJump={handleMiniMapJump}
       />
 
       {!replayDone && (
