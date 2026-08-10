@@ -30,8 +30,6 @@ export type ServerStroke = LocalStroke & {
   serverTimestamp: number;
 };
 
-export type SymmetryMode = "off" | "mirror2" | "mirror4" | "mandala8";
-
 /** An axis-aligned world-space rectangle, e.g. a drag-selected region for
  * scoped replay/export. */
 export type WorldRect = { minX: number; minY: number; maxX: number; maxY: number };

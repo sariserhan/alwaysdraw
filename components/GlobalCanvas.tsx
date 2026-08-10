@@ -41,11 +41,10 @@ import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
 import { floodFillMask } from "@/lib/floodFill";
 import { STICKER_CATALOG } from "@/lib/stickers";
-import { calculateSymmetricPoints } from "@/lib/symmetry";
 import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
-import type { LocalStroke, ServerStroke, Point, Tool, BrushType, SymmetryMode, WorldRect } from "@/lib/types";
+import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } from "@/lib/types";
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
@@ -231,7 +230,6 @@ export function GlobalCanvas() {
   const [textInputText, setTextInputText] = useState("");
   const [textStyle, setTextStyle] = useState<FontStyle>("sans");
   const [textSize, setTextSize] = useState<number>(32);
-  const [symmetryMode, setSymmetryMode] = useState<SymmetryMode>("off");
   const [commentInputPos, setCommentInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
   const [commentText, setCommentText] = useState("");
 
@@ -287,6 +285,19 @@ export function GlobalCanvas() {
     }
     return "en";
   });
+  const [showComments, setShowComments] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("alwaysdraw_show_comments") !== "false";
+    }
+    return true;
+  });
+  const toggleShowComments = useCallback(() => {
+    setShowComments((prev) => {
+      const next = !prev;
+      localStorage.setItem("alwaysdraw_show_comments", String(next));
+      return next;
+    });
+  }, []);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
@@ -1137,81 +1148,60 @@ export function GlobalCanvas() {
     return () => clearTimeout(id);
   }, [submitError]);
 
-  // One StrokeBuffer per symmetry copy (1 for "off", up to 8 for mandala8) —
-  // each mirrored copy is its own independent connected line, not extra
-  // points tacked onto a single buffer, which would draw spurious lines
-  // jumping between the mirrored positions instead of parallel strokes.
-  const drawBuffersRef = useRef<StrokeBuffer[] | null>(null);
-  const lastDrawWorldsRef = useRef<Point[] | null>(null);
-  const symmetryCenterRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
+  const drawBufferRef = useRef<StrokeBuffer | null>(null);
+  const lastDrawWorldRef = useRef<Point | null>(null);
 
   const beginDraw = useCallback(
     (worldPoint: Point) => {
-      // Locked in for the whole stroke, not recomputed per point — mirrors
-      // stay parallel even if the camera pans mid-stroke.
-      symmetryCenterRef.current = { x: cameraRef.current.x, y: cameraRef.current.y };
-      const mode = tool === "eraser" ? "off" : symmetryMode;
-      const points = calculateSymmetricPoints(worldPoint, mode, symmetryCenterRef.current);
-
-      drawBuffersRef.current = points.map(
-        () =>
-          new StrokeBuffer(
-            clientId,
-            tool === "eraser" ? "erase" : "draw",
-            tool === "eraser" ? undefined : brushType,
-            color,
-            brushWidth,
-            opacity,
-            username,
-            countryCode,
-            commitOwnChunk,
-          ),
+      const buffer = new StrokeBuffer(
+        clientId,
+        tool === "eraser" ? "erase" : "draw",
+        tool === "eraser" ? undefined : brushType,
+        color,
+        brushWidth,
+        opacity,
+        username,
+        countryCode,
+        commitOwnChunk,
       );
-      drawBuffersRef.current.forEach((buffer, i) => buffer.addPoint(points[i]));
-      lastDrawWorldsRef.current = points;
+      buffer.addPoint(worldPoint);
+      drawBufferRef.current = buffer;
+      lastDrawWorldRef.current = worldPoint;
     },
-    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity, username, countryCode, symmetryMode],
+    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity, username, countryCode],
   );
 
   const continueDraw = useCallback((worldPoint: Point) => {
-    const buffers = drawBuffersRef.current;
-    const lastPoints = lastDrawWorldsRef.current;
-    if (!buffers || !lastPoints) return;
-
-    const mode = buffers[0].mode === "erase" ? "off" : symmetryMode;
-    const points = calculateSymmetricPoints(worldPoint, mode, symmetryCenterRef.current);
-    if (points.length !== buffers.length) return; // symmetry mode changed mid-stroke; ignore rather than mismatch arrays
+    const buffer = drawBufferRef.current;
+    const prev = lastDrawWorldRef.current;
+    if (!buffer || !prev) return;
 
     const ctx = ctxRef.current;
     const { width, height } = viewportRef.current;
-    for (let i = 0; i < buffers.length; i++) {
-      const buffer = buffers[i];
-      const prev = lastPoints[i];
-      if (ctx) {
-        if (buffer.mode === "erase") {
-          drawStroke(ctx, cameraRef.current, width, height, [prev, points[i]], "erase", buffer.color, buffer.width);
-        } else {
-          renderBrushStroke(buffer.brushType, {
-            ctx,
-            camera: cameraRef.current,
-            viewportWidth: width,
-            viewportHeight: height,
-            points: [prev, points[i]],
-            color: buffer.color,
-            width: buffer.width,
-            opacity: buffer.opacity,
-          });
-        }
+    if (ctx) {
+      if (buffer.mode === "erase") {
+        drawStroke(ctx, cameraRef.current, width, height, [prev, worldPoint], "erase", buffer.color, buffer.width);
+      } else {
+        renderBrushStroke(buffer.brushType, {
+          ctx,
+          camera: cameraRef.current,
+          viewportWidth: width,
+          viewportHeight: height,
+          points: [prev, worldPoint],
+          color: buffer.color,
+          width: buffer.width,
+          opacity: buffer.opacity,
+        });
       }
-      buffer.addPoint(points[i]);
     }
-    lastDrawWorldsRef.current = points;
-  }, [symmetryMode]);
+    buffer.addPoint(worldPoint);
+    lastDrawWorldRef.current = worldPoint;
+  }, []);
 
   const endDraw = useCallback(() => {
-    drawBuffersRef.current?.forEach((buffer) => buffer.finish());
-    drawBuffersRef.current = null;
-    lastDrawWorldsRef.current = null;
+    drawBufferRef.current?.finish();
+    drawBufferRef.current = null;
+    lastDrawWorldRef.current = null;
   }, []);
 
   const activePointersRef = useRef<Map<number, Point>>(new Map());
@@ -2158,6 +2148,21 @@ export function GlobalCanvas() {
           <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
             <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
+            <button
+              type="button"
+              onClick={toggleShowComments}
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+                showComments
+                  ? "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
+                  : "border-rust bg-rust text-on-accent font-bold"
+              }`}
+              title={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
+              aria-label={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
+              aria-pressed={!showComments}
+            >
+              <span>{showComments ? "💬" : "🚫"}</span>
+              <span>{(showComments ? t(locale, "hide_comments") : t(locale, "show_comments")).toUpperCase()}</span>
+            </button>
           </div>
 
           <HeaderSeam />
@@ -2298,6 +2303,21 @@ export function GlobalCanvas() {
               <ThemeToggle />
               <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
               <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
+              <button
+                type="button"
+                onClick={toggleShowComments}
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+                  showComments
+                    ? "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
+                    : "border-rust bg-rust text-on-accent font-bold"
+                }`}
+                title={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
+                aria-label={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
+                aria-pressed={!showComments}
+              >
+                <span>{showComments ? "💬" : "🚫"}</span>
+                <span>{(showComments ? t(locale, "hide_comments") : t(locale, "show_comments")).toUpperCase()}</span>
+              </button>
             </div>
 
             <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
@@ -2410,7 +2430,7 @@ export function GlobalCanvas() {
       )}
 
       <CommentsOverlay
-        comments={comments}
+        comments={showComments ? comments : []}
         camera={cameraSnapshot}
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
@@ -2490,8 +2510,6 @@ export function GlobalCanvas() {
           onZoomOut={() => zoomButton(1 / 1.2)}
           onResetView={resetView}
           onShare={handleShare}
-          symmetryMode={symmetryMode}
-          onSymmetryModeChange={setSymmetryMode}
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}

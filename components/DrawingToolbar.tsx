@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { t, type Locale } from "@/lib/i18n";
-import type { BrushType, Tool, SymmetryMode } from "@/lib/types";
+import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
@@ -632,8 +632,6 @@ export function DrawingToolbar({
   onZoomOut,
   onResetView,
   onShare,
-  symmetryMode = "off",
-  onSymmetryModeChange = () => {},
   showHeatmap,
   onToggleHeatmap,
   locale = "en",
@@ -659,8 +657,6 @@ export function DrawingToolbar({
   onZoomOut: () => void;
   onResetView: () => void;
   onShare: () => void | Promise<void>;
-  symmetryMode?: SymmetryMode;
-  onSymmetryModeChange?: (m: SymmetryMode) => void;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
   locale?: Locale;
@@ -845,30 +841,6 @@ export function DrawingToolbar({
             }`}
           >
             <CommentIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextMode: Record<SymmetryMode, SymmetryMode> = {
-                off: "mirror2",
-                mirror2: "mirror4",
-                mirror4: "mandala8",
-                mandala8: "off",
-              };
-              onSymmetryModeChange(nextMode[symmetryMode]);
-            }}
-            aria-pressed={symmetryMode !== "off"}
-            title={`Symmetry Mode: ${symmetryMode.toUpperCase()}`}
-            className={`flex items-center gap-1 rounded-sm px-2 py-1.5 font-mono text-[10px] font-bold uppercase transition ${
-              symmetryMode !== "off"
-                ? "border border-rust bg-rust/40 text-accent-yellow shadow-md"
-                : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <span>🔮</span>
-            <span className="hidden sm:inline">
-              {symmetryMode === "off" ? "SYM OFF" : symmetryMode.toUpperCase()}
-            </span>
           </button>
           <button
             type="button"

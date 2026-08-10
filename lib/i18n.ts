@@ -113,6 +113,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Clear",
     region_select_hint: "Drag on the canvas to select a region",
     more: "More",
+    hide_comments: "Hide Comments",
+    show_comments: "Show Comments",
   },
   fr: {
     brush: "Pinceau",
@@ -208,6 +210,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Effacer",
     region_select_hint: "Faites glisser sur le canevas pour sélectionner une zone",
     more: "Plus",
+    hide_comments: "Masquer les commentaires",
+    show_comments: "Afficher les commentaires",
   },
   ar: {
     brush: "فرشاة",
@@ -303,6 +307,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "مسح",
     region_select_hint: "اسحب على اللوحة لتحديد منطقة",
     more: "المزيد",
+    hide_comments: "إخفاء التعليقات",
+    show_comments: "إظهار التعليقات",
   },
   ru: {
     brush: "Кисть",
@@ -398,6 +404,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Очистить",
     region_select_hint: "Проведите по холсту, чтобы выбрать область",
     more: "Ещё",
+    hide_comments: "Скрыть комментарии",
+    show_comments: "Показать комментарии",
   },
   es: {
     brush: "Pincel",
@@ -493,6 +501,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Borrar",
     region_select_hint: "Arrastra en el lienzo para seleccionar una región",
     more: "Más",
+    hide_comments: "Ocultar comentarios",
+    show_comments: "Mostrar comentarios",
   },
   pt: {
     brush: "Pincel",
@@ -588,6 +598,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Limpar",
     region_select_hint: "Arraste na tela para selecionar uma região",
     more: "Mais",
+    hide_comments: "Ocultar comentários",
+    show_comments: "Mostrar comentários",
   },
   tr: {
     brush: "Fırça",
@@ -683,6 +695,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "Temizle",
     region_select_hint: "Bir bölge seçmek için tuval üzerinde sürükleyin",
     more: "Daha Fazla",
+    hide_comments: "Yorumları Gizle",
+    show_comments: "Yorumları Göster",
   },
   ja: {
     brush: "ブラシ",
@@ -778,6 +792,8 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     clear_region: "クリア",
     region_select_hint: "キャンバス上をドラッグしてエリアを選択",
     more: "その他",
+    hide_comments: "コメントを非表示",
+    show_comments: "コメントを表示",
   },
 };
 
