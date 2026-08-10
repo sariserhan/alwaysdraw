@@ -27,4 +27,4 @@ export type ServerStroke = LocalStroke & {
 };
 
 /** Tool the pointer is currently bound to — what a drag/tap on the canvas does. */
-export type Tool = "brush" | "eraser" | "pan" | "magnifier" | "shape" | "ruler" | "stencil";
+export type Tool = "brush" | "eraser" | "pan" | "magnifier" | "shape" | "ruler" | "stencil" | "laser";

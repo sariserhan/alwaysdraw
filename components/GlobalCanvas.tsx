@@ -58,6 +58,7 @@ import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
 import { playBrushSound } from "@/lib/audio";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
+import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
 import { getVisibleTileKeys, getTileKeysForStroke, TILE_SIZE } from "@/lib/tiling";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
@@ -95,6 +96,8 @@ export function GlobalCanvas() {
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const shapePreviewRef = useRef<LocalStroke | null>(null);
+  const laserTrailsRef = useRef<LaserTrail[]>([]);
+  const activeLaserTrailIdRef = useRef<string | null>(null);
   const rulerDragRef = useRef<{
     startWorld: Point;
     startScreen: Point;
@@ -261,6 +264,9 @@ export function GlobalCanvas() {
     if (!isReplayMode) {
       for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
       if (shapePreviewRef.current) paintOneStroke(ctx, width, height, shapePreviewRef.current);
+      if (laserTrailsRef.current.length > 0) {
+        drawLaserTrails(ctx, cameraRef.current, width, height, laserTrailsRef.current);
+      }
     }
   }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount]);
 
@@ -446,6 +452,23 @@ export function GlobalCanvas() {
     },
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect],
   );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (laserTrailsRef.current.length === 0) return;
+      const now = Date.now();
+      let hasPoints = false;
+      for (const trail of laserTrailsRef.current) {
+        trail.points = trail.points.filter((p) => now - p.timestamp < 1500);
+        if (trail.points.length > 0) hasPoints = true;
+      }
+      laserTrailsRef.current = laserTrailsRef.current.filter((t) => t.points.length > 0);
+      if (hasPoints || laserTrailsRef.current.length > 0) {
+        scheduleRedraw({ strokes: true });
+      }
+    }, 40);
+    return () => clearInterval(interval);
+  }, [scheduleRedraw]);
 
   const hideCursorOverlay = useCallback(() => {
     lastScreenPosRef.current = null;
@@ -910,6 +933,19 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "laser") {
+        const trailId = `laser-${Date.now()}`;
+        activeLaserTrailIdRef.current = trailId;
+        laserTrailsRef.current.push({
+          id: trailId,
+          color: color || "#39c07a",
+          points: [{ ...worldPt, timestamp: Date.now() }],
+        });
+        playBrushSound("neonGlow");
+        scheduleRedraw({ strokes: true });
+        return;
+      }
+
       if (tool === "ruler") {
         rulerDragRef.current = {
           startWorld: worldPt,
@@ -990,6 +1026,18 @@ export function GlobalCanvas() {
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       lastCursorWorldRef.current = worldPt;
 
+      if (tool === "laser") {
+        if (activeLaserTrailIdRef.current) {
+          const trail = laserTrailsRef.current.find((t) => t.id === activeLaserTrailIdRef.current);
+          if (trail) {
+            trail.points.push({ ...worldPt, timestamp: Date.now() });
+            playBrushSound("neonGlow");
+            scheduleRedraw({ strokes: true });
+          }
+        }
+        return;
+      }
+
       if (tool === "shape") {
         const drag = shapeDragRef.current;
         if (!drag) return;
@@ -1030,6 +1078,10 @@ export function GlobalCanvas() {
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       activePointersRef.current.delete(e.pointerId);
+
+      if (tool === "laser") {
+        activeLaserTrailIdRef.current = null;
+      }
 
       if (tool === "shape") {
         const drag = shapeDragRef.current;
