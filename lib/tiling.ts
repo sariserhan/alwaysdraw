@@ -139,3 +139,10 @@ export function getVisibleTileKeys(
 
   return tileKeys;
 }
+
+/** Determine tile size based on zoom level (mipmapping for ultra-low zoom). */
+export function getMipmapTileSize(zoom: number): number {
+  if (zoom < 0.25) return TILE_SIZE * 5; // 2500px super-tiles
+  if (zoom < 0.5) return TILE_SIZE * 2; // 1000px super-tiles
+  return TILE_SIZE; // 500px standard tiles
+}

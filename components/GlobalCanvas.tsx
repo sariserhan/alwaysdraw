@@ -52,8 +52,12 @@ import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
+import { SoundToggle } from "./SoundToggle";
+import { HighlightsModal } from "./HighlightsModal";
 import { HelpModal } from "./HelpModal";
-import { getVisibleTileKeys, TILE_SIZE } from "@/lib/tiling";
+import { playBrushSound } from "@/lib/audio";
+import { buildStencilPoints, type StencilType } from "@/lib/stencils";
+import { getVisibleTileKeys, getTileKeysForStroke, TILE_SIZE } from "@/lib/tiling";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
@@ -113,6 +117,7 @@ export function GlobalCanvas() {
   const [tool, setTool] = useState<Tool>("brush");
   const [brushType, setBrushType] = useState<BrushType>("brush");
   const [shapeType, setShapeType] = useState<ShapeType>("line");
+  const [selectedStencil, setSelectedStencil] = useState<StencilType>("biohazard");
   const [color, setColor] = useState("#17181a");
   const [brushWidth, setBrushWidth] = useState(8);
   const [opacity, setOpacity] = useState(1);
@@ -675,6 +680,7 @@ export function GlobalCanvas() {
       }
     }
     buffer.addPoint(worldPoint);
+    playBrushSound(buffer.brushType, buffer.mode === "erase");
     lastDrawWorldRef.current = worldPoint;
   }, []);
 
@@ -767,6 +773,43 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "stencil") {
+        const points = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, brushWidth * 6);
+        const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
+        const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const stroke: LocalStroke = {
+          clientStrokeId,
+          clientId,
+          mode: "draw",
+          brushType: "marker",
+          color,
+          width: Math.max(3, Math.round(brushWidth / 2)),
+          opacity,
+          points,
+          tiles,
+          clientTimestamp: Date.now(),
+        };
+        pendingRef.current.set(stroke.clientStrokeId, stroke);
+        playBrushSound("marker");
+        scheduleRedraw({ world: true, strokes: true });
+
+        submitStroke({
+          clientStrokeId: stroke.clientStrokeId,
+          clientId,
+          mode: stroke.mode,
+          brushType: stroke.brushType,
+          color: stroke.color,
+          width: stroke.width,
+          opacity: stroke.opacity,
+          points: stroke.points,
+          clientTimestamp: stroke.clientTimestamp,
+        }).catch(() => {
+          pendingRef.current.delete(stroke.clientStrokeId);
+          scheduleRedraw({ world: true, strokes: true });
+        });
+        return;
+      }
+
       if (tool === "ruler") {
         rulerDragRef.current = {
           startWorld: worldPt,
@@ -780,7 +823,21 @@ export function GlobalCanvas() {
 
       beginDraw(worldPt);
     },
-    [beginDraw, endDraw, getPointerWorld, getScreenPoint, tool, updateRuler],
+    [
+      beginDraw,
+      brushWidth,
+      clientId,
+      color,
+      endDraw,
+      getPointerWorld,
+      getScreenPoint,
+      opacity,
+      scheduleRedraw,
+      selectedStencil,
+      submitStroke,
+      tool,
+      updateRuler,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -1089,6 +1146,13 @@ export function GlobalCanvas() {
             <span className="text-ink-dim">TILES:</span>
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/10000</span>
           </div>
+          <SoundToggle />
+          <HighlightsModal
+            onJumpToPoint={handleJumpToPoint}
+            getBusiestPoint={getBusiestPoint}
+            getRandomActivePoint={getRandomActivePoint}
+            onlineCount={onlineCount ?? 1}
+          />
           <SpatialDiscoveryMenu
             onJumpToPoint={handleJumpToPoint}
             getBusiestPoint={getBusiestPoint}
@@ -1153,6 +1217,8 @@ export function GlobalCanvas() {
           onBrushTypeChange={setBrushType}
           shapeType={shapeType}
           onShapeTypeChange={setShapeType}
+          selectedStencil={selectedStencil}
+          onStencilSelect={setSelectedStencil}
           color={color}
           onColorChange={setColor}
           width={brushWidth}

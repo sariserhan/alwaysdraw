@@ -24,6 +24,11 @@ export const STROKES_PER_CLIENT_WINDOW = 120;
 export const STROKES_GLOBAL_WINDOW = 2_000;
 export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
 export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
+// Snapshots carry no per-client identity (they're a server-side optimization,
+// not a user action), so this is a global-only limit — legitimate submissions
+// are infrequent, so this is generous headroom, not a real throughput cap.
+export const SNAPSHOTS_GLOBAL_WINDOW = 5;
+export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const PRESENCE_ONLINE_WINDOW_MS = 30_000;
 export const PRESENCE_STALE_MS = 2 * 60_000;

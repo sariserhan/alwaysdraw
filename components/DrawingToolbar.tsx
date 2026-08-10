@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
+import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
 import { ChromeRivet } from "./ChromeRivet";
 
 const SWATCHES = [
@@ -16,8 +17,6 @@ const SWATCHES = [
   "#17181a", // ink black
 ];
 
-// Fixed, deterministic drip positions/lengths along the rack's bottom edge —
-// authored geometry, not a repeated/randomized pattern.
 const DRIPS = [
   { left: "8%", width: 5, height: 11 },
   { left: "19%", width: 4, height: 7 },
@@ -48,9 +47,6 @@ function DripEdge() {
   );
 }
 
-// The rivet-bearing bracket tabs double as the collapse toggle — the
-// hardware you'd actually unbolt to fold the rack down. A dedicated
-// separate button would duplicate a control this metaphor already offers.
 function MountBracket({ side, collapsed, onClick }: { side: "left" | "right"; collapsed: boolean; onClick: () => void }) {
   return (
     <button
@@ -129,6 +125,20 @@ function ShapesIcon() {
   );
 }
 
+function StencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2v20M2 12h20"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 function RulerIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -172,8 +182,6 @@ function ChevronDownIcon() {
   );
 }
 
-// Chevron tab, top-center: hides the whole rack (distinct from the
-// side-rivet collapse toggle, which only shrinks it to the tool row).
 function HideHandle({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -188,8 +196,6 @@ function HideHandle({ onClick }: { onClick: () => void }) {
   );
 }
 
-// What's left docked at the bottom edge when the rack is hidden — tap to
-// bring it back.
 function ShowTab({ onClick }: { onClick: () => void }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-2">
@@ -323,6 +329,48 @@ function BrushPicker({
   );
 }
 
+function StencilPicker({
+  selectedStencil,
+  onSelect,
+  onClose,
+}: {
+  selectedStencil: StencilType;
+  onSelect: (st: StencilType) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
+      <div className="absolute bottom-full left-0 z-20 mb-3 w-52 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
+        <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
+          Spray Stencils
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          {STENCIL_TYPES.map((st) => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => {
+                onSelect(st.id);
+                onClose();
+              }}
+              aria-pressed={selectedStencil === st.id}
+              className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs font-medium transition ${
+                selectedStencil === st.id
+                  ? "bg-accent-crimson-deep text-on-accent"
+                  : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
+              }`}
+            >
+              <span>{st.icon}</span>
+              <span className="truncate">{st.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function ShapeIcon({ type }: { type: ShapeType }) {
   switch (type) {
     case "line":
@@ -399,6 +447,8 @@ export function DrawingToolbar({
   onBrushTypeChange,
   shapeType,
   onShapeTypeChange,
+  selectedStencil = "biohazard",
+  onStencilSelect = () => {},
   color,
   onColorChange,
   width,
@@ -420,6 +470,8 @@ export function DrawingToolbar({
   onBrushTypeChange: (b: BrushType) => void;
   shapeType: ShapeType;
   onShapeTypeChange: (s: ShapeType) => void;
+  selectedStencil?: StencilType;
+  onStencilSelect?: (st: StencilType) => void;
   color: string;
   onColorChange: (c: string) => void;
   width: number;
@@ -437,6 +489,7 @@ export function DrawingToolbar({
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
+  const [stencilPickerOpen, setStencilPickerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -554,6 +607,35 @@ export function DrawingToolbar({
                 onToolChange("shape");
               }}
               onClose={() => setShapePickerOpen(false)}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (tool === "stencil") {
+                setStencilPickerOpen((v) => !v);
+              } else {
+                onToolChange("stencil");
+              }
+            }}
+            aria-pressed={tool === "stencil"}
+            aria-haspopup="true"
+            aria-expanded={stencilPickerOpen}
+            title="Stencil / Stamp"
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "stencil" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <StencilIcon />
+          </button>
+          {stencilPickerOpen && (
+            <StencilPicker
+              selectedStencil={selectedStencil}
+              onSelect={(st) => {
+                onStencilSelect(st);
+                onToolChange("stencil");
+              }}
+              onClose={() => setStencilPickerOpen(false)}
             />
           )}
           <button

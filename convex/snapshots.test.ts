@@ -47,15 +47,70 @@ describe("snapshots query and mutation", () => {
   it("prevents duplicate snapshots for the exact same sequence", async () => {
     const id1 = await t.mutation(api.snapshots.submit, {
       sequence: 1000,
-      imageData: "data:image/webp;base64,sample1000_1",
+      imageData: "data:image/webp;base64,sample1000a",
       strokeCount: 500,
     });
     const id2 = await t.mutation(api.snapshots.submit, {
       sequence: 1000,
-      imageData: "data:image/webp;base64,sample1000_2",
+      imageData: "data:image/webp;base64,sample1000b",
       strokeCount: 500,
     });
 
     expect(id1).toBe(id2);
+  });
+
+  it("rejects malformed imageData that isn't a base64 image data URL", async () => {
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence: 1,
+        imageData: "not-a-data-url",
+        strokeCount: 1,
+      }),
+    ).rejects.toThrow(/imageData/);
+  });
+
+  it("rejects an oversized imageData payload", async () => {
+    const huge = "data:image/webp;base64," + "A".repeat(6 * 1024 * 1024);
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence: 1,
+        imageData: huge,
+        strokeCount: 1,
+      }),
+    ).rejects.toThrow(/size limit/);
+  });
+
+  it("rejects a negative sequence or strokeCount", async () => {
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence: -1,
+        imageData: "data:image/webp;base64,sample",
+        strokeCount: 1,
+      }),
+    ).rejects.toThrow(/sequence/);
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence: 1,
+        imageData: "data:image/webp;base64,sample",
+        strokeCount: -1,
+      }),
+    ).rejects.toThrow(/strokeCount/);
+  });
+
+  it("rate limits excessive global submissions", async () => {
+    for (let i = 0; i < 5; i++) {
+      await t.mutation(api.snapshots.submit, {
+        sequence: i,
+        imageData: "data:image/webp;base64,sample",
+        strokeCount: 1,
+      });
+    }
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence: 999,
+        imageData: "data:image/webp;base64,sample",
+        strokeCount: 1,
+      }),
+    ).rejects.toThrow(/rate limit/);
   });
 });
