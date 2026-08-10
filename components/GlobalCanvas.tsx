@@ -56,11 +56,13 @@ import { SoundToggle } from "./SoundToggle";
 import { HighlightsModal } from "./HighlightsModal";
 import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
+import { GridToggle } from "./GridToggle";
 import { RateLimitToast } from "./RateLimitToast";
 import { playBrushSound } from "@/lib/audio";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
+import { drawGridOverlay, snapPointToGrid, type GridConfig } from "@/lib/grid";
 import { getVisibleTileKeys, getTileKeysForStroke, TILE_SIZE } from "@/lib/tiling";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
@@ -134,6 +136,11 @@ export function GlobalCanvas() {
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
   const [replaySequenceIndex, setReplaySequenceIndex] = useState(0);
   const [minSequence, setMinSequence] = useState(0);
+  const [gridConfig, setGridConfig] = useState<GridConfig>({
+    mode: "none",
+    cellSize: 50,
+    snapEnabled: false,
+  });
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const [tool, setTool] = useState<Tool>("brush");
@@ -171,7 +178,8 @@ export function GlobalCanvas() {
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
     drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
-  }, []);
+    drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig);
+  }, [gridConfig]);
 
   const redrawHeatmap = useCallback(() => {
     const ctx = heatmapCtxRef.current;
@@ -809,6 +817,11 @@ export function GlobalCanvas() {
         setTool("stencil");
       } else if (key === "r" || key === "7") {
         setTool("ruler");
+      } else if (key === "g") {
+        setGridConfig((prev) => ({
+          ...prev,
+          mode: prev.mode === "none" ? "square" : prev.mode === "square" ? "isometric" : "none",
+        }));
       } else if (key === "f") {
         setShowHeatmap((v) => !v);
       } else if (key === "+" || key === "=") {
@@ -841,9 +854,10 @@ export function GlobalCanvas() {
     (clientX: number, clientY: number): Point => {
       const screen = getScreenPoint(clientX, clientY);
       const { width, height } = viewportRef.current;
-      return clampToWorld(screenToWorld(screen.x, screen.y, cameraRef.current, width, height));
+      const pt = clampToWorld(screenToWorld(screen.x, screen.y, cameraRef.current, width, height));
+      return snapPointToGrid(pt, gridConfig);
     },
-    [getScreenPoint],
+    [getScreenPoint, gridConfig],
   );
 
   const handlePointerDown = useCallback(
@@ -1282,6 +1296,7 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/10000</span>
           </div>
           <SoundToggle />
+          <GridToggle config={gridConfig} onChange={setGridConfig} />
           <HighlightsModal
             onJumpToPoint={handleJumpToPoint}
             getBusiestPoint={getBusiestPoint}
