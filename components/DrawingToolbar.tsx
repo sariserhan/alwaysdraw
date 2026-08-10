@@ -195,7 +195,11 @@ function CommentIcon() {
   );
 }
 
-function StickerIcon() {
+function StickerIcon({ selectedSticker }: { selectedSticker?: string }) {
+  const item = STICKER_CATALOG.find((s) => s.id === selectedSticker);
+  if (item) {
+    return <span className="text-sm leading-none">{item.emoji}</span>;
+  }
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
@@ -882,7 +886,7 @@ export function DrawingToolbar({
               tool === "sticker" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
           >
-            <StickerIcon />
+            <StickerIcon selectedSticker={selectedSticker} />
           </button>
           {stickerPickerOpen && (
             <StickerPicker

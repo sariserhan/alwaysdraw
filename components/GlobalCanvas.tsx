@@ -1386,95 +1386,43 @@ export function GlobalCanvas() {
     (worldPt: Point) => {
       const sticker = STICKER_CATALOG.find((s) => s.id === selectedSticker) ?? STICKER_CATALOG[0];
 
-      // Rasterize the emoji glyph once at a fixed resolution, then stamp its
-      // pixels as world-space dabs — the same technique admin image upload
-      // already uses, which is what lets a full-color glyph (not just a
-      // single-color vector shape) persist and render identically for
-      // everyone, not just the client that placed it.
-      const RES = 64;
-      const offscreen = document.createElement("canvas");
-      offscreen.width = RES;
-      offscreen.height = RES;
-      const octx = offscreen.getContext("2d", { willReadFrequently: true });
-      if (!octx) return;
-      octx.clearRect(0, 0, RES, RES);
-      octx.font = `${Math.round(RES * 0.75)}px sans-serif`;
-      octx.textAlign = "center";
-      octx.textBaseline = "middle";
-      octx.fillText(sticker.emoji, RES / 2, RES / 2 + RES * 0.05);
-      const imageData = octx.getImageData(0, 0, RES, RES);
+      // Convert sticker label into crisp vector stroke paths
+      const fontSize = Math.max(28, brushWidth * 3.5);
+      const textLabel = sticker.name.toUpperCase();
+      const originX = worldPt.x - (textLabel.length * fontSize * 0.32);
+      const originY = worldPt.y - (fontSize / 2);
 
-      const stickerWorldSize = Math.max(60, brushWidth * 8);
-      const worldPerPixel = stickerWorldSize / RES;
+      const paths = convertTextToStrokePaths(
+        textLabel,
+        { x: originX, y: originY },
+        fontSize,
+        "pixel"
+      );
 
-      const pointsByColor = new Map<string, Point[]>();
-      for (let y = 0; y < RES; y++) {
-        for (let x = 0; x < RES; x++) {
-          const idx = (y * RES + x) * 4;
-          const a = imageData.data[idx + 3];
-          if (a < 40) continue;
-          const r = imageData.data[idx];
-          const g = imageData.data[idx + 1];
-          const b = imageData.data[idx + 2];
-          const qR = Math.round(r / 8) * 8;
-          const qG = Math.round(g / 8) * 8;
-          const qB = Math.round(b / 8) * 8;
-          const colorHex = `#${((1 << 24) + (qR << 16) + (qG << 8) + qB).toString(16).slice(1)}`;
-          const px = worldPt.x + (x - RES / 2) * worldPerPixel;
-          const py = worldPt.y + (y - RES / 2) * worldPerPixel;
-          if (px < 0 || px > WORLD_WIDTH || py < 0 || py > WORLD_HEIGHT) continue;
-          const existing = pointsByColor.get(colorHex);
-          if (existing) existing.push({ x: Math.round(px), y: Math.round(py) });
-          else pointsByColor.set(colorHex, [{ x: Math.round(px), y: Math.round(py) }]);
+      if (paths.length === 0) return;
+
+      for (const path of paths) {
+        if (path.length < 2) continue;
+        const buffer = new StrokeBuffer(
+          clientId,
+          "draw",
+          "pixel",
+          color,
+          Math.max(3, Math.round(brushWidth * 0.6)),
+          opacity,
+          username,
+          countryCode,
+          commitOwnChunk,
+        );
+        for (const pt of path) {
+          buffer.addPoint(pt);
         }
+        buffer.finish();
       }
 
-      const dabWidth = Math.max(2, Math.round(worldPerPixel * 1.4));
-      let chunkIndex = 0;
-      for (const [dabColor, dabPoints] of pointsByColor.entries()) {
-        for (let i = 0; i < dabPoints.length; i += FILL_CHUNK_SIZE) {
-          if (chunkIndex >= MAX_FILL_CHUNKS) break;
-          const chunkPoints = dabPoints.slice(i, i + FILL_CHUNK_SIZE);
-          const tiles = getTileKeysForStroke(chunkPoints, dabWidth, WORLD_WIDTH, WORLD_HEIGHT);
-          const clientStrokeId = `${clientId}-sticker-${Date.now()}-${chunkIndex}-${Math.random().toString(36).slice(2, 7)}`;
-          const stroke: LocalStroke = {
-            clientStrokeId,
-            clientId,
-            username,
-            countryCode,
-            mode: "draw",
-            brushType: "pixel",
-            color: dabColor,
-            width: dabWidth,
-            opacity,
-            points: chunkPoints,
-            tiles,
-            clientTimestamp: Date.now(),
-          };
-          pendingRef.current.set(stroke.clientStrokeId, stroke);
-
-          submitStroke({
-            clientStrokeId: stroke.clientStrokeId,
-            clientId,
-            username: stroke.username,
-            countryCode: stroke.countryCode,
-            mode: stroke.mode,
-            brushType: stroke.brushType,
-            color: stroke.color,
-            width: stroke.width,
-            opacity: stroke.opacity,
-            points: stroke.points,
-            clientTimestamp: stroke.clientTimestamp,
-          }).catch(() => {
-            pendingRef.current.delete(stroke.clientStrokeId);
-            scheduleRedraw({ world: true, strokes: true });
-          });
-          chunkIndex++;
-        }
-      }
-      scheduleRedraw({ world: true, strokes: true });
+      scheduleRedraw({ strokes: true });
     },
-    [selectedSticker, brushWidth, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
+    [selectedSticker, brushWidth, color, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw],
   );
 
   const handleSubmitComment = useCallback(
@@ -2027,7 +1975,7 @@ export function GlobalCanvas() {
                   ? "cursor-default"
                   : tool === "text"
                     ? "cursor-text"
-                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "fill" || tool === "comment" || tool === "sticker"
                       ? "cursor-crosshair"
                       : "cursor-none"
             }`}
@@ -2063,19 +2011,81 @@ export function GlobalCanvas() {
             the header row, stacked vertically and docked directly under the
             mini-map instead. Same breakpoint the header row used to switch
             on, so this and the mobile hamburger drawer are still mutually
-            exclusive. Collapsible via a handle on its own edge; fully
-            hideable down to a small re-show tab in the same dock spot. */}
-        {sidebarHidden ? (
-          <button
-            type="button"
-            onClick={() => setSidebarHidden(false)}
-            aria-label="Show sidebar"
-            title="Show sidebar"
-            className="pointer-events-auto hidden min-[1360px]:flex absolute right-3 sm:right-4 z-20 h-7 w-7 items-center justify-center rounded-sm border-2 border-chrome-border bg-chrome-bg-raised text-ink-dim shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:text-ink"
-            style={{ top: sidebarTop }}
+            exclusive. Collapsible down to an icon-only rail — each icon just
+            expands the full sidebar back out rather than trying to open its
+            control's own dropdown directly from the collapsed state, since
+            that would mean duplicating every control's open/close logic. */}
+        {sidebarCollapsed ? (
+          <div
+            aria-label="Canvas Tools & Controls (collapsed)"
+            className="pointer-events-auto hidden min-[1360px]:flex flex-col items-center gap-1 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
+            style={{ top: sidebarTop, maxHeight: `calc(100vh - ${sidebarTop}px - 12px)` }}
           >
-            ◂
-          </button>
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(false)}
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              className="mb-1 flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
+            >
+              ◂
+            </button>
+
+            {[
+              ["Grid", "🔳"],
+              ["Username", "👤"],
+              [showComments ? "Hide Comments" : "Show Comments", showComments ? "💬" : "🚫"],
+            ].map(([label, icon]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                aria-label={`${label} (expand sidebar)`}
+                title={label}
+                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
+              >
+                {icon}
+              </button>
+            ))}
+
+            <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
+
+            {[
+              ["Center", "🧭"],
+              ["Explore", "🔭"],
+              ["Bookmarks", "🔖"],
+              ["Gallery", "🖼️"],
+            ].map(([label, icon]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                aria-label={`${label} (expand sidebar)`}
+                title={label}
+                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
+              >
+                {icon}
+              </button>
+            ))}
+
+            <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
+
+            {[
+              ["Time Travel", "🎥"],
+              ["Export", "📤"],
+            ].map(([label, icon]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setSidebarCollapsed(false)}
+                aria-label={`${label} (expand sidebar)`}
+                title={label}
+                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
         ) : (
         <aside
           id="desktop-sidebar"
@@ -2086,9 +2096,9 @@ export function GlobalCanvas() {
           <div className="flex items-center justify-end">
             <button
               type="button"
-              onClick={() => setSidebarHidden(true)}
-              aria-label="Hide sidebar"
-              title="Hide sidebar"
+              onClick={() => setSidebarCollapsed(true)}
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
               className="flex h-5 w-5 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
             >
               ▸
