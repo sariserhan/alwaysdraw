@@ -73,6 +73,7 @@ import { GridToggle } from "./GridToggle";
 import { HideCommentsToggle } from "./HideCommentsToggle";
 import { UsernameControl } from "./UsernameControl";
 import { SpatialCompass } from "./SpatialCompass";
+import { ZoomPill } from "./ZoomPill";
 import { FpsHud } from "./FpsHud";
 import { RateLimitToast } from "./RateLimitToast";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
@@ -2056,6 +2057,13 @@ export function GlobalCanvas() {
           </div>
           <div className="flex flex-col items-start gap-2">
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
+            <ZoomPill
+              zoomPercent={zoomPercent}
+              onZoomIn={() => zoomButton(1.2)}
+              onZoomOut={() => zoomButton(1 / 1.2)}
+              onResetView={resetView}
+              locale={locale}
+            />
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
             <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
             <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
@@ -2241,6 +2249,13 @@ export function GlobalCanvas() {
 
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
             <div className="mb-2.5 flex flex-wrap items-center gap-2">
+              <ZoomPill
+                zoomPercent={zoomPercent}
+                onZoomIn={() => zoomButton(1.2)}
+                onZoomOut={() => zoomButton(1 / 1.2)}
+                onResetView={resetView}
+                locale={locale}
+              />
               <LanguagePicker
                 currentLocale={locale}
                 onLocaleChange={(loc) => {

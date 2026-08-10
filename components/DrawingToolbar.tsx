@@ -942,32 +942,6 @@ export function DrawingToolbar({
         <div className="flex max-w-full flex-wrap items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
           <button
             type="button"
-            onClick={onZoomOut}
-            aria-label="zoom out"
-            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
-          >
-            <MinusIcon />
-          </button>
-          <span className="w-11 text-center font-mono text-xs tabular-nums text-ink">{zoomPercent}%</span>
-          <button
-            type="button"
-            onClick={onZoomIn}
-            aria-label="zoom in"
-            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
-          >
-            <PlusIcon />
-          </button>
-          <button
-            type="button"
-            onClick={onResetView}
-            aria-label="reset view"
-            title={t(locale, "reset_view")}
-            className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
-          >
-            <ResetIcon />
-          </button>
-          <button
-            type="button"
             onClick={async () => {
               try {
                 await onShare();
@@ -980,7 +954,7 @@ export function DrawingToolbar({
             }}
             aria-label={copied ? "link copied" : "copy shareable link"}
             title={copied ? "Copied!" : "Copy shareable link"}
-            className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
+            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
           >
             {copied ? <CheckIcon /> : <ShareIcon />}
           </button>
