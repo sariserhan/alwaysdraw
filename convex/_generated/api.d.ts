@@ -9,6 +9,7 @@
  */
 
 import type * as abuse from "../abuse.js";
+import type * as admin from "../admin.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as canvas from "../canvas.js";
 import type * as constants from "../constants.js";
@@ -25,6 +26,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   abuse: typeof abuse;
+  admin: typeof admin;
   bookmarks: typeof bookmarks;
   canvas: typeof canvas;
   constants: typeof constants;

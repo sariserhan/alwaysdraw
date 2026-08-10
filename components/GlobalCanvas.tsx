@@ -56,6 +56,8 @@ import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
+import { AdminPanelModal } from "./AdminPanelModal";
+import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
@@ -162,6 +164,7 @@ export function GlobalCanvas() {
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("alwaysdraw_locale") as Locale | null;
@@ -947,6 +950,8 @@ export function GlobalCanvas() {
         if (!e.metaKey && !e.ctrlKey) resetView();
       } else if (key === "?" || key === "k") {
         setHotkeysOpen((prev) => !prev);
+      } else if (e.shiftKey && (key === "A" || key === "a")) {
+        setAdminOpen((prev) => !prev);
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -1415,6 +1420,9 @@ export function GlobalCanvas() {
         )}
       </main>
 
+      {/* Admin Broadcast Announcement Ticker */}
+      <AdminBroadcastBanner />
+
       {/* Top Header Bar */}
       <header
         id="header-bar"
@@ -1707,6 +1715,7 @@ export function GlobalCanvas() {
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
         />
+        <AdminPanelModal isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
       </nav>
     </div>
   );
