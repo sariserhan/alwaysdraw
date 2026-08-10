@@ -12,5 +12,34 @@ const GlobalCanvas = dynamic(
 );
 
 export default function Home() {
-  return <GlobalCanvas />;
+  return (
+    <>
+      <GlobalCanvas />
+
+      {/* Semantic HTML content for search engine crawlers & screen readers */}
+      <section className="sr-only" aria-label="AlwaysDraw Product Summary">
+        <h2>About AlwaysDraw — The World&apos;s Shared Canvas</h2>
+        <p>
+          AlwaysDraw is a single, permanent, public 10,000×10,000 drawing canvas shared by everyone on the internet simultaneously in real time.
+          No accounts, no rooms, no protected areas, and no undo. Anyone can draw, erase, or spray paint over anyone else&apos;s work.
+        </p>
+
+        <h3>13 Unique Brush Textures &amp; Tools</h3>
+        <ul>
+          <li><strong>Basic Tools:</strong> Brush, Pencil, Marker, Highlighter, Calligraphy, Pixel Art, Eraser</li>
+          <li><strong>Artistic Brushes:</strong> Watercolor, Oil Paint, Chalk, Charcoal</li>
+          <li><strong>Effect Brushes:</strong> Neon Glow, Glitter</li>
+          <li><strong>Utility Tools:</strong> Pan, Magnifier Loupe, Ruler, Shapes (Line, Square, Circle, Triangle)</li>
+        </ul>
+
+        <h3>Real-Time Multiplayer Features</h3>
+        <ul>
+          <li>Live real-time stroke synchronization across desktop and mobile browsers</li>
+          <li>Interactive Mini-map and activity heatmap overlay</li>
+          <li>Historical Time-Travel replay to watch artwork evolve stroke-by-stroke</li>
+          <li>Spatial Hotspot Discovery and direct coordinate deep linking</li>
+        </ul>
+      </section>
+    </>
+  );
 }
