@@ -770,35 +770,41 @@ export function DrawingToolbar({
               }}
             />
           ))}
-          <label
-            className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
-              !activePalette.colors.includes(color)
-                ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
-                : "h-6 w-6"
-            }`}
-            title="Custom color"
-            style={{
-              background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
-            }}
-          >
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => {
-                onColorChange(e.target.value);
-                onToolChange("brush");
-              }}
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              aria-label="custom color"
-            />
-            {!activePalette.colors.includes(color) && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-[3px] rounded-full"
-                style={{ background: color }}
-              />
-            )}
-          </label>
+          {(() => {
+            const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color || "") ? color : "#17181a";
+            const isCustom = !activePalette.colors.includes(color);
+            return (
+              <label
+                className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
+                  isCustom
+                    ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                    : "h-6 w-6"
+                }`}
+                title="Custom color"
+                style={{
+                  background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
+                }}
+              >
+                <input
+                  type="color"
+                  value={safeColor}
+                  onChange={(e) => {
+                    onColorChange(e.target.value);
+                    onToolChange("brush");
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="custom color"
+                />
+                {isCustom && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-[3px] rounded-full"
+                    style={{ background: safeColor }}
+                  />
+                )}
+              </label>
+            );
+          })()}
           <PalettePicker
             activePaletteId={activePalette.id}
             locale={locale}
