@@ -22,15 +22,22 @@ export function snapPointToGrid(pt: Point, config: GridConfig): Point {
   }
 
   if (config.mode === "isometric") {
-    // Isometric 30-degree grid snapping
-    const h = size * Math.sin(Math.PI / 6);
-    const row = Math.round(pt.y / h);
-    const colShift = row % 2 === 0 ? 0 : size / 2;
-    const col = Math.round((pt.x - colShift) / size);
+    // Triangular/Isometric grid lattice:
+    // Vertical spacing between rows = size / 2
+    // Horizontal spacing between column vertices = size * sqrt(3) / 2
+    const rowHeight = size / 2;
+    const colWidth = (size * Math.sqrt(3)) / 2;
+
+    const row = Math.round(pt.y / rowHeight);
+    const isOddRow = Math.abs(row % 2) === 1;
+
+    // Odd rows are shifted horizontally by colWidth relative to even rows
+    const colOffset = isOddRow ? colWidth : 0;
+    const col = Math.round((pt.x - colOffset) / (colWidth * 2));
 
     return {
-      x: col * size + colShift,
-      y: row * h,
+      x: col * (colWidth * 2) + colOffset,
+      y: row * rowHeight,
     };
   }
 
@@ -100,18 +107,75 @@ export function drawGridOverlay(
       ctx.stroke();
     }
   } else if (config.mode === "isometric") {
-    // Isometric 30-degree diagonal lines clipped to canvas
-    const isoStep = size * Math.sin(Math.PI / 6);
-    for (let y = minY; y <= maxY; y += isoStep) {
-      const screenY = (y - camera.y) * camera.zoom + viewportHeight / 2;
+    const sqrt3 = Math.sqrt(3);
+    const tan30 = 1 / sqrt3; // ~0.577350269
+    const dx = (size * sqrt3) / 2; // ~0.866025 * size
+
+    const worldMinX = camera.x - halfVW;
+    const worldMaxX = camera.x + halfVW;
+    const worldMinY = camera.y - halfVH;
+    const worldMaxY = camera.y + halfVH;
+
+    const toScreenX = (x: number) => (x - camera.x) * camera.zoom + viewportWidth / 2;
+    const toScreenY = (y: number) => (y - camera.y) * camera.zoom + viewportHeight / 2;
+
+    // 1. Vertical lines
+    const minK = Math.max(0, Math.floor(worldMinX / dx));
+    const maxK = Math.min(Math.ceil(worldWidth / dx), Math.ceil(worldMaxX / dx));
+    for (let k = minK; k <= maxK; k++) {
+      const vx = k * dx;
+      const sx = toScreenX(vx);
       ctx.beginPath();
-      ctx.moveTo(left, screenY);
-      ctx.lineTo(left + w, screenY + w * 0.577);
+      ctx.moveTo(sx, top);
+      ctx.lineTo(sx, top + h);
       ctx.stroke();
+    }
+
+    // 2. +30° Diagonal lines (y = x * tan30 + C)
+    const minC1 = worldMinY - worldMaxX * tan30;
+    const maxC1 = worldMaxY - worldMinX * tan30;
+    const startK1 = Math.floor(minC1 / size);
+    const endK1 = Math.ceil(maxC1 / size);
+
+    for (let k = startK1; k <= endK1; k++) {
+      const C = k * size;
+      const x1 = worldMinX;
+      const y1 = x1 * tan30 + C;
+      const x2 = worldMaxX;
+      const y2 = x2 * tan30 + C;
+
+      const sx1 = toScreenX(x1);
+      const sy1 = toScreenY(y1);
+      const sx2 = toScreenX(x2);
+      const sy2 = toScreenY(y2);
 
       ctx.beginPath();
-      ctx.moveTo(left, screenY);
-      ctx.lineTo(left + w, screenY - w * 0.577);
+      ctx.moveTo(sx1, sy1);
+      ctx.lineTo(sx2, sy2);
+      ctx.stroke();
+    }
+
+    // 3. -30° Diagonal lines (y = -x * tan30 + C)
+    const minC2 = worldMinY + worldMinX * tan30;
+    const maxC2 = worldMaxY + worldMaxX * tan30;
+    const startK2 = Math.floor(minC2 / size);
+    const endK2 = Math.ceil(maxC2 / size);
+
+    for (let k = startK2; k <= endK2; k++) {
+      const C = k * size;
+      const x1 = worldMinX;
+      const y1 = -x1 * tan30 + C;
+      const x2 = worldMaxX;
+      const y2 = x2 * tan30 + C;
+
+      const sx1 = toScreenX(x1);
+      const sy1 = toScreenY(y1);
+      const sx2 = toScreenX(x2);
+      const sy2 = toScreenY(y2);
+
+      ctx.beginPath();
+      ctx.moveTo(sx1, sy1);
+      ctx.lineTo(sx2, sy2);
       ctx.stroke();
     }
   }
