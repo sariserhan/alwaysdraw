@@ -80,9 +80,34 @@ export default defineSchema({
     zoom: v.number(),
     clientId: v.string(),
     createdAt: v.number(),
+    // Denormalized so the gallery can rank/display without an aggregation
+    // query per bookmark. Optional for backward compat with bookmarks saved
+    // before voting/comments existed — missing means 0, not unset.
+    voteCount: v.optional(v.number()),
+    commentCount: v.optional(v.number()),
   })
     .index("by_createdAt", ["createdAt"])
-    .index("by_clientId", ["clientId"]),
+    .index("by_clientId", ["clientId"])
+    .index("by_voteCount", ["voteCount"]),
+
+  // One row per (bookmark, client) vote — the uniqueness boundary that keeps
+  // a vote toggleable and un-spoofable-by-refresh, since clientId is all the
+  // identity this app has.
+  bookmarkVotes: defineTable({
+    bookmarkId: v.id("bookmarks"),
+    clientId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_bookmark", ["bookmarkId"])
+    .index("by_bookmark_and_client", ["bookmarkId", "clientId"]),
+
+  bookmarkComments: defineTable({
+    bookmarkId: v.id("bookmarks"),
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    text: v.string(),
+    createdAt: v.number(),
+  }).index("by_bookmark", ["bookmarkId"]),
 
   broadcasts: defineTable({
     message: v.string(),

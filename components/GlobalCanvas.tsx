@@ -38,7 +38,7 @@ import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
-import { convertTextToPoints, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
+import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType } from "@/lib/types";
@@ -1053,26 +1053,28 @@ export function GlobalCanvas() {
       return;
     }
 
-    const pts = convertTextToPoints(textInputText, textInputPos.world, textSize, textStyle);
-    if (pts.length >= 2) {
-      const buffer = new StrokeBuffer(
-        clientId,
-        "draw",
-        "brush",
-        color,
-        brushWidth,
-        opacity,
-        username,
-        countryCode,
-        commitOwnChunk,
-      );
-      for (const p of pts) buffer.addPoint(p);
-      buffer.finish();
-      scheduleRedraw({ strokes: true });
+    const strokePaths = convertTextToStrokePaths(textInputText, textInputPos.world, textSize, textStyle);
+    for (const pts of strokePaths) {
+      if (pts.length >= 2) {
+        const buffer = new StrokeBuffer(
+          clientId,
+          "draw",
+          "brush",
+          color,
+          Math.max(2, Math.round(textSize / 12)),
+          opacity,
+          username,
+          countryCode,
+          commitOwnChunk,
+        );
+        for (const p of pts) buffer.addPoint(p);
+        buffer.finish();
+      }
     }
+    scheduleRedraw({ strokes: true });
     setTextInputPos(null);
     setTextInputText("");
-  }, [textInputPos, textInputText, textSize, textStyle, clientId, color, brushWidth, opacity, username, countryCode, commitOwnChunk, scheduleRedraw]);
+  }, [textInputPos, textInputText, textSize, textStyle, clientId, color, opacity, username, countryCode, commitOwnChunk, scheduleRedraw]);
 
   useEffect(() => {
     if (!submitError) return;
@@ -1692,9 +1694,11 @@ export function GlobalCanvas() {
                 ? "cursor-grab active:cursor-grabbing"
                 : tool === "magnifier"
                   ? "cursor-default"
-                  : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil"
-                    ? "cursor-crosshair"
-                    : "cursor-none"
+                  : tool === "text"
+                    ? "cursor-text"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper"
+                      ? "cursor-crosshair"
+                      : "cursor-none"
             }`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
