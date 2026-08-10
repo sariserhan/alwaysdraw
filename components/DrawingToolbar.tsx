@@ -629,12 +629,18 @@ export function DrawingToolbar({
             type="button"
             onClick={() => {
               if (typeof window !== "undefined" && "EyeDropper" in window) {
-                const EyeDropperClass = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ srgbHex: string }> } }).EyeDropper;
+                // Native EyeDropper API resolves { sRGBHex: string } — capital
+                // RGB. A wrong-cased manual type annotation here previously
+                // read `res.srgbHex` (always undefined) and fed that straight
+                // into setColor, silently corrupting the draw color until the
+                // next explicit color change — every subsequent stroke then
+                // failed server-side validation with no client-visible error.
+                const EyeDropperClass = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
                 const eyeDropper = new EyeDropperClass();
                 eyeDropper
                   .open()
-                  .then((res: { srgbHex: string }) => {
-                    onColorChange(res.srgbHex);
+                  .then((res: { sRGBHex: string }) => {
+                    if (res.sRGBHex) onColorChange(res.sRGBHex);
                   })
                   .catch(() => {});
               } else {
