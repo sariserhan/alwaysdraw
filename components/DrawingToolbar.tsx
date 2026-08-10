@@ -439,7 +439,6 @@ export function DrawingToolbar({
   onShapeTypeChange,
   selectedStencil = "biohazard",
   onStencilSelect = () => {},
-  onJumpToBusiest = () => {},
   color,
   onColorChange,
   width,
@@ -475,7 +474,6 @@ export function DrawingToolbar({
   onShare: () => void | Promise<void>;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
-  onJumpToBusiest?: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);

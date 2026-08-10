@@ -1280,7 +1280,7 @@ export function GlobalCanvas() {
               setIsPlayingReplay(true);
             }}
           />
-          <HotkeysModal externalOpen={hotkeysOpen} onCloseExternal={() => setHotkeysOpen(false)} />
+          <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
           <HelpModal />
           <ThemeToggle />
           <ConnectionStatus />

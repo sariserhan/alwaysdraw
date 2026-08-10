@@ -1,38 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 import { HOTKEY_MAP } from "@/lib/hotkeys";
 
 export interface HotkeysModalProps {
-  externalOpen?: boolean;
-  onCloseExternal?: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export function HotkeysModal({ externalOpen, onCloseExternal }: HotkeysModalProps) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const isOpen = externalOpen ?? internalOpen;
+export function HotkeysModal({ isOpen, onToggle }: HotkeysModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleClose = () => {
-    setInternalOpen(false);
-    if (onCloseExternal) onCloseExternal();
-  };
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setInternalOpen(false);
-        if (onCloseExternal) onCloseExternal();
+        onToggle();
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setInternalOpen(false);
-        if (onCloseExternal) onCloseExternal();
+        onToggle();
       }
     };
 
@@ -42,19 +33,13 @@ export function HotkeysModal({ externalOpen, onCloseExternal }: HotkeysModalProp
       document.removeEventListener("pointerdown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onCloseExternal]);
+  }, [isOpen, onToggle]);
 
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => {
-          if (isOpen) {
-            handleClose();
-          } else {
-            setInternalOpen(true);
-          }
-        }}
+        onClick={onToggle}
         className={`flex h-7 items-center gap-1 rounded-sm border px-2 font-mono text-xs font-bold transition-colors ${
           isOpen
             ? "border-rust bg-rust/30 text-accent-yellow shadow-sm"
