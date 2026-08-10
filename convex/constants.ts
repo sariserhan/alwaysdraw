@@ -1,7 +1,13 @@
 // Shared world-bounds and abuse-boundary constants used by schema.ts and functions.
 // Named constants (not magic numbers) so the logical canvas size can change later.
-export const WORLD_WIDTH = 50_000;
-export const WORLD_HEIGHT = 50_000;
+// Scaled to 50,000 once, then back down: at 25x the area with no more real
+// content than before, the wall read as empty, and the viewport could no
+// longer show the whole thing at once (see lib/camera.ts MIN_ZOOM). Revisit
+// growing this again once real traffic is actually pressing on 10,000's edges,
+// not ahead of it — the spec's own V3 target (10k -> 50k) still applies, it's
+// just gated on demand rather than on the tiling infra alone being ready.
+export const WORLD_WIDTH = 10_000;
+export const WORLD_HEIGHT = 10_000;
 
 export const MIN_BRUSH_WIDTH = 1;
 export const MAX_BRUSH_WIDTH = 100;

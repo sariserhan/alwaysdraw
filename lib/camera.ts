@@ -4,7 +4,12 @@ export type Camera = {
   zoom: number; // screen px per world px
 };
 
-export const MIN_ZOOM = 0.1;
+// Low enough that even a modest ~800px-wide viewport can still fit the whole
+// WORLD_WIDTH (10,000) at once — (viewport px) / MIN_ZOOM must stay well
+// above the world size. Re-check this whenever the world size changes; it
+// silently broke "see the whole wall" once already when the world grew and
+// this constant wasn't revisited.
+export const MIN_ZOOM = 0.05;
 export const MAX_ZOOM = 8;
 
 export function clampZoom(zoom: number): number {

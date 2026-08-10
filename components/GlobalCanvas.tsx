@@ -158,6 +158,7 @@ export function GlobalCanvas() {
   const [opacity, setOpacity] = useState(1);
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -1357,23 +1358,27 @@ export function GlobalCanvas() {
       <header
         id="header-bar"
         role="banner"
-        className="pointer-events-auto absolute inset-x-0 top-0 z-40 flex flex-wrap items-center justify-between gap-1.5 border-b-2 border-rust/70 bg-chrome-bg/95 px-2 sm:px-4 py-1.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+        className="pointer-events-auto absolute inset-x-0 top-0 z-40 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-3 sm:px-4 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
       >
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2 hidden sm:block" />
-        <div className="flex shrink-0 items-center gap-2 pl-1 sm:pl-4">
+        
+        {/* Left Section: Branding & Info Badges */}
+        <div className="flex items-center gap-2 pl-1 sm:pl-4">
           <h1 id="app-heading" className="stencil-cut font-display text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-ink uppercase">
             AlwaysDraw
           </h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
           <div
-            className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm"
+            className="hidden sm:flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"
           >
             <span className="text-ink-dim">TILES:</span>
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/10000</span>
           </div>
+          <OnlineCount count={onlineCount ?? 0} />
+        </div>
+
+        {/* Desktop Controls (>= lg) */}
+        <div className="hidden lg:flex items-center gap-2 pr-4">
           <SoundToggle />
           <GridToggle config={gridConfig} onChange={setGridConfig} />
           <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
@@ -1421,8 +1426,6 @@ export function GlobalCanvas() {
             onExitReplay={() => {
               setIsReplayMode(false);
               setIsPlayingReplay(false);
-              // The sync effect only redraws while isReplayMode is true, so
-              // exiting needs its own explicit redraw back to the live view.
               scheduleRedraw({ world: true, strokes: true });
             }}
             onEnterReplay={() => {
@@ -1435,9 +1438,125 @@ export function GlobalCanvas() {
           <HelpModal />
           <ThemeToggle />
           <ConnectionStatus />
-          <OnlineCount count={onlineCount ?? 0} />
         </div>
-        <ChromeRivet className="top-1/2 right-2 -translate-y-1/2" />
+
+        {/* Mobile Hamburger Button Controls (< lg) */}
+        <div className="flex items-center gap-2 lg:hidden pr-1">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1 font-mono text-xs font-bold text-ink uppercase shadow-sm transition hover:bg-chrome-bg-recessed active:scale-95"
+            aria-label="Toggle Mobile Menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <>
+                <span className="text-accent-crimson text-sm font-black">✕</span>
+                <span>CLOSE</span>
+              </>
+            ) : (
+              <>
+                <span className="text-accent-yellow text-sm font-black">☰</span>
+                <span>MENU</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Drawer Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden absolute top-full left-0 right-0 z-50 border-b-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
+            <div className="mb-2 flex items-center justify-between border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
+              <span>🛠️ CANVAS TOOLS & PANELS</span>
+              <span className="text-accent-yellow">TILES: {visibleTileCount || 1}/10000</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <SoundToggle />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <GridToggle config={gridConfig} onChange={setGridConfig} />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <HighlightsModal
+                  onJumpToPoint={handleJumpToPoint}
+                  getBusiestPoint={getBusiestPoint}
+                  getRandomActivePoint={getRandomActivePoint}
+                  onlineCount={onlineCount ?? 1}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <SpatialDiscoveryMenu
+                  onJumpToPoint={handleJumpToPoint}
+                  getBusiestPoint={getBusiestPoint}
+                  getRandomActivePoint={getRandomActivePoint}
+                  getLatestActivityPoint={getLatestActivityPoint}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <BookmarkMenu
+                  currentCamera={cameraSnapshot}
+                  clientId={clientId}
+                  onTeleport={handleBookmarkTeleport}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <ExportModal
+                  getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+                  getCommittedStrokes={() => committedRef.current}
+                  currentCamera={cameraSnapshot}
+                  viewportWidth={viewportSize.width}
+                  viewportHeight={viewportSize.height}
+                  worldWidth={WORLD_WIDTH}
+                  worldHeight={WORLD_HEIGHT}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <TimeTravelMenu
+                  isReplayMode={isReplayMode}
+                  isPlaying={isPlayingReplay}
+                  currentSequence={replaySequenceIndex}
+                  minSequence={minSequence}
+                  maxSequence={maxSequence}
+                  playbackSpeed={playbackSpeed}
+                  onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+                  onSeek={(seq) => setReplaySequenceIndex(seq)}
+                  onStep={(delta) =>
+                    setReplaySequenceIndex((prev) =>
+                      Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                    )
+                  }
+                  onSpeedChange={setPlaybackSpeed}
+                  onExitReplay={() => {
+                    setIsReplayMode(false);
+                    setIsPlayingReplay(false);
+                    scheduleRedraw({ world: true, strokes: true });
+                  }}
+                  onEnterReplay={() => {
+                    setIsReplayMode(true);
+                    setReplaySequenceIndex(snapshotSequenceRef.current);
+                    setIsPlayingReplay(true);
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <HelpModal />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <ConnectionStatus />
+              </div>
+            </div>
+          </div>
+        )}
+        <ChromeRivet className="top-1/2 right-2 -translate-y-1/2 hidden sm:block" />
       </header>
 
       {submitError && (
