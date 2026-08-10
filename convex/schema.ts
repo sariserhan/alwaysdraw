@@ -71,4 +71,16 @@ export default defineSchema({
   })
     .index("by_sequence", ["sequence"])
     .index("by_createdAt", ["createdAt"]),
+
+  // Bookmarks: Saved favorite locations with labels and coordinates (x, y, zoom).
+  bookmarks: defineTable({
+    title: v.string(),
+    x: v.number(),
+    y: v.number(),
+    zoom: v.number(),
+    clientId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_createdAt", ["createdAt"])
+    .index("by_clientId", ["clientId"]),
 });

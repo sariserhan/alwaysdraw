@@ -9,6 +9,7 @@
  */
 
 import type * as abuse from "../abuse.js";
+import type * as bookmarks from "../bookmarks.js";
 import type * as canvas from "../canvas.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
@@ -24,6 +25,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   abuse: typeof abuse;
+  bookmarks: typeof bookmarks;
   canvas: typeof canvas;
   constants: typeof constants;
   crons: typeof crons;

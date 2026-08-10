@@ -10,6 +10,8 @@ import {
   panBy,
   zoomAt,
   clampZoom,
+  MIN_ZOOM,
+  MAX_ZOOM,
   distance,
 } from "@/lib/camera";
 import { screenToWorld, clampToWorld, isWithinWorld } from "@/lib/coordinates";
@@ -48,6 +50,7 @@ import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
+import { BookmarkMenu } from "./BookmarkMenu";
 import { HelpModal } from "./HelpModal";
 import { getVisibleTileKeys, TILE_SIZE } from "@/lib/tiling";
 
@@ -981,6 +984,18 @@ export function GlobalCanvas() {
     captureEvent("spatial_teleport", { label });
   }, [scheduleRedraw]);
 
+  const handleBookmarkTeleport = useCallback((pt: Point, targetZoom: number, label: string) => {
+    const { width, height } = viewportRef.current;
+    const clZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
+    cameraRef.current = {
+      x: Math.max(width / (2 * clZoom), Math.min(WORLD_WIDTH - width / (2 * clZoom), pt.x)),
+      y: Math.max(height / (2 * clZoom), Math.min(WORLD_HEIGHT - height / (2 * clZoom), pt.y)),
+      zoom: clZoom,
+    };
+    scheduleRedraw({ world: true, strokes: true });
+    captureEvent("bookmark_teleport", { label });
+  }, [scheduleRedraw]);
+
   const getBusiestPoint = useCallback(() => {
     return findBusiestCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
   }, []);
@@ -1078,6 +1093,11 @@ export function GlobalCanvas() {
             getBusiestPoint={getBusiestPoint}
             getRandomActivePoint={getRandomActivePoint}
             getLatestActivityPoint={getLatestActivityPoint}
+          />
+          <BookmarkMenu
+            currentCamera={cameraSnapshot}
+            clientId={clientId}
+            onTeleport={handleBookmarkTeleport}
           />
           <TimeTravelMenu
             isReplayMode={isReplayMode}
