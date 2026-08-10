@@ -147,7 +147,9 @@ npm test          # runs lib/*.test.ts once (Vitest)
 npm run test:watch
 ```
 
-Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed. Stroke sequencing/replay and Convex function validation have no automated tests yet — good next candidates, not built for V1.
+Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed.
+
+Convex function tests (`convex/strokes.test.ts`, via [convex-test](https://github.com/get-convex/convex-test)) cover `strokes.submit`'s abuse-boundary validation (width/point-count/coordinate/color/opacity limits, rejected at the boundary and accepted just inside it), retry idempotency on a repeated `clientStrokeId`, gapless/duplicate-free sequence numbering under both sequential and concurrent submits, `listSince` pagination and ordering (including that an erase reliably lands after the draw it erases), and `listRecent`'s live-tail ordering.
 
 Manual verification performed for this build:
 

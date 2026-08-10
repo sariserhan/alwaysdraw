@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "convex/**/*.test.ts"],
+    server: { deps: { inline: ["convex-test"] } },
   },
 });

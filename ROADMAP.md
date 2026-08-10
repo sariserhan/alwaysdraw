@@ -61,7 +61,7 @@ Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
 
 ### Testing ✅
 - [x] Vitest unit tests for `lib/camera.ts` and `lib/coordinates.ts` (pan/zoom math, clamping, screen↔world inverse relationship) — 22 tests
-- [ ] No automated tests yet for stroke sequencing/replay or Convex function validation (manual verification only so far)
+- [x] Convex function tests via `convex-test` (`convex/strokes.test.ts`) — validation boundaries, retry idempotency, gapless/duplicate-free sequencing (sequential and concurrent), `listSince` pagination/ordering (including draw-before-erase), `listRecent` live-tail ordering — 17 tests
 
 ### Known gaps (see README §8 for full detail)
 - Live-tail catch-up window is capped at 300 strokes; a long network stall still needs a full reload to catch up completely
@@ -124,8 +124,8 @@ Goal: an effectively infinite, persistent world.
 
 Near-term, concrete, not tied to a specific numbered version:
 
-- [ ] Deploy to production (`npx convex deploy` + Cloudflare Workers via OpenNext — `npx @opennextjs/cloudflare build && deploy`) — user is handling this
-- [ ] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation (currently manual-only)
+- [x] Deploy to production (`npx convex deploy` + Cloudflare Workers via OpenNext)
+- [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
 - [ ] Revisit the presence/online-count queries before concurrent users gets past the hundreds (documented `ponytail:` ceiling in `convex/presence.ts`)
 - [ ] Decide whether the live-tail's fixed 300-stroke window needs to become cursor-based before or as part of V2's snapshot work
 - [ ] Sentry/PostHog observability (frontend errors, Convex errors, websocket disconnects, snapshot failures) — spec'd for later, not started
