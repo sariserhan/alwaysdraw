@@ -4,12 +4,28 @@ import { ConvexError } from "convex/values";
 
 const DEFAULT_ADMIN_PASSCODE = "alwaysdraw-admin-2026";
 
-function verifyAdminPasscode(passcode: string) {
+function isPasscodeValid(passcode: string): boolean {
   const secretKey = process.env.ADMIN_SECRET_KEY || DEFAULT_ADMIN_PASSCODE;
-  if (passcode !== secretKey) {
+  return passcode === secretKey;
+}
+
+function verifyAdminPasscode(passcode: string) {
+  if (!isPasscodeValid(passcode)) {
     throw new ConvexError("INVALID_ADMIN_PASSCODE: Unauthorized administrative operation.");
   }
 }
+
+/**
+ * Auth check: Verify if provided passcode matches admin secret.
+ */
+export const verifyPasscode = mutation({
+  args: {
+    passcode: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    return isPasscodeValid(args.passcode);
+  },
+});
 
 /**
  * Moderation: Wipe all strokes inside a rectangular bounding box [minX, minY, maxX, maxY].
@@ -29,7 +45,6 @@ export const wipeArea = mutation({
     let deletedCount = 0;
 
     for (const stroke of strokes) {
-      // Check if any point in stroke falls inside bounding box
       const overlaps = stroke.points.some(
         (p) => p.x >= args.minX && p.x <= args.maxX && p.y >= args.minY && p.y <= args.maxY,
       );
@@ -80,7 +95,6 @@ export const publishBroadcast = mutation({
   handler: async (ctx, args) => {
     verifyAdminPasscode(args.passcode);
 
-    // Deactivate previous active broadcasts
     const activeBroadcasts = await ctx.db
       .query("broadcasts")
       .withIndex("by_active", (q) => q.eq("active", true))
@@ -90,7 +104,6 @@ export const publishBroadcast = mutation({
       await ctx.db.patch(b._id, { active: false });
     }
 
-    // Insert new active broadcast
     await ctx.db.insert("broadcasts", {
       message: args.message,
       author: args.author || "ALWAYS_DRAW_ADMIN",
@@ -141,14 +154,16 @@ export const getActiveBroadcast = query({
 });
 
 /**
- * Telemetry: Fetch system health metrics & statistics.
+ * Telemetry: Fetch system health metrics & statistics. Safe query returns null on bad passcode.
  */
 export const getTelemetry = query({
   args: {
     passcode: v.string(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    if (!isPasscodeValid(args.passcode)) {
+      return null;
+    }
 
     const strokeCount = (await ctx.db.query("strokes").collect()).length;
     const presenceCount = (await ctx.db.query("presence").collect()).length;

@@ -30,6 +30,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Mutations & Queries
+  const verifyPasscode = useMutation(api.admin.verifyPasscode);
   const wipeArea = useMutation(api.admin.wipeArea);
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
@@ -51,11 +52,22 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleAuthenticate = (e: React.FormEvent) => {
+  const handleAuthenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passcode.trim()) return;
-    setAuthenticated(true);
-    setAuthError(null);
+    try {
+      const isValid = await verifyPasscode({ passcode });
+      if (isValid) {
+        setAuthenticated(true);
+        setAuthError(null);
+      } else {
+        setAuthenticated(false);
+        setAuthError("Invalid admin passcode. Access denied.");
+      }
+    } catch {
+      setAuthenticated(false);
+      setAuthError("Failed to verify passcode.");
+    }
   };
 
   const handleWipeArea = async () => {
