@@ -57,4 +57,16 @@ export default defineSchema({
     onlineCount: v.number(),
     computedAt: v.number(),
   }),
+
+  // Canvas Snapshots: flattened rendered bitmaps at specific sequence checkpoints.
+  // Enables instant initial page load + delta stroke catch-up without replaying
+  // millions of individual strokes.
+  snapshots: defineTable({
+    sequence: v.number(),
+    imageData: v.string(), // Data URL (image/webp or image/png)
+    strokeCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_sequence", ["sequence"])
+    .index("by_createdAt", ["createdAt"]),
 });

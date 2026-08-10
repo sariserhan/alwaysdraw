@@ -23,9 +23,81 @@ const spaceMono = localFont({
   display: "swap",
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.alwaysdraw.workers.dev";
+const SITE_NAME = "AlwaysDraw";
+const TITLE = "AlwaysDraw — The World's Shared Real-Time Drawing Canvas";
+const DESCRIPTION =
+  "One world. One canvas. Always drawing. Join a single public 10,000×10,000 drawing wall shared by everyone on the internet in real time. Draw, erase, spray paint, and doodle anonymously with 13 unique brush textures.";
+
 export const metadata: Metadata = {
-  title: "AlwaysDraw",
-  description: "One world. One canvas. Always drawing.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: "%s | AlwaysDraw",
+  },
+  description: DESCRIPTION,
+  keywords: [
+    "AlwaysDraw",
+    "shared canvas",
+    "real time drawing",
+    "collaborative drawing board",
+    "multiplayer paint",
+    "digital graffiti wall",
+    "infinite whiteboard",
+    "online doodle wall",
+    "anonymous drawing",
+    "interactive web canvas",
+    "pixel art wall",
+  ],
+  authors: [{ name: "AlwaysDraw Team" }],
+  creator: "AlwaysDraw",
+  publisher: "AlwaysDraw",
+  applicationName: "AlwaysDraw",
+  alternates: {
+    canonical: "/",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/icon.svg" }],
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: SITE_NAME,
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "AlwaysDraw — The World's Shared Real-Time Drawing Canvas",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og-image.jpg"],
+    creator: "@alwaysdraw",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export const viewport: Viewport = {
@@ -33,9 +105,34 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#121315",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "AlwaysDraw",
+  alternateName: "Always Draw",
+  url: SITE_URL,
+  description: DESCRIPTION,
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "All Web Browsers (Desktop & Mobile)",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  featureList: [
+    "10,000x10,000 shared public canvas",
+    "Real-time multiplayer drawing synchronization",
+    "13 unique brush textures (Watercolor, Oil Paint, Neon Glow, Chalk, Calligraphy, Pixel, Glitter)",
+    "Anonymous instant access with no sign-up or accounts required",
+    "Interactive Mini-map and Heatmap Activity Overlay",
+    "Deep link sharing with viewport position",
+  ],
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
@@ -51,27 +148,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               "(function(){try{var t=localStorage.getItem('alwaysdraw:theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();",
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="h-full overflow-hidden overscroll-none">
-        {/*
-THESIS: One rusted train-yard wall the whole internet keeps tagging, not a
-whiteboard app with a floating toolbar politely hovering over a blank page.
-OWN-WORLD: Near-black weathered steel chrome, warm concrete-gray canvas
-ground, spray-can accent set (crimson, acid green, electric blue, warning
-yellow), Space Grotesk UI text, Space Mono for counts and measurements,
-stencil-numeral labels, spray-drip edges, rivet-bolted toolbar.
-STORY: A visitor understands instantly this wall already belongs to
-strangers, their mark will get buried too, and there's nothing to set up —
-they draw immediately.
-FIRST VIEWPORT: Full-bleed plain concrete canvas edge to edge; a thin
-riveted steel strip on top carries a stenciled wordmark left and a rust-red
-online-count plate right; a bolted spray-can rack toolbar floats
-bottom-center; no other chrome.
-FORM: Yard Wall (subway/train-yard graffiti), MY PICK, position 1 of the
-model's own list; seed key b1edd97d.
-FINISH: unreviewed and undocumented is unfinished; this build ends with the
-finish review, the verdict, and DESIGN.md
-        */}
+        {/* Visually hidden semantic text for crawlers and screen readers */}
+        <noscript>
+          <div style={{ padding: "20px", color: "#ffffff", backgroundColor: "#121315" }}>
+            <h1>AlwaysDraw — The World&apos;s Shared Real-Time Drawing Canvas</h1>
+            <p>
+              One world. One canvas. Always drawing. AlwaysDraw is a single public 10,000×10,000
+              drawing canvas shared by everyone on the internet in real time. Draw, erase, spray-paint,
+              or doodle anonymously with 13 unique brush textures without any accounts or login.
+            </p>
+          </div>
+        </noscript>
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <WebVitals />
       </body>

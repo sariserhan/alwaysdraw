@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { createHeatmapGrid, addStrokesToHeatmap, maxHeatmapCount, findBusiestCell } from "./heatmap";
+import {
+  createHeatmapGrid,
+  addStrokesToHeatmap,
+  maxHeatmapCount,
+  findBusiestCell,
+  findRandomActiveCell,
+  findLatestStrokeCenter,
+} from "./heatmap";
 
 const WORLD_W = 1000;
 const WORLD_H = 1000;
@@ -10,6 +17,8 @@ describe("heatmap grid", () => {
     const grid = createHeatmapGrid(GRID_SIZE);
     expect(maxHeatmapCount(grid)).toBe(0);
     expect(findBusiestCell(grid, WORLD_W, WORLD_H)).toBeNull();
+    expect(findRandomActiveCell(grid, WORLD_W, WORLD_H)).toBeNull();
+    expect(findLatestStrokeCenter([])).toBeNull();
   });
 
   it("buckets points into the correct cell", () => {
@@ -59,6 +68,27 @@ describe("heatmap grid", () => {
       WORLD_H,
     );
     expect(findBusiestCell(grid, WORLD_W, WORLD_H)).toEqual({ x: 350, y: 450 });
+  });
+
+  it("finds a random active cell center", () => {
+    const grid = createHeatmapGrid(GRID_SIZE);
+    addStrokesToHeatmap(
+      grid,
+      [{ points: [{ x: 250, y: 250 }] }],
+      WORLD_W,
+      WORLD_H,
+    );
+    const point = findRandomActiveCell(grid, WORLD_W, WORLD_H);
+    expect(point).toEqual({ x: 250, y: 250 });
+  });
+
+  it("calculates center of latest stroke", () => {
+    const strokes = [
+      { points: [{ x: 10, y: 10 }, { x: 20, y: 20 }] },
+      { points: [{ x: 100, y: 200 }, { x: 300, y: 400 }] },
+    ];
+    const center = findLatestStrokeCenter(strokes);
+    expect(center).toEqual({ x: 200, y: 300 });
   });
 
   it("reports the max count across all cells", () => {

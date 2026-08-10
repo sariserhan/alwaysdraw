@@ -64,3 +64,39 @@ export function findBusiestCell(
   const cy = Math.floor(bestIdx / gridSize);
   return { x: (cx + 0.5) * cellW, y: (cy + 0.5) * cellH };
 }
+
+/** World-space center of a randomly selected active cell (with > 0 counts), or null if empty. */
+export function findRandomActiveCell(
+  grid: HeatmapGrid,
+  worldWidth: number,
+  worldHeight: number,
+): Point | null {
+  const { counts, gridSize } = grid;
+  const activeIndices: number[] = [];
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] > 0) activeIndices.push(i);
+  }
+  if (activeIndices.length === 0) return null;
+
+  const chosenIdx = activeIndices[Math.floor(Math.random() * activeIndices.length)];
+  const cellW = worldWidth / gridSize;
+  const cellH = worldHeight / gridSize;
+  const cx = chosenIdx % gridSize;
+  const cy = Math.floor(chosenIdx / gridSize);
+  return { x: (cx + 0.5) * cellW, y: (cy + 0.5) * cellH };
+}
+
+/** Returns average point of the latest stroke in an array, or null if empty. */
+export function findLatestStrokeCenter(strokes: Array<{ points: Point[] }>): Point | null {
+  if (!strokes || strokes.length === 0) return null;
+  const last = strokes[strokes.length - 1];
+  if (!last.points || last.points.length === 0) return null;
+
+  let sumX = 0;
+  let sumY = 0;
+  for (const p of last.points) {
+    sumX += p.x;
+    sumY += p.y;
+  }
+  return { x: sumX / last.points.length, y: sumY / last.points.length };
+}

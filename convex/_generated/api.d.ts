@@ -13,6 +13,7 @@ import type * as canvas from "../canvas.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
 import type * as presence from "../presence.js";
+import type * as snapshots from "../snapshots.js";
 import type * as strokes from "../strokes.js";
 
 import type {
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   constants: typeof constants;
   crons: typeof crons;
   presence: typeof presence;
+  snapshots: typeof snapshots;
   strokes: typeof strokes;
 }>;
 

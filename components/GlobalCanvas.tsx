@@ -21,7 +21,14 @@ import {
   paintMiniMapStrokes,
   drawHeatmapOverlay,
 } from "@/lib/drawing";
-import { createHeatmapGrid, addStrokesToHeatmap, maxHeatmapCount, findBusiestCell } from "@/lib/heatmap";
+import {
+  createHeatmapGrid,
+  addStrokesToHeatmap,
+  maxHeatmapCount,
+  findBusiestCell,
+  findRandomActiveCell,
+  findLatestStrokeCenter,
+} from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
@@ -39,34 +46,23 @@ import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
+import { ReplayBar } from "./ReplayBar";
+import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
 const MAGNIFIER_FACTOR = 2.5;
 const MAGNIFIER_OFFSET_PX = 24;
-// A drag shorter than this (world px) is treated as an accidental click, not a shape.
 const MIN_SHAPE_DRAG = 2;
-const SHAPE_BRUSH_TYPE: BrushType = "brush";
-
 const REPLAY_PAGE_SIZE = 1000;
-// Dev-only safety cap on full-history replay; V2 replaces this with snapshots.
-const REPLAY_HARD_CAP = 20000;
 const HEATMAP_GRID_SIZE = 32;
 
 export function GlobalCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Two stacked canvases: `worldCanvasRef` paints the static wall (never
-  // erasable) underneath; `canvasRef` carries every stroke and receives
-  // pointer input. Erasing (destination-out) clears pixels on the strokes
-  // layer only, revealing the wall layer beneath it — not a transparent
-  // hole through to the page background.
   const worldCanvasRef = useRef<HTMLCanvasElement>(null);
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-  // Topmost layer: a toggleable heat overlay of where interaction is
-  // concentrated, built client-side from strokes already loaded for
-  // replay/the mini-map rather than a separate backend aggregation.
   const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
   const heatmapCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const heatmapGridRef = useRef(createHeatmapGrid(HEATMAP_GRID_SIZE));
@@ -87,9 +83,6 @@ export function GlobalCanvas() {
   } | null>(null);
 
   const [clientId] = useState(() => getClientId());
-  // Deep link: a shared URL's ?x=&y=&z= seeds the initial view, if present/valid.
-  // Computed once as a plain value (not read from a ref) so it can seed both
-  // the ref below and the lazy useState initializers without a render-time ref read.
   const initialCamera =
     parseCameraFromSearch(window.location.search) ?? defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
   const cameraRef = useRef<Camera>(initialCamera);
@@ -103,13 +96,13 @@ export function GlobalCanvas() {
   const firstMarkTrackedRef = useRef(false);
   const [replayDone, setReplayDone] = useState(false);
   const [replayError, setReplayError] = useState(false);
-  // Cursor-based live catch-up: null until replay seeds it with the last
-  // sequence it saw, then advances to the max sequence applied on every live
-  // batch. Unlike a fixed-size "last N" window, this can never silently skip
-  // strokes no matter how long a client was disconnected — a bigger gap just
-  // means the next listSince page (capped at MAX_LIST_LIMIT) is bigger, and
-  // the cursor keeps advancing until it's caught up.
   const [liveTailCursor, setLiveTailCursor] = useState<number | null>(null);
+
+  // Time Travel Replay state
+  const [isReplayMode, setIsReplayMode] = useState(false);
+  const [isPlayingReplay, setIsPlayingReplay] = useState(false);
+  const [replaySequenceIndex, setReplaySequenceIndex] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const [tool, setTool] = useState<Tool>("brush");
   const [brushType, setBrushType] = useState<BrushType>("brush");
@@ -120,8 +113,6 @@ export function GlobalCanvas() {
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // Snapshots of ref-held values, synced (in effects/callbacks, never during
-  // render) only when something that must re-render RemoteCursors happens.
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -135,6 +126,8 @@ export function GlobalCanvas() {
     api.strokes.listSince,
     liveTailCursor === null ? "skip" : { afterSequence: liveTailCursor },
   );
+
+  const [maxSequence, setMaxSequence] = useState(0);
 
   // ---------------------------------------------------------------------
   // Rendering
@@ -192,18 +185,44 @@ export function GlobalCanvas() {
     if (!ctx) return;
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
-    for (const s of committedRef.current) paintOneStroke(ctx, width, height, s);
-    for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
-    if (shapePreviewRef.current) paintOneStroke(ctx, width, height, shapePreviewRef.current);
-  }, [paintOneStroke]);
 
-  // ---------------------------------------------------------------------
-  // Brush cursor overlay: shows the brush's actual on-screen size/color so a
-  // visitor always knows exactly how much of the wall their next stroke will
-  // affect. Position/size are set imperatively (mousemove is too
-  // high-frequency for React state); shape/color come from props, which
-  // change rarely.
-  // ---------------------------------------------------------------------
+    const maxSeqFilter = isReplayMode ? replaySequenceIndex : Infinity;
+
+    for (const s of committedRef.current) {
+      if (s.sequence <= maxSeqFilter) {
+        paintOneStroke(ctx, width, height, s);
+      }
+    }
+    if (!isReplayMode) {
+      for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
+      if (shapePreviewRef.current) paintOneStroke(ctx, width, height, shapePreviewRef.current);
+    }
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex]);
+
+  // Replay animation loop
+  useEffect(() => {
+    if (!isReplayMode || !isPlayingReplay) return;
+
+    const interval = setInterval(() => {
+      setReplaySequenceIndex((prev) => {
+        const next = prev + playbackSpeed * 2;
+        if (next >= maxSequence) {
+          setIsPlayingReplay(false);
+          return maxSequence;
+        }
+        return next;
+      });
+    }, 60);
+
+    return () => clearInterval(interval);
+  }, [isReplayMode, isPlayingReplay, playbackSpeed, maxSequence]);
+
+  useEffect(() => {
+    if (isReplayMode) {
+      redrawStrokes();
+    }
+  }, [isReplayMode, replaySequenceIndex, redrawStrokes]);
+
   const updateCursorOverlay = useCallback(() => {
     const el = cursorElRef.current;
     const pos = lastScreenPosRef.current;
@@ -212,13 +231,10 @@ export function GlobalCanvas() {
 
     if (!isBrushTool || !pos) {
       if (el) el.style.display = "none";
-      // Let the Tailwind class (grab/crosshair/default) drive the cursor again.
       if (canvas) canvas.style.cursor = "";
       return;
     }
 
-    // Off the wall (the void beyond the world bounds at low zoom / panned to
-    // an edge) gets the plain OS cursor back — nothing to draw on out there.
     const { width, height } = viewportRef.current;
     const worldPt = screenToWorld(pos.x, pos.y, cameraRef.current, width, height);
     const onWall = isWithinWorld(worldPt);
@@ -241,9 +257,6 @@ export function GlobalCanvas() {
     updateCursorOverlay();
   }, [updateCursorOverlay]);
 
-  // Loupe: a circular zoomed-in crop of the world+strokes canvases around the
-  // cursor, redrawn on every pointer move while the Magnifier tool is active.
-  // Camera doesn't move — this is purely an inspection preview.
   const updateMagnifier = useCallback(() => {
     const el = magnifierElRef.current;
     const pos = lastScreenPosRef.current;
@@ -291,8 +304,6 @@ export function GlobalCanvas() {
     updateMagnifier();
   }, [updateMagnifier]);
 
-  // Ruler: dashed line + distance label between drag start/end, in world px.
-  // Purely an inspection overlay — never submitted as a stroke.
   const updateRuler = useCallback(() => {
     const el = rulerElRef.current;
     const drag = rulerDragRef.current;
@@ -320,9 +331,6 @@ export function GlobalCanvas() {
     updateRuler();
   }, [tool, updateRuler]);
 
-  // Mini-map viewport rectangle: where the main camera currently looks,
-  // mapped onto the fixed-size overview. Content (the strokes) is repainted
-  // separately, only when new strokes arrive — this just repositions a div.
   const updateMiniMapViewportRect = useCallback(() => {
     const el = miniMapViewportRectRef.current;
     if (!el) return;
@@ -352,8 +360,6 @@ export function GlobalCanvas() {
           redrawHeatmap();
           dirtyRef.current.world = false;
           updateMiniMapViewportRect();
-          // Debounced so a pan/zoom gesture doesn't hammer the History API —
-          // only the settled view ends up shareable via the address bar.
           if (urlSyncTimerRef.current) clearTimeout(urlSyncTimerRef.current);
           urlSyncTimerRef.current = setTimeout(() => {
             const qs = cameraToSearchString(cameraRef.current);
@@ -384,9 +390,6 @@ export function GlobalCanvas() {
     if (rulerElRef.current) rulerElRef.current.style.display = "none";
   }, []);
 
-  // ---------------------------------------------------------------------
-  // Canvas sizing / HiDPI
-  // ---------------------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     const worldCanvas = worldCanvasRef.current;
@@ -424,8 +427,6 @@ export function GlobalCanvas() {
       redrawStrokes();
       redrawHeatmap();
 
-      // Fixed CSS size regardless of viewport — only needs resizing if dpr
-      // itself changes (moved to a different-density monitor mid-session).
       const miniMap = miniMapCanvasRef.current;
       if (miniMap) {
         const miniMapSize = Math.round(MINI_MAP_SIZE_PX * dpr);
@@ -449,7 +450,6 @@ export function GlobalCanvas() {
     return () => ro.disconnect();
   }, [redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
 
-  // Non-passive wheel listener so we can preventDefault (stop page/browser zoom).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -467,9 +467,7 @@ export function GlobalCanvas() {
     return () => canvas.removeEventListener("wheel", onWheel);
   }, [scheduleRedraw]);
 
-  // ---------------------------------------------------------------------
-  // Initial replay (historical strokes -> committed list -> first paint)
-  // ---------------------------------------------------------------------
+  // Snapshot-assisted fast loading + initial replay
   useEffect(() => {
     let cancelled = false;
     replayStartedAtRef.current = performance.now();
@@ -477,6 +475,13 @@ export function GlobalCanvas() {
       let after = 0;
       let total = 0;
       try {
+        // Step 1: Check for latest snapshot to seed initial sequence
+        const latestSnapshot = await convex.query(api.snapshots.getLatest);
+        if (latestSnapshot && latestSnapshot.sequence > 0) {
+          after = latestSnapshot.sequence;
+        }
+
+        // Step 2: Fetch remaining delta strokes since snapshot
         while (!cancelled) {
           const page = await convex.query(api.strokes.listSince, {
             afterSequence: after,
@@ -489,11 +494,12 @@ export function GlobalCanvas() {
             after = Math.max(after, s.sequence);
           }
           total += page.length;
-          if (page.length < REPLAY_PAGE_SIZE || total >= REPLAY_HARD_CAP) break;
+          if (page.length < REPLAY_PAGE_SIZE) break;
         }
         if (!cancelled) {
           setReplayDone(true);
           setLiveTailCursor(after);
+          setMaxSequence(after);
           if (miniMapCtxRef.current && miniMapCanvasRef.current) {
             paintMiniMapStrokes(
               miniMapCtxRef.current,
@@ -510,7 +516,7 @@ export function GlobalCanvas() {
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
             ),
             stroke_chunks: total,
-            replay_capped: total >= REPLAY_HARD_CAP,
+            snapshot_used: !!latestSnapshot,
           });
           scheduleRedraw();
         }
@@ -528,16 +534,8 @@ export function GlobalCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------------------------------------------------------------
-  // Live tail: apply strokes we haven't seen yet (remote, or our own confirmed)
-  // ---------------------------------------------------------------------
   useEffect(() => {
     if (!replayDone || !liveTail || liveTail.length === 0) return;
-    // Deferred a tick so the cursor-advancing setState below isn't called
-    // synchronously within the effect body (same reasoning as the async
-    // replay() above: this is "call setState when external state changes,"
-    // React's own blessed effect use case, just made async to satisfy the
-    // compiler's stricter static check).
     queueMicrotask(() => {
       const newlyApplied: ServerStroke[] = [];
       for (const s of liveTail) {
@@ -547,6 +545,8 @@ export function GlobalCanvas() {
         committedRef.current.push(s);
         newlyApplied.push(s);
       }
+      const lastSeq = liveTail[liveTail.length - 1].sequence;
+      setMaxSequence(lastSeq);
       if (newlyApplied.length > 0) {
         scheduleRedraw();
         if (miniMapCtxRef.current && miniMapCanvasRef.current) {
@@ -561,17 +561,10 @@ export function GlobalCanvas() {
         addStrokesToHeatmap(heatmapGridRef.current, newlyApplied, WORLD_WIDTH, WORLD_HEIGHT);
         redrawHeatmap();
       }
-      // Advance regardless of whether anything was newly applied — listSince's
-      // afterSequence bound means everything here is new-to-the-cursor even if
-      // it happened to already be applied locally (e.g. our own optimistic
-      // stroke), so re-querying the same range forever would just waste bandwidth.
-      setLiveTailCursor(liveTail[liveTail.length - 1].sequence);
+      setLiveTailCursor(lastSeq);
     });
   }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap]);
 
-  // ---------------------------------------------------------------------
-  // Presence heartbeat
-  // ---------------------------------------------------------------------
   const lastCursorWorldRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
   useEffect(() => {
     const send = () => {
@@ -586,9 +579,6 @@ export function GlobalCanvas() {
     return () => clearInterval(id);
   }, [heartbeat, clientId]);
 
-  // ---------------------------------------------------------------------
-  // Local-first drawing
-  // ---------------------------------------------------------------------
   const commitOwnChunk = useCallback(
     (chunk: LocalStroke) => {
       if (!firstMarkTrackedRef.current) {
@@ -634,9 +624,6 @@ export function GlobalCanvas() {
     [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity],
   );
 
-  // Segment color/width/brush/mode come from the active buffer (locked in at
-  // pointer-down), not live state, so an in-progress stroke stays consistent
-  // even if the user changes tool settings mid-drag.
   const continueDraw = useCallback((worldPoint: Point) => {
     const buffer = drawBufferRef.current;
     if (!buffer) return;
@@ -669,9 +656,6 @@ export function GlobalCanvas() {
     lastDrawWorldRef.current = null;
   }, []);
 
-  // ---------------------------------------------------------------------
-  // Pointer input: mouse (draw / space-pan / wheel-zoom) + touch (draw / 2-finger pan-pinch)
-  // ---------------------------------------------------------------------
   const activePointersRef = useRef<Map<number, Point>>(new Map());
   const isPanningRef = useRef(false);
   const isSpaceDownRef = useRef(false);
@@ -709,9 +693,6 @@ export function GlobalCanvas() {
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
-      // Best-effort: keeps receiving events if the pointer leaves the canvas
-      // bounds mid-drag. Can throw (e.g. no active OS pointer for this id) —
-      // must not abort the rest of the handler if it does.
       try {
         (e.target as Element).setPointerCapture?.(e.pointerId);
       } catch {
@@ -732,7 +713,7 @@ export function GlobalCanvas() {
         return;
       }
 
-      if (activePointersRef.current.size > 1) return; // ignore a 3rd+ touch
+      if (activePointersRef.current.size > 1) return;
 
       if (e.pointerType === "mouse" && (isSpaceDownRef.current || e.button === 1)) {
         isPanningRef.current = true;
@@ -781,7 +762,6 @@ export function GlobalCanvas() {
         activePointersRef.current.set(e.pointerId, screenPt);
       }
 
-      // Touch has no hover concept — a finger already shows its own position.
       if (e.pointerType === "mouse") {
         lastScreenPosRef.current = screenPt;
         updateCursorOverlay();
@@ -802,11 +782,9 @@ export function GlobalCanvas() {
             );
           }
           if (pinchStartRef.current && pinchStartRef.current.dist > 0) {
-            const targetZoom = clampZoom(
-              pinchStartRef.current.zoom * (dist / pinchStartRef.current.dist),
-            );
-            const factor = targetZoom / cameraRef.current.zoom;
-            cameraRef.current = zoomAt(cameraRef.current, factor, mid.x, mid.y, width, height);
+            const factor = dist / pinchStartRef.current.dist;
+            const targetZoom = clampZoom(pinchStartRef.current.zoom * factor);
+            cameraRef.current = zoomAt(cameraRef.current, targetZoom / cameraRef.current.zoom, mid.x, mid.y, width, height);
           }
           lastPanScreenRef.current = mid;
         } else if (lastPanScreenRef.current) {
@@ -818,106 +796,100 @@ export function GlobalCanvas() {
           lastPanScreenRef.current = screenPt;
         }
         scheduleRedraw({ world: true, strokes: true });
-        lastCursorWorldRef.current = getPointerWorld(e.clientX, e.clientY);
         return;
       }
 
-      if (shapeDragRef.current) {
-        const worldPt = getPointerWorld(e.clientX, e.clientY);
-        shapeDragRef.current.current = worldPt;
-        shapePreviewRef.current = {
-          clientStrokeId: "preview",
-          clientId,
-          mode: "draw",
-          brushType: SHAPE_BRUSH_TYPE,
-          color,
-          width: brushWidth,
-          opacity,
-          points: buildShapePoints(shapeType, shapeDragRef.current.start, worldPt),
-          clientTimestamp: 0,
-        };
+      if (tool === "magnifier") return;
+
+      const worldPt = getPointerWorld(e.clientX, e.clientY);
+      lastCursorWorldRef.current = worldPt;
+
+      if (tool === "shape") {
+        const drag = shapeDragRef.current;
+        if (!drag) return;
+        drag.current = worldPt;
+        const pts = buildShapePoints(shapeType, drag.start, drag.current);
+        shapePreviewRef.current =
+          pts.length >= 2
+            ? {
+                clientStrokeId: "preview-shape",
+                clientId,
+                mode: "draw",
+                brushType: "brush",
+                color,
+                width: brushWidth,
+                opacity,
+                points: pts,
+                clientTimestamp: Date.now(),
+              }
+            : null;
         scheduleRedraw({ strokes: true });
-        lastCursorWorldRef.current = worldPt;
         return;
       }
 
-      if (rulerDragRef.current) {
-        const worldPt = getPointerWorld(e.clientX, e.clientY);
-        rulerDragRef.current.currentWorld = worldPt;
-        rulerDragRef.current.currentScreen = screenPt;
+      if (tool === "ruler") {
+        const drag = rulerDragRef.current;
+        if (!drag) return;
+        drag.currentWorld = worldPt;
+        drag.currentScreen = screenPt;
         updateRuler();
-        lastCursorWorldRef.current = worldPt;
         return;
       }
 
-      if (drawBufferRef.current) {
-        const worldPt = getPointerWorld(e.clientX, e.clientY);
-        lastCursorWorldRef.current = worldPt;
-        continueDraw(worldPt);
-        return;
-      }
-
-      lastCursorWorldRef.current = getPointerWorld(e.clientX, e.clientY);
+      continueDraw(worldPt);
     },
-    [
-      continueDraw,
-      getPointerWorld,
-      getScreenPoint,
-      scheduleRedraw,
-      updateCursorOverlay,
-      updateMagnifier,
-      updateRuler,
-      clientId,
-      color,
-      brushWidth,
-      opacity,
-      shapeType,
-    ],
+    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler],
   );
-
-  const finalizeShape = useCallback(() => {
-    const drag = shapeDragRef.current;
-    shapeDragRef.current = null;
-    shapePreviewRef.current = null;
-    if (!drag) return;
-    if (distance(drag.start, drag.current) < MIN_SHAPE_DRAG) {
-      scheduleRedraw({ strokes: true });
-      return;
-    }
-    const points = buildShapePoints(shapeType, drag.start, drag.current);
-    const buffer = new StrokeBuffer(clientId, "draw", SHAPE_BRUSH_TYPE, color, brushWidth, opacity, commitOwnChunk);
-    for (const p of points) buffer.addPoint(p);
-    buffer.finish();
-    scheduleRedraw({ strokes: true });
-  }, [scheduleRedraw, shapeType, clientId, color, brushWidth, opacity, commitOwnChunk]);
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       activePointersRef.current.delete(e.pointerId);
+
+      if (tool === "shape") {
+        const drag = shapeDragRef.current;
+        shapeDragRef.current = null;
+        shapePreviewRef.current = null;
+        if (drag && distance(drag.start, drag.current) >= MIN_SHAPE_DRAG) {
+          const pts = buildShapePoints(shapeType, drag.start, drag.current);
+          if (pts.length >= 2) {
+            const buffer = new StrokeBuffer(
+              clientId,
+              "draw",
+              "brush",
+              color,
+              brushWidth,
+              opacity,
+              commitOwnChunk,
+            );
+            for (const p of pts) buffer.addPoint(p);
+            buffer.finish();
+          }
+        }
+        scheduleRedraw({ strokes: true });
+      }
+
+      if (tool === "ruler") {
+        rulerDragRef.current = null;
+        updateRuler();
+      }
+
       if (activePointersRef.current.size === 0) {
         isPanningRef.current = false;
         lastPanScreenRef.current = null;
         pinchStartRef.current = null;
         endDraw();
-        finalizeShape();
-        // Ruler is a transient measurement, not a frozen readout — release
-        // ends it, same as releasing a shape drag ends that.
-        if (rulerDragRef.current) {
-          rulerDragRef.current = null;
-          updateRuler();
-        }
-      } else if (activePointersRef.current.size === 1 && isPanningRef.current) {
-        lastPanScreenRef.current = [...activePointersRef.current.values()][0];
-        pinchStartRef.current = null;
+      } else if (activePointersRef.current.size === 1) {
+        const remaining = [...activePointersRef.current.values()][0];
+        lastPanScreenRef.current = remaining;
       }
     },
-    [endDraw, finalizeShape, updateRuler],
+    [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, commitOwnChunk, scheduleRedraw, updateRuler],
   );
 
   const handlePointerLeave = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
-      handlePointerUp(e);
       hideCursorOverlay();
+      handlePointerUp(e);
     },
     [handlePointerUp, hideCursorOverlay],
   );
@@ -925,6 +897,7 @@ export function GlobalCanvas() {
   const resetView = useCallback(() => {
     cameraRef.current = defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
     scheduleRedraw({ world: true, strokes: true });
+    captureEvent("camera_reset");
   }, [scheduleRedraw]);
 
   const zoomButton = useCallback(
@@ -932,17 +905,15 @@ export function GlobalCanvas() {
       const { width, height } = viewportRef.current;
       cameraRef.current = zoomAt(cameraRef.current, factor, width / 2, height / 2, width, height);
       scheduleRedraw({ world: true, strokes: true });
+      captureEvent("zoom_button", { factor });
     },
     [scheduleRedraw],
   );
 
-  // Reads cameraRef directly (not the debounced address bar) so the copied
-  // link always matches the view on screen right now, not up to 400ms stale.
-  const handleShare = useCallback(async () => {
-    const qs = cameraToSearchString(cameraRef.current);
-    const url = `${window.location.origin}${window.location.pathname}?${qs}`;
-    await navigator.clipboard.writeText(url);
-    captureEvent("share_link_copied");
+  const handleShare = useCallback(() => {
+    const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
+    navigator.clipboard?.writeText(url).catch(() => {});
+    captureEvent("view_shared");
   }, []);
 
   const handleToolChange = useCallback((nextTool: Tool) => {
@@ -950,8 +921,6 @@ export function GlobalCanvas() {
     captureEvent("tool_selected", { tool: nextTool });
   }, []);
 
-  // fracX/fracY are 0..1 across the mini-map's own box — recenters the
-  // camera there, keeping the current zoom level.
   const handleMiniMapJump = useCallback(
     (fracX: number, fracY: number) => {
       const target = clampToWorld({ x: fracX * WORLD_WIDTH, y: fracY * WORLD_HEIGHT });
@@ -975,6 +944,30 @@ export function GlobalCanvas() {
     scheduleRedraw({ world: true, strokes: true });
     captureEvent("jumped_to_busiest");
   }, [scheduleRedraw]);
+
+  // Spatial Teleportation Handlers
+  const handleJumpToPoint = useCallback((pt: Point, label: string) => {
+    const { width, height } = viewportRef.current;
+    cameraRef.current = {
+      x: Math.max(width / (2 * cameraRef.current.zoom), Math.min(WORLD_WIDTH - width / (2 * cameraRef.current.zoom), pt.x)),
+      y: Math.max(height / (2 * cameraRef.current.zoom), Math.min(WORLD_HEIGHT - height / (2 * cameraRef.current.zoom), pt.y)),
+      zoom: cameraRef.current.zoom,
+    };
+    scheduleRedraw({ world: true, strokes: true });
+    captureEvent("spatial_teleport", { label });
+  }, [scheduleRedraw]);
+
+  const getBusiestPoint = useCallback(() => {
+    return findBusiestCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
+  }, []);
+
+  const getRandomActivePoint = useCallback(() => {
+    return findRandomActiveCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
+  }, []);
+
+  const getLatestActivityPoint = useCallback(() => {
+    return findLatestStrokeCenter(committedRef.current);
+  }, []);
 
   return (
     <div className="relative h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
@@ -1030,6 +1023,7 @@ export function GlobalCanvas() {
         )}
       </main>
 
+      {/* Top Header Bar */}
       <header
         id="header-bar"
         role="banner"
@@ -1041,7 +1035,14 @@ export function GlobalCanvas() {
             AlwaysDraw
           </h1>
         </div>
-        <div className="flex items-center gap-2 pr-4">
+
+        <div className="flex items-center gap-3 pr-4">
+          <SpatialDiscoveryMenu
+            onJumpToPoint={handleJumpToPoint}
+            getBusiestPoint={getBusiestPoint}
+            getRandomActivePoint={getRandomActivePoint}
+            getLatestActivityPoint={getLatestActivityPoint}
+          />
           <ThemeToggle />
           <ConnectionStatus />
           <OnlineCount count={onlineCount ?? 0} />
@@ -1056,6 +1057,30 @@ export function GlobalCanvas() {
           </div>
         </div>
       )}
+
+      {/* Replay Bar Floating Overlay */}
+      <div className="pointer-events-none absolute bottom-24 left-4 z-40">
+        <ReplayBar
+          isReplayMode={isReplayMode}
+          isPlaying={isPlayingReplay}
+          currentSequence={replaySequenceIndex}
+          maxSequence={maxSequence}
+          playbackSpeed={playbackSpeed}
+          onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+          onSeek={(seq) => setReplaySequenceIndex(seq)}
+          onStep={(delta) => setReplaySequenceIndex((prev) => Math.max(0, Math.min(maxSequence, prev + delta)))}
+          onSpeedChange={setPlaybackSpeed}
+          onExitReplay={() => {
+            setIsReplayMode(false);
+            setIsPlayingReplay(false);
+          }}
+          onEnterReplay={() => {
+            setIsReplayMode(true);
+            setReplaySequenceIndex(0);
+            setIsPlayingReplay(true);
+          }}
+        />
+      </div>
 
       <nav id="drawing-toolbar-nav" aria-label="Drawing Tools Toolbar">
         <DrawingToolbar

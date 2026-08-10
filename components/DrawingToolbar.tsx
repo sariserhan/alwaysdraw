@@ -430,7 +430,7 @@ export function DrawingToolbar({
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
-  onShare: () => Promise<void>;
+  onShare: () => void | Promise<void>;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
   onJumpToBusiest: () => void;
