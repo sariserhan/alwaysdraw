@@ -22,8 +22,27 @@ export const STENCIL_TYPES: { id: StencilType; label: string; icon: string }[] =
 ];
 
 /**
+ * Generates realistic spray paint splatter particle clusters radiating around (cx, cy).
+ */
+function generateSpraySplatters(cx: number, cy: number, radius: number, count = 40): Point[][] {
+  const splatters: Point[][] = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.sin(i * 1.618) * 0.5;
+    const dist = radius * (0.65 + Math.abs(Math.sin(i * 3.7)) * 0.65);
+    const px = cx + Math.cos(angle) * dist;
+    const py = cy + Math.sin(angle) * dist;
+    const scatterDist = 2 + Math.abs(Math.cos(i * 2.3)) * 4;
+    splatters.push([
+      { x: px, y: py },
+      { x: px + Math.cos(angle) * scatterDist, y: py + Math.sin(angle) * scatterDist },
+    ]);
+  }
+  return splatters;
+}
+
+/**
  * Generates rich street-art stencil sub-paths centered at (cx, cy).
- * Each sub-path represents a clean closed outline or shape element of the stencil.
+ * Each sub-path represents a closed outline or spray particle element.
  */
 export function buildStencilPoints(
   type: StencilType,
@@ -131,7 +150,6 @@ export function buildStencilPoints(
           y: cy - radius * 0.3 + Math.sin(theta - Math.PI) * (radius * 0.9),
         });
       }
-      // Jaw
       cranium.push({ x: cx + radius * 0.45, y: cy + radius * 0.8 });
       cranium.push({ x: cx - radius * 0.45, y: cy + radius * 0.8 });
       cranium.push({ x: cx - radius * 0.9, y: cy - radius * 0.1 });
@@ -211,7 +229,6 @@ export function buildStencilPoints(
       ];
       paths.push(frame);
 
-      // 4 Diagonal hazard stripes inside frame
       for (let offset = -1; offset <= 1; offset += 0.6) {
         const sx1 = cx + offset * radius;
         paths.push([
@@ -238,7 +255,6 @@ export function buildStencilPoints(
       ];
       paths.push(frame);
 
-      // Heavy Checkmark inside
       const checkmark: Point[] = [
         { x: cx - radius * 0.6, y: cy },
         { x: cx - radius * 0.1, y: cy + radius * 0.4 },
@@ -271,7 +287,6 @@ export function buildStencilPoints(
       }
       paths.push(innerRing);
 
-      // Crosshair Slot
       paths.push([
         { x: cx - radius * 0.3, y: cy },
         { x: cx + radius * 0.3, y: cy },
@@ -283,6 +298,10 @@ export function buildStencilPoints(
       break;
     }
   }
+
+  // Add rich aerosol spray paint splatter particles surrounding stencil
+  const splatters = generateSpraySplatters(cx, cy, radius, 40);
+  paths.push(...splatters);
 
   return paths;
 }

@@ -982,7 +982,7 @@ export function GlobalCanvas() {
           mode: "draw",
           brushType: "chalk",
           color,
-          width: Math.max(3, Math.round(brushWidth / 2)),
+          width: Math.max(5, Math.round(brushWidth * 0.85)),
           opacity,
           points,
           tiles,
