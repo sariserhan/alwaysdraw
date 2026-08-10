@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import {
   type Camera,
@@ -60,6 +61,7 @@ import { HotkeysModal } from "./HotkeysModal";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
+import { ProtectedZonesOverlay } from "./ProtectedZonesOverlay";
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
@@ -209,6 +211,12 @@ export function GlobalCanvas() {
 
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
   const rollbackClient = useMutation(api.admin.rollbackClient);
+  const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
+
+  const handleDeleteProtectedZone = useCallback(async (zoneId: string) => {
+    if (!adminPasscode) return;
+    await deleteProtectedZone({ passcode: adminPasscode, zoneId: zoneId as Id<"protectedZones"> });
+  }, [adminPasscode, deleteProtectedZone]);
 
   const handleAuthenticateAdmin = useCallback(async (passcode: string): Promise<boolean> => {
     const isValid = await verifyAdminPasscode({ passcode });
@@ -1654,6 +1662,14 @@ export function GlobalCanvas() {
             onJump={handleMiniMapJump}
           />
         </aside>
+
+        <ProtectedZonesOverlay
+          camera={cameraSnapshot}
+          viewportWidth={viewportSize.width}
+          viewportHeight={viewportSize.height}
+          isAdmin={Boolean(adminPasscode)}
+          onDeleteZone={handleDeleteProtectedZone}
+        />
 
         {imagePlacement && (
           <AdminImageOverlay

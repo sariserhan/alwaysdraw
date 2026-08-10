@@ -1,11 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ConvexError } from "convex/values";
-
-const DEFAULT_ADMIN_PASSCODE = "alwaysdraw-admin-2026";
 
 function isPasscodeValid(passcode: string): boolean {
-  const secretKey = process.env.ADMIN_SECRET_KEY || DEFAULT_ADMIN_PASSCODE;
+  const secretKey = process.env.ADMIN_SECRET_KEY ?? "alwaysdraw-admin-2026";
   return passcode === secretKey;
 }
 
@@ -16,19 +13,17 @@ function verifyAdminPasscode(passcode: string) {
 }
 
 /**
- * Auth check: Verify if provided passcode matches admin secret.
+ * Pre-flight verification query/mutation for admin credentials.
  */
 export const verifyPasscode = mutation({
-  args: {
-    passcode: v.string(),
-  },
+  args: { passcode: v.string() },
   handler: async (_ctx, args) => {
     return isPasscodeValid(args.passcode);
   },
 });
 
 /**
- * Moderation: Wipe all strokes inside a rectangular bounding box [minX, minY, maxX, maxY].
+ * Moderation Action 1: Bounding-box area stroke purge (Wipe Area).
  */
 export const wipeArea = mutation({
   args: {
@@ -41,14 +36,15 @@ export const wipeArea = mutation({
   handler: async (ctx, args) => {
     verifyAdminPasscode(args.passcode);
 
-    const strokes = await ctx.db.query("strokes").collect();
+    const allStrokes = await ctx.db.query("strokes").collect();
     let deletedCount = 0;
 
-    for (const stroke of strokes) {
-      const overlaps = stroke.points.some(
-        (p) => p.x >= args.minX && p.x <= args.maxX && p.y >= args.minY && p.y <= args.maxY,
+    for (const stroke of allStrokes) {
+      const isInside = stroke.points.some(
+        (pt) => pt.x >= args.minX && pt.x <= args.maxX && pt.y >= args.minY && pt.y <= args.maxY,
       );
-      if (overlaps) {
+
+      if (isInside) {
         await ctx.db.delete(stroke._id);
         deletedCount++;
       }
@@ -59,7 +55,7 @@ export const wipeArea = mutation({
 });
 
 /**
- * Moderation: Delete all strokes drawn by a specific client ID.
+ * Moderation Action 2: Rollback all strokes drawn by a specific client ID.
  */
 export const rollbackClient = mutation({
   args: {
@@ -69,44 +65,42 @@ export const rollbackClient = mutation({
   handler: async (ctx, args) => {
     verifyAdminPasscode(args.passcode);
 
-    const strokes = await ctx.db.query("strokes").collect();
-    let deletedCount = 0;
+    const clientStrokes = await ctx.db
+      .query("strokes")
+      .filter((q) => q.eq(q.field("clientId"), args.targetClientId))
+      .collect();
 
-    for (const stroke of strokes) {
-      if (stroke.clientId === args.targetClientId) {
-        await ctx.db.delete(stroke._id);
-        deletedCount++;
-      }
+    for (const stroke of clientStrokes) {
+      await ctx.db.delete(stroke._id);
     }
 
-    return { success: true, deletedCount };
+    return { success: true, deletedCount: clientStrokes.length };
   },
 });
 
 /**
- * Operations: Publish a global live broadcast banner visible to all online painters.
+ * Moderation Action 3: Publish global broadcast message.
  */
 export const publishBroadcast = mutation({
   args: {
     passcode: v.string(),
     message: v.string(),
-    author: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     verifyAdminPasscode(args.passcode);
 
-    const activeBroadcasts = await ctx.db
+    const activeList = await ctx.db
       .query("broadcasts")
       .withIndex("by_active", (q) => q.eq("active", true))
       .collect();
 
-    for (const b of activeBroadcasts) {
-      await ctx.db.patch(b._id, { active: false });
+    for (const item of activeList) {
+      await ctx.db.patch(item._id, { active: false });
     }
 
     await ctx.db.insert("broadcasts", {
       message: args.message,
-      author: args.author || "ALWAYS_DRAW_ADMIN",
+      author: "ADMIN",
       active: true,
       createdTimestamp: Date.now(),
     });
@@ -116,7 +110,7 @@ export const publishBroadcast = mutation({
 });
 
 /**
- * Operations: Clear the current active broadcast banner.
+ * Moderation Action 4: Clear global broadcast announcement.
  */
 export const clearBroadcast = mutation({
   args: {
@@ -125,13 +119,13 @@ export const clearBroadcast = mutation({
   handler: async (ctx, args) => {
     verifyAdminPasscode(args.passcode);
 
-    const activeBroadcasts = await ctx.db
+    const activeList = await ctx.db
       .query("broadcasts")
       .withIndex("by_active", (q) => q.eq("active", true))
       .collect();
 
-    for (const b of activeBroadcasts) {
-      await ctx.db.patch(b._id, { active: false });
+    for (const item of activeList) {
+      await ctx.db.patch(item._id, { active: false });
     }
 
     return { success: true };
@@ -154,6 +148,59 @@ export const getActiveBroadcast = query({
 });
 
 /**
+ * Protected Zones: Create a locked canvas region.
+ */
+export const createProtectedZone = mutation({
+  args: {
+    passcode: v.string(),
+    name: v.string(),
+    minX: v.number(),
+    minY: v.number(),
+    maxX: v.number(),
+    maxY: v.number(),
+  },
+  handler: async (ctx, args) => {
+    verifyAdminPasscode(args.passcode);
+
+    const zoneId = await ctx.db.insert("protectedZones", {
+      name: args.name,
+      minX: Math.min(args.minX, args.maxX),
+      minY: Math.min(args.minY, args.maxY),
+      maxX: Math.max(args.minX, args.maxX),
+      maxY: Math.max(args.minY, args.maxY),
+      createdAt: Date.now(),
+    });
+
+    return { success: true, zoneId };
+  },
+});
+
+/**
+ * Protected Zones: Remove a locked canvas region.
+ */
+export const deleteProtectedZone = mutation({
+  args: {
+    passcode: v.string(),
+    zoneId: v.id("protectedZones"),
+  },
+  handler: async (ctx, args) => {
+    verifyAdminPasscode(args.passcode);
+    await ctx.db.delete(args.zoneId);
+    return { success: true };
+  },
+});
+
+/**
+ * Query: Get all active protected canvas zones.
+ */
+export const getProtectedZones = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("protectedZones").collect();
+  },
+});
+
+/**
  * Telemetry: Fetch system health metrics & statistics. Safe query returns null on bad passcode.
  */
 export const getTelemetry = query({
@@ -168,15 +215,15 @@ export const getTelemetry = query({
     const strokeCount = (await ctx.db.query("strokes").collect()).length;
     const presenceCount = (await ctx.db.query("presence").collect()).length;
     const snapshotCount = (await ctx.db.query("snapshots").collect()).length;
+    const protectedZoneCount = (await ctx.db.query("protectedZones").collect()).length;
     const meta = await ctx.db.query("canvasMetadata").first();
 
     return {
       strokeCount,
       activePresenceCount: presenceCount,
       snapshotCount,
+      protectedZoneCount,
       currentSequence: meta?.currentSequence ?? 0,
-      worldWidth: meta?.width ?? 20000,
-      worldHeight: meta?.height ?? 20000,
     };
   },
 });

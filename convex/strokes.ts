@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getTileKeysForStroke } from "../lib/tiling";
 import {
@@ -135,6 +135,23 @@ export const submit = mutation({
       return { sequence: existing.sequence };
     }
 
+    // --- Protected Canvas Zones Validation ---
+    if (!args.clientId.startsWith("ADMIN_")) {
+      const protectedZones = await ctx.db.query("protectedZones").collect();
+      if (protectedZones.length > 0) {
+        for (const zone of protectedZones) {
+          const hitsZone = args.points.some(
+            (p) => p.x >= zone.minX && p.x <= zone.maxX && p.y >= zone.minY && p.y <= zone.maxY,
+          );
+          if (hitsZone) {
+            throw new ConvexError(
+              `PROTECTED_ZONE: Canvas area "${zone.name}" is protected by Admin to preserve community artwork.`,
+            );
+          }
+        }
+      }
+    }
+
     await consumeRateLimit(
       ctx,
       `strokes:client:${args.clientId}`,
@@ -168,8 +185,6 @@ export const submit = mutation({
     await ctx.db.insert("strokes", {
       clientStrokeId: args.clientStrokeId,
       clientId: args.clientId,
-      username: args.username,
-      countryCode: args.countryCode,
       mode: args.mode,
       brushType: args.mode === "draw" ? (args.brushType ?? "brush") : undefined,
       color: args.color,

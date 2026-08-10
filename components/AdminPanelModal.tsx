@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { ChromeRivet } from "./ChromeRivet";
 
 export interface AdminPanelModalProps {
@@ -26,7 +27,7 @@ export function AdminPanelModal({
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"moderation" | "broadcast" | "image" | "telemetry">("moderation");
+  const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "telemetry">("moderation");
 
   // Moderation state
   const [wipeMinX, setWipeMinX] = useState(0);
@@ -35,6 +36,13 @@ export function AdminPanelModal({
   const [wipeMaxY, setWipeMaxY] = useState(5000);
   const [targetClientId, setTargetClientId] = useState("");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+
+  // Protected Zone state
+  const [zoneName, setZoneName] = useState("Community Mural Shield");
+  const [zoneMinX, setZoneMinX] = useState(9000);
+  const [zoneMinY, setZoneMinY] = useState(9000);
+  const [zoneMaxX, setZoneMaxX] = useState(11000);
+  const [zoneMaxY, setZoneMaxY] = useState(11000);
 
   // Broadcast state
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -46,7 +54,10 @@ export function AdminPanelModal({
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
   const clearBroadcast = useMutation(api.admin.clearBroadcast);
+  const createProtectedZone = useMutation(api.admin.createProtectedZone);
+  const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
 
+  const protectedZones = useQuery(api.admin.getProtectedZones);
   const telemetry = useQuery(
     api.admin.getTelemetry,
     authenticated ? { passcode: activePasscode } : "skip",
@@ -92,7 +103,7 @@ export function AdminPanelModal({
 
     const aspectRatio = (img.width || 1) / (img.height || 1);
     onStartImagePlacement(file, url, aspectRatio);
-    onClose(); // Minimize admin panel to reveal interactive placement overlay on canvas
+    onClose();
   };
 
   const handleWipeArea = async () => {
@@ -122,6 +133,37 @@ export function AdminPanelModal({
       setActionStatus(`Success! Purged ${res.deletedCount} strokes drawn by ${targetClientId}.`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Rollback failed"}`);
+    }
+  };
+
+  const handleCreateZone = async () => {
+    if (!zoneName.trim()) return;
+    try {
+      setActionStatus(`Creating Protection Zone: ${zoneName}...`);
+      await createProtectedZone({
+        passcode: activePasscode,
+        name: zoneName,
+        minX: Number(zoneMinX),
+        minY: Number(zoneMinY),
+        maxX: Number(zoneMaxX),
+        maxY: Number(zoneMaxY),
+      });
+      setActionStatus(`Success! Locked canvas zone "${zoneName}".`);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Zone creation failed"}`);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: Id<"protectedZones">) => {
+    try {
+      setActionStatus("Removing protection zone...");
+      await deleteProtectedZone({
+        passcode: activePasscode,
+        zoneId,
+      });
+      setActionStatus("Success! Unlocked canvas zone.");
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Zone delete failed"}`);
     }
   };
 
@@ -181,7 +223,7 @@ export function AdminPanelModal({
               Admin Control Center
             </h2>
             <p className="font-mono text-[10px] text-ink-dim">
-              Canvas moderation, image upload &amp; live telemetry
+              Canvas moderation, protection zones &amp; telemetry
             </p>
           </div>
         </div>
@@ -234,7 +276,18 @@ export function AdminPanelModal({
                   : "text-ink-dim hover:text-ink"
               }`}
             >
-              🛡️ MOD
+              🧹 MOD
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("zones")}
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+                activeTab === "zones"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              🛡️ ZONES
             </button>
             <button
               type="button"
@@ -281,7 +334,6 @@ export function AdminPanelModal({
           {/* TAB 1: Moderation */}
           {activeTab === "moderation" && (
             <div className="flex flex-col gap-4 text-left font-mono text-xs">
-              {/* Area Wipe */}
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
                 <span className="font-bold text-accent-crimson uppercase">🧹 Area Wipe (Bounding Box)</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -331,7 +383,6 @@ export function AdminPanelModal({
                 </button>
               </div>
 
-              {/* Rollback Client */}
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
                 <span className="font-bold text-accent-yellow uppercase">🚫 Rollback Client ID</span>
                 <input
@@ -352,7 +403,105 @@ export function AdminPanelModal({
             </div>
           )}
 
-          {/* TAB 2: Image Upload & Stamp */}
+          {/* TAB 2: Protected Zones */}
+          {activeTab === "zones" && (
+            <div className="flex flex-col gap-4 text-left font-mono text-xs">
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🛡️ Lock Canvas Area (Mural Shield)</span>
+                <p className="text-[10px] text-ink-dim">
+                  Prevent non-admin painters from drawing over community murals inside this bounding box.
+                </p>
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">Zone Name</label>
+                  <input
+                    type="text"
+                    value={zoneName}
+                    onChange={(e) => setZoneName(e.target.value)}
+                    placeholder="e.g. Central Community Mural"
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Min X</label>
+                    <input
+                      type="number"
+                      value={zoneMinX}
+                      onChange={(e) => setZoneMinX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Min Y</label>
+                    <input
+                      type="number"
+                      value={zoneMinY}
+                      onChange={(e) => setZoneMinY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Max X</label>
+                    <input
+                      type="number"
+                      value={zoneMaxX}
+                      onChange={(e) => setZoneMaxX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Max Y</label>
+                    <input
+                      type="number"
+                      value={zoneMaxY}
+                      onChange={(e) => setZoneMaxY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateZone}
+                  className="mt-1 rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
+                >
+                  LOCK CANVAS ZONE
+                </button>
+              </div>
+
+              {/* Active Zones List */}
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🔒 Active Protection Locks</span>
+                {protectedZones && protectedZones.length > 0 ? (
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                    {protectedZones.map((z) => (
+                      <div
+                        key={z._id}
+                        className="flex items-center justify-between rounded border border-chrome-border bg-chrome-bg p-2 text-[11px]"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-bold text-accent-yellow">{z.name}</span>
+                          <span className="text-[9px] text-ink-dim">
+                            ({Math.round(z.minX)}, {Math.round(z.minY)}) → ({Math.round(z.maxX)}, {Math.round(z.maxY)})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteZone(z._id)}
+                          className="rounded border border-accent-crimson bg-accent-crimson/20 px-2 py-1 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent"
+                        >
+                          UNLOCK
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-ink-dim">No active protected zones on the wall.</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Image Upload */}
           {activeTab === "image" && (
             <div className="flex flex-col gap-3 text-left font-mono text-xs">
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
@@ -384,7 +533,7 @@ export function AdminPanelModal({
             </div>
           )}
 
-          {/* TAB 3: Broadcast */}
+          {/* TAB 4: Broadcast */}
           {activeTab === "broadcast" && (
             <div className="flex flex-col gap-3 text-left font-mono text-xs">
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
@@ -416,7 +565,7 @@ export function AdminPanelModal({
             </div>
           )}
 
-          {/* TAB 4: Telemetry */}
+          {/* TAB 5: Telemetry */}
           {activeTab === "telemetry" && (
             <div className="grid grid-cols-2 gap-2 text-left font-mono text-xs">
               <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
@@ -432,9 +581,9 @@ export function AdminPanelModal({
                 </span>
               </div>
               <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
-                <span className="block text-[10px] text-ink-dim">SNAPSHOT COUNT</span>
-                <span className="text-sm font-bold text-ink">
-                  {telemetry?.snapshotCount ?? "..."}
+                <span className="block text-[10px] text-ink-dim">PROTECTED ZONES</span>
+                <span className="text-sm font-bold text-accent-yellow">
+                  {telemetry?.protectedZoneCount ?? 0} Locked
                 </span>
               </div>
               <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
