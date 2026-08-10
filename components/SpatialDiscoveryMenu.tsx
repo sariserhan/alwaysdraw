@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Point } from "@/lib/types";
 
+const DEFAULT_WORLD_SIZE = 10000;
+
 export interface SpatialDiscoveryMenuProps {
   onJumpToPoint: (point: Point, label: string) => void;
   getBusiestPoint: () => Point | null;
@@ -42,21 +44,27 @@ export function SpatialDiscoveryMenu({
     };
   }, [isOpen]);
 
-  const handleJumpBusiest = () => {
-    const pt = getBusiestPoint();
-    if (pt) onJumpToPoint(pt, "Busiest Hotspot");
+  const handleJumpBusiest = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const pt = getBusiestPoint() ?? { x: DEFAULT_WORLD_SIZE / 2, y: DEFAULT_WORLD_SIZE / 2 };
+    onJumpToPoint(pt, "Busiest Hotspot");
     setIsOpen(false);
   };
 
-  const handleJumpRandom = () => {
-    const pt = getRandomActivePoint();
-    if (pt) onJumpToPoint(pt, "Random Artwork Spot");
+  const handleJumpLatest = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const pt = getLatestActivityPoint() ?? { x: DEFAULT_WORLD_SIZE / 2, y: DEFAULT_WORLD_SIZE / 2 };
+    onJumpToPoint(pt, "Latest Activity");
     setIsOpen(false);
   };
 
-  const handleJumpLatest = () => {
-    const pt = getLatestActivityPoint();
-    if (pt) onJumpToPoint(pt, "Latest Activity");
+  const handleJumpRandom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const pt = getRandomActivePoint() ?? {
+      x: Math.floor(1000 + Math.random() * (DEFAULT_WORLD_SIZE - 2000)),
+      y: Math.floor(1000 + Math.random() * (DEFAULT_WORLD_SIZE - 2000)),
+    };
+    onJumpToPoint(pt, "Random Art Spot");
     setIsOpen(false);
   };
 
@@ -65,7 +73,11 @@ export function SpatialDiscoveryMenu({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2.5 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
+        className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+          isOpen
+            ? "border-rust bg-rust/30 text-accent-yellow"
+            : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
+        }`}
         title="Spatial Teleport & Hotspots"
         aria-label="Spatial Teleport Menu"
         aria-expanded={isOpen}

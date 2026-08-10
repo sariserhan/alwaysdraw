@@ -963,7 +963,12 @@ export function GlobalCanvas() {
   }, []);
 
   const getRandomActivePoint = useCallback(() => {
-    return findRandomActiveCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
+    return findRandomActiveCell(
+      heatmapGridRef.current,
+      WORLD_WIDTH,
+      WORLD_HEIGHT,
+      { x: cameraRef.current.x, y: cameraRef.current.y },
+    );
   }, []);
 
   const getLatestActivityPoint = useCallback(() => {

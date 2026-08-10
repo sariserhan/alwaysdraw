@@ -70,6 +70,7 @@ export function findRandomActiveCell(
   grid: HeatmapGrid,
   worldWidth: number,
   worldHeight: number,
+  excludePoint?: Point,
 ): Point | null {
   const { counts, gridSize } = grid;
   const activeIndices: number[] = [];
@@ -78,9 +79,21 @@ export function findRandomActiveCell(
   }
   if (activeIndices.length === 0) return null;
 
-  const chosenIdx = activeIndices[Math.floor(Math.random() * activeIndices.length)];
   const cellW = worldWidth / gridSize;
   const cellH = worldHeight / gridSize;
+
+  let candidates = activeIndices;
+  if (excludePoint && activeIndices.length > 1) {
+    const currentCx = Math.min(gridSize - 1, Math.max(0, Math.floor(excludePoint.x / cellW)));
+    const currentCy = Math.min(gridSize - 1, Math.max(0, Math.floor(excludePoint.y / cellH)));
+    const currentIdx = currentCy * gridSize + currentCx;
+    const filtered = activeIndices.filter((idx) => idx !== currentIdx);
+    if (filtered.length > 0) {
+      candidates = filtered;
+    }
+  }
+
+  const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)];
   const cx = chosenIdx % gridSize;
   const cy = Math.floor(chosenIdx / gridSize);
   return { x: (cx + 0.5) * cellW, y: (cy + 0.5) * cellH };
