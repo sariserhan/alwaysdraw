@@ -2280,116 +2280,90 @@ export function GlobalCanvas() {
             </div>
 
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
-            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <LanguagePicker
-                  currentLocale={locale}
-                  onLocaleChange={(loc) => {
-                    setLocale(loc);
-                    localStorage.setItem("alwaysdraw_locale", loc);
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ThemeToggle />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
-              </div>
+            <div className="mb-2.5 flex flex-wrap items-center gap-2">
+              <LanguagePicker
+                currentLocale={locale}
+                onLocaleChange={(loc) => {
+                  setLocale(loc);
+                  localStorage.setItem("alwaysdraw_locale", loc);
+                }}
+              />
+              <ThemeToggle />
+              <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
+              <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
             </div>
 
             <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
-            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ExploreMenu
-                  onJumpToPoint={handleJumpToPoint}
-                  getBusiestPoint={getBusiestPoint}
-                  getRandomActivePoint={getRandomActivePoint}
-                  getLatestActivityPoint={getLatestActivityPoint}
-                  onlineCount={onlineCount ?? 1}
-                  locale={locale}
-                />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <BookmarkMenu
-                  currentCamera={cameraSnapshot}
-                  clientId={clientId}
-                  onTeleport={handleBookmarkTeleport}
-                  locale={locale}
-                />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <CommunityGalleryModal
-                  clientId={clientId}
-                  username={username}
-                  onTeleport={handleBookmarkTeleport}
-                  locale={locale}
-                />
-              </div>
+            <div className="mb-2.5 flex flex-wrap items-center gap-2">
+              <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
+              <ExploreMenu
+                onJumpToPoint={handleJumpToPoint}
+                getBusiestPoint={getBusiestPoint}
+                getRandomActivePoint={getRandomActivePoint}
+                getLatestActivityPoint={getLatestActivityPoint}
+                onlineCount={onlineCount ?? 1}
+                locale={locale}
+              />
+              <BookmarkMenu
+                currentCamera={cameraSnapshot}
+                clientId={clientId}
+                onTeleport={handleBookmarkTeleport}
+                locale={locale}
+              />
+              <CommunityGalleryModal
+                clientId={clientId}
+                username={username}
+                onTeleport={handleBookmarkTeleport}
+                locale={locale}
+              />
             </div>
 
             <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
-            <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <TimeTravelMenu
-                  isReplayMode={isReplayMode}
-                  isPlaying={isPlayingReplay}
-                  currentSequence={replaySequenceIndex}
-                  minSequence={minSequence}
-                  maxSequence={maxSequence}
-                  playbackSpeed={playbackSpeed}
-                  onTogglePlay={() => setIsPlayingReplay((v) => !v)}
-                  onSeek={(seq) => setReplaySequenceIndex(seq)}
-                  onStep={(delta) =>
-                    setReplaySequenceIndex((prev) =>
-                      Math.max(minSequence, Math.min(maxSequence, prev + delta)),
-                    )
-                  }
-                  onSpeedChange={setPlaybackSpeed}
-                  onExitReplay={() => {
-                    setIsReplayMode(false);
-                    setIsPlayingReplay(false);
-                    scheduleRedraw({ world: true, strokes: true });
-                  }}
-                  onEnterReplay={handleEnterReplay}
-                  region={replayRegion}
-                  onSelectRegion={handleSelectRegion}
-                  onClearRegion={handleClearRegion}
-                  locale={locale}
-                />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ExportModal
-                  getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
-                  getCommittedStrokes={() => committedRef.current}
-                  currentCamera={cameraSnapshot}
-                  viewportWidth={viewportSize.width}
-                  viewportHeight={viewportSize.height}
-                  worldWidth={WORLD_WIDTH}
-                  worldHeight={WORLD_HEIGHT}
-                  region={replayRegion}
-                  locale={locale}
-                />
-              </div>
+            <div className="mb-2.5 flex flex-wrap items-center gap-2">
+              <TimeTravelMenu
+                isReplayMode={isReplayMode}
+                isPlaying={isPlayingReplay}
+                currentSequence={replaySequenceIndex}
+                minSequence={minSequence}
+                maxSequence={maxSequence}
+                playbackSpeed={playbackSpeed}
+                onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+                onSeek={(seq) => setReplaySequenceIndex(seq)}
+                onStep={(delta) =>
+                  setReplaySequenceIndex((prev) =>
+                    Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                  )
+                }
+                onSpeedChange={setPlaybackSpeed}
+                onExitReplay={() => {
+                  setIsReplayMode(false);
+                  setIsPlayingReplay(false);
+                  scheduleRedraw({ world: true, strokes: true });
+                }}
+                onEnterReplay={handleEnterReplay}
+                region={replayRegion}
+                onSelectRegion={handleSelectRegion}
+                onClearRegion={handleClearRegion}
+                locale={locale}
+              />
+              <ExportModal
+                getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+                getCommittedStrokes={() => committedRef.current}
+                currentCamera={cameraSnapshot}
+                viewportWidth={viewportSize.width}
+                viewportHeight={viewportSize.height}
+                worldWidth={WORLD_WIDTH}
+                worldHeight={WORLD_HEIGHT}
+                region={replayRegion}
+                locale={locale}
+              />
             </div>
 
             <MobileGroupLabel>❓ {t(locale, "group_help_status")}</MobileGroupLabel>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <HelpModal />
-              </div>
-              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ConnectionStatus locale={locale} />
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
+              <HelpModal />
+              <ConnectionStatus locale={locale} />
             </div>
           </div>
         )}
