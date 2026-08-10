@@ -74,8 +74,8 @@ export function isPointInTile(
 export function getTileKeysForStroke(
   points: Point[],
   strokeWidth: number = 8,
-  worldWidth: number = 10000,
-  worldHeight: number = 10000,
+  worldWidth: number = 50000,
+  worldHeight: number = 50000,
   tileSize: number = TILE_SIZE,
 ): string[] {
   if (!points || points.length === 0) return [];
@@ -109,8 +109,8 @@ export function getVisibleTileKeys(
   camera: { x: number; y: number; zoom: number },
   viewportWidth: number,
   viewportHeight: number,
-  worldWidth: number = 10000,
-  worldHeight: number = 10000,
+  worldWidth: number = 50000,
+  worldHeight: number = 50000,
   tileSize: number = TILE_SIZE,
   buffer: number = 1,
 ): string[] {

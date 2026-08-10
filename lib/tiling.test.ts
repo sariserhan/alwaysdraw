@@ -15,7 +15,7 @@ describe("spatial tile partitioning (lib/tiling.ts)", () => {
     expect(getTileCoords(0, 0)).toEqual({ tileX: 0, tileY: 0 });
     expect(getTileCoords(499, 499)).toEqual({ tileX: 0, tileY: 0 });
     expect(getTileCoords(500, 500)).toEqual({ tileX: 1, tileY: 1 });
-    expect(getTileCoords(9999, 9999)).toEqual({ tileX: 19, tileY: 19 });
+    expect(getTileCoords(49999, 49999)).toEqual({ tileX: 99, tileY: 99 });
   });
 
   it("formats and parses tile IDs", () => {
@@ -46,22 +46,20 @@ describe("spatial tile partitioning (lib/tiling.ts)", () => {
       { x: 450, y: 450 }, // Near boundary of tile_0_0 and tile_1_1
       { x: 550, y: 550 },
     ];
-    const keys = getTileKeysForStroke(points, 10, 10000, 10000);
+    const keys = getTileKeysForStroke(points, 10, 50000, 50000);
     expect(keys).toContain("tile_0_0");
     expect(keys).toContain("tile_1_1");
   });
 
   it("computes visible tiles for camera viewport with buffer ring", () => {
-    // Camera at center of 10k x 10k world, zoom 1x, 1000x1000 viewport
-    const camera = { x: 5000, y: 5000, zoom: 1 };
-    const keys = getVisibleTileKeys(camera, 1000, 1000, 10000, 10000, 500, 1);
+    // Camera at center of 50k x 50k world, zoom 1x, 1000x1000 viewport
+    const camera = { x: 25000, y: 25000, zoom: 1 };
+    const keys = getVisibleTileKeys(camera, 1000, 1000, 50000, 50000, 500, 1);
     
-    // Viewport covers [4500, 5500] in X and Y.
-    // Base tiles: tile_9, tile_10, tile_11. With 1-tile buffer: tile_8 to tile_12 (5x5 grid = 25 tiles).
     expect(keys.length).toBeGreaterThan(0);
-    expect(keys).toContain("tile_10_10");
-    expect(keys).toContain("tile_9_9");
-    expect(keys).toContain("tile_8_8");
-    expect(keys).toContain("tile_12_12");
+    expect(keys).toContain("tile_50_50");
+    expect(keys).toContain("tile_49_49");
+    expect(keys).toContain("tile_48_48");
+    expect(keys).toContain("tile_52_52");
   });
 });

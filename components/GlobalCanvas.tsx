@@ -51,6 +51,7 @@ import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
+import { ExportModal } from "./ExportModal";
 import { HelpModal } from "./HelpModal";
 import { getVisibleTileKeys, TILE_SIZE } from "@/lib/tiling";
 
@@ -1086,7 +1087,7 @@ export function GlobalCanvas() {
             title="Active 500x500 spatial tiles in current camera viewport"
           >
             <span className="text-ink-dim">TILES:</span>
-            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/400</span>
+            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/10000</span>
           </div>
           <SpatialDiscoveryMenu
             onJumpToPoint={handleJumpToPoint}
@@ -1098,6 +1099,15 @@ export function GlobalCanvas() {
             currentCamera={cameraSnapshot}
             clientId={clientId}
             onTeleport={handleBookmarkTeleport}
+          />
+          <ExportModal
+            getCanvasRef={() => canvasRef.current}
+            getCommittedStrokes={() => committedRef.current}
+            currentCamera={cameraSnapshot}
+            viewportWidth={viewportSize.width}
+            viewportHeight={viewportSize.height}
+            worldWidth={WORLD_WIDTH}
+            worldHeight={WORLD_HEIGHT}
           />
           <TimeTravelMenu
             isReplayMode={isReplayMode}

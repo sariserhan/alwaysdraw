@@ -1,7 +1,7 @@
 // Shared world-bounds and abuse-boundary constants used by schema.ts and functions.
 // Named constants (not magic numbers) so the logical canvas size can change later.
-export const WORLD_WIDTH = 10_000;
-export const WORLD_HEIGHT = 10_000;
+export const WORLD_WIDTH = 50_000;
+export const WORLD_HEIGHT = 50_000;
 
 export const MIN_BRUSH_WIDTH = 1;
 export const MAX_BRUSH_WIDTH = 100;
