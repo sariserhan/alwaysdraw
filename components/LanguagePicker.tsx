@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SUPPORTED_LOCALES, type Locale, type LocaleInfo } from "@/lib/i18n";
+import { SUPPORTED_LOCALES, t, type Locale, type LocaleInfo } from "@/lib/i18n";
 import { ChromeRivet } from "./ChromeRivet";
 
 export interface LanguagePickerProps {
@@ -73,7 +73,7 @@ export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePicker
 
           <div className="border-b border-chrome-border/60 pb-1 px-1">
             <span className="font-mono text-[10px] font-bold text-ink-dim uppercase">
-              🌐 Select Language
+              🌐 {t(currentLocale, "select_language")}
             </span>
           </div>
 

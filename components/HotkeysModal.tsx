@@ -3,13 +3,15 @@
 import { useEffect, useRef } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 import { HOTKEY_MAP } from "@/lib/hotkeys";
+import { t, type Locale } from "@/lib/i18n";
 
 export interface HotkeysModalProps {
   isOpen: boolean;
   onToggle: () => void;
+  locale: Locale;
 }
 
-export function HotkeysModal({ isOpen, onToggle }: HotkeysModalProps) {
+export function HotkeysModal({ isOpen, onToggle, locale }: HotkeysModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,18 +47,18 @@ export function HotkeysModal({ isOpen, onToggle }: HotkeysModalProps) {
             ? "border-rust bg-rust text-on-accent font-bold shadow-sm"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink-dim hover:border-rust hover:text-ink"
         }`}
-        title="Keyboard Shortcuts Map"
-        aria-label="Keyboard Shortcuts"
+        title={t(locale, "hotkeys_title")}
+        aria-label={t(locale, "hotkeys_title")}
         aria-expanded={isOpen}
       >
         <span>⌨️</span>
-        <span className="hidden sm:inline">KEYS</span>
+        <span className="hidden sm:inline">{t(locale, "hotkeys").toUpperCase()}</span>
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          aria-label="Keyboard Shortcuts Menu"
+          aria-label={t(locale, "hotkeys_title")}
           className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] sm:w-[380px]"
         >
           <ChromeRivet className="top-2 left-2" />
@@ -64,10 +66,10 @@ export function HotkeysModal({ isOpen, onToggle }: HotkeysModalProps) {
 
           <div className="border-b border-chrome-border/60 pb-2">
             <h3 className="font-mono text-xs font-bold uppercase text-accent-yellow">
-              Keyboard Shortcuts Map
+              {t(locale, "hotkeys_title")}
             </h3>
             <p className="font-mono text-[10px] text-ink-dim">
-              Quick key bindings for fast drawing &amp; navigation
+              {t(locale, "hotkeys_subtitle")}
             </p>
           </div>
 

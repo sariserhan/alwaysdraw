@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { GridConfig, GridMode } from "@/lib/grid";
 import { ChromeRivet } from "./ChromeRivet";
+import { t, type Locale } from "@/lib/i18n";
 
 export interface GridToggleProps {
   config: GridConfig;
   onChange: (config: GridConfig) => void;
+  locale: Locale;
 }
 
-export function GridToggle({ config, onChange }: GridToggleProps) {
+export function GridToggle({ config, onChange, locale }: GridToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,8 +63,8 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
-        title="Canvas Alignment Grid & Snapping"
-        aria-label="Grid Settings Menu"
+        title={t(locale, "grid_title")}
+        aria-label={t(locale, "grid_title")}
         aria-expanded={isOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-current">
@@ -73,13 +75,13 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
             strokeLinecap="round"
           />
         </svg>
-        <span>GRID</span>
+        <span>{t(locale, "grid").toUpperCase()}</span>
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          aria-label="Grid Options"
+          aria-label={t(locale, "grid_title")}
           className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-2 w-52 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md"
         >
           <ChromeRivet className="top-1.5 left-1.5" />
@@ -87,10 +89,10 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
 
           <div className="border-b border-chrome-border/60 pb-1">
             <h3 className="font-mono text-xs font-bold uppercase text-accent-yellow">
-              Architectural Grid
+              {t(locale, "grid_title")}
             </h3>
             <p className="font-mono text-[10px] text-ink-dim">
-              Precision drawing overlays &amp; snapping
+              {t(locale, "grid_subtitle")}
             </p>
           </div>
 
@@ -104,7 +106,7 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
                   : "bg-chrome-bg-raised text-ink border-chrome-border hover:border-rust hover:text-accent-yellow"
               }`}
             >
-              🚫 Grid Off
+              🚫 {t(locale, "grid_off")}
             </button>
             <button
               type="button"
@@ -115,7 +117,7 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
                   : "bg-chrome-bg-raised text-ink border-chrome-border hover:border-rust hover:text-accent-yellow"
               }`}
             >
-              🔳 Square Grid (50px)
+              🔳 {t(locale, "grid_square_50")}
             </button>
             <button
               type="button"
@@ -126,7 +128,7 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
                   : "bg-chrome-bg-raised text-ink border-chrome-border hover:border-rust hover:text-accent-yellow"
               }`}
             >
-              🔳 Square Grid (100px)
+              🔳 {t(locale, "grid_square_100")}
             </button>
             <button
               type="button"
@@ -137,7 +139,7 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
                   : "bg-chrome-bg-raised text-ink border-chrome-border hover:border-rust hover:text-accent-yellow"
               }`}
             >
-              📐 Isometric Blueprint Grid
+              📐 {t(locale, "grid_isometric")}
             </button>
           </div>
 
@@ -152,9 +154,9 @@ export function GridToggle({ config, onChange }: GridToggleProps) {
                   : "border-chrome-border bg-chrome-bg-raised text-ink hover:border-rust hover:text-accent-yellow"
               }`}
             >
-              <span>🧲 Grid Snapping</span>
+              <span>🧲 {t(locale, "grid_snapping")}</span>
               <span className="text-[10px] uppercase font-bold">
-                {config.snapEnabled ? "ON" : "OFF"}
+                {config.snapEnabled ? t(locale, "on").toUpperCase() : t(locale, "off").toUpperCase()}
               </span>
             </button>
           </div>

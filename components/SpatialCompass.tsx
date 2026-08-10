@@ -4,15 +4,17 @@ import { useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
+import { t, type Locale } from "@/lib/i18n";
 
 import type { Point } from "@/lib/types";
 
 export interface SpatialCompassProps {
   camera: Camera;
   onTeleport: (pt: Point, label: string) => void;
+  locale: Locale;
 }
 
-export function SpatialCompass({ camera, onTeleport }: SpatialCompassProps) {
+export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const originX = WORLD_WIDTH / 2;
@@ -30,8 +32,8 @@ export function SpatialCompass({ camera, onTeleport }: SpatialCompassProps) {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-1.5 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
-        title="360° Spatial Radar Compass"
-        aria-label="Spatial Radar Compass"
+        title={t(locale, "compass_title")}
+        aria-label={t(locale, "compass_title")}
         aria-expanded={isOpen}
       >
         <span
@@ -41,14 +43,14 @@ export function SpatialCompass({ camera, onTeleport }: SpatialCompassProps) {
           🧩
         </span>
         <span className="font-mono text-xs font-bold text-accent-yellow">
-          {distance === 0 ? "CENTER" : `${distance}px`}
+          {distance === 0 ? t(locale, "center").toUpperCase() : `${distance}px`}
         </span>
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          aria-label="Spatial Radar Compass Navigation"
+          aria-label={t(locale, "compass_title")}
           className="absolute top-full right-0 mt-2 z-50 flex flex-col gap-2.5 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[260px]"
         >
           <ChromeRivet className="top-2 left-2" />
@@ -56,15 +58,15 @@ export function SpatialCompass({ camera, onTeleport }: SpatialCompassProps) {
 
           <div className="border-b border-chrome-border/60 pb-1">
             <h3 className="font-mono text-xs font-bold uppercase text-accent-yellow">
-              360° Spatial Radar
+              {t(locale, "compass_title")}
             </h3>
             <p className="font-mono text-[10px] text-ink-dim">
-              Relative to Center Origin (25,000, 25,000)
+              Relative to Center Origin ({originX.toLocaleString()}, {originY.toLocaleString()})
             </p>
           </div>
 
           <div className="flex items-center justify-between font-mono text-xs text-ink-dim">
-            <span>Distance to Origin:</span>
+            <span>{t(locale, "distance_to_origin")}</span>
             <span className="font-bold text-accent-yellow">{distance} px</span>
           </div>
 
@@ -105,7 +107,7 @@ export function SpatialCompass({ camera, onTeleport }: SpatialCompassProps) {
               className="rounded border border-rust bg-rust/30 py-1 text-center font-mono text-xs font-bold text-accent-yellow hover:bg-rust/50"
               title="Teleport Center Origin"
             >
-              🌐 ORIGIN
+              🌐 {t(locale, "origin").toUpperCase()}
             </button>
 
             <button

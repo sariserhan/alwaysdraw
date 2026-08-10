@@ -5,6 +5,7 @@ import { ChromeRivet } from "./ChromeRivet";
 import { downloadCanvasPNG, generateTimelapseVideo } from "@/lib/exportMedia";
 import type { ServerStroke } from "@/lib/types";
 import type { Camera } from "@/lib/camera";
+import { t, type Locale } from "@/lib/i18n";
 
 export interface ExportModalProps {
   getCanvasLayers: () => (HTMLCanvasElement | null)[];
@@ -14,6 +15,7 @@ export interface ExportModalProps {
   viewportHeight: number;
   worldWidth: number;
   worldHeight: number;
+  locale: Locale;
 }
 
 export function ExportModal({
@@ -24,6 +26,7 @@ export function ExportModal({
   viewportHeight,
   worldWidth,
   worldHeight,
+  locale,
 }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -104,8 +107,8 @@ export function ExportModal({
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
-        title="Export Snapshot Image or Timelapse Video"
-        aria-label="Export Menu"
+        title={t(locale, "export_canvas_media")}
+        aria-label={t(locale, "export")}
         aria-expanded={isOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-green">
@@ -117,20 +120,20 @@ export function ExportModal({
             strokeLinejoin="round"
           />
         </svg>
-        <span>EXPORT</span>
+        <span>{t(locale, "export").toUpperCase()}</span>
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          aria-label="Export Media Options"
+          aria-label={t(locale, "export_canvas_media")}
           className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[280px] sm:w-[320px]"
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
 
           <span className="font-mono text-xs font-bold uppercase text-accent-yellow border-b border-chrome-border/60 pb-1.5">
-            Export Canvas Media
+            {t(locale, "export_canvas_media")}
           </span>
 
           {/* Option 1: Download PNG Snapshot */}
@@ -144,8 +147,8 @@ export function ExportModal({
               📷
             </div>
             <div className="flex flex-col">
-              <span className="font-mono text-xs font-bold text-ink">Snapshot (PNG)</span>
-              <span className="font-mono text-[10px] text-ink-dim">High-res 4K image download</span>
+              <span className="font-mono text-xs font-bold text-ink">{t(locale, "snapshot_png")}</span>
+              <span className="font-mono text-[10px] text-ink-dim">{t(locale, "snapshot_desc")}</span>
             </div>
           </button>
 
@@ -160,8 +163,8 @@ export function ExportModal({
               🎬
             </div>
             <div className="flex flex-col">
-              <span className="font-mono text-xs font-bold text-ink">Timelapse (WebM)</span>
-              <span className="font-mono text-[10px] text-ink-dim">Animated history video</span>
+              <span className="font-mono text-xs font-bold text-ink">{t(locale, "timelapse_webm")}</span>
+              <span className="font-mono text-[10px] text-ink-dim">{t(locale, "timelapse_desc")}</span>
             </div>
           </button>
 
@@ -169,7 +172,7 @@ export function ExportModal({
           {isExporting && (
             <div className="flex flex-col gap-1 rounded bg-chrome-bg-raised p-2">
               <div className="flex justify-between font-mono text-[10px] font-bold text-ink">
-                <span>Encoding Timelapse...</span>
+                <span>{t(locale, "encoding")}</span>
                 <span className="text-accent-yellow">{progress}%</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded bg-chrome-bg">

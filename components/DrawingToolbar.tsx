@@ -436,9 +436,11 @@ function ShapePicker({
 function PalettePicker({
   activePaletteId,
   onSelectPalette,
+  locale,
 }: {
   activePaletteId: string;
   onSelectPalette: (palette: Palette) => void;
+  locale: Locale;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -447,11 +449,11 @@ function PalettePicker({
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        title="Color Palette Presets"
+        title={t(locale, "palettes")}
         className="flex h-7 items-center gap-1 rounded border border-chrome-border bg-chrome-bg px-2 font-mono text-[10px] font-bold text-ink-dim hover:border-rust hover:text-accent-yellow transition-colors"
       >
         <span>🎨</span>
-        <span className="hidden sm:inline">PALETTES</span>
+        <span className="hidden sm:inline">{t(locale, "palettes").toUpperCase()}</span>
       </button>
 
       {isOpen && (
@@ -613,7 +615,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange("pan")}
             aria-pressed={tool === "pan"}
-            title="Pan"
+            title={t(locale, "pan")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "pan" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -624,7 +626,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange("magnifier")}
             aria-pressed={tool === "magnifier"}
-            title="Magnifier"
+            title={t(locale, "magnifier")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "magnifier" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -666,7 +668,7 @@ export function DrawingToolbar({
             aria-pressed={tool === "stencil"}
             aria-haspopup="true"
             aria-expanded={stencilPickerOpen}
-            title="Stencil / Stamp"
+            title={t(locale, "stencil")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "stencil" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -687,7 +689,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange("laser")}
             aria-pressed={tool === "laser"}
-            title="Laser Pointer"
+            title={t(locale, "laser")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "laser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -698,7 +700,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange("ruler")}
             aria-pressed={tool === "ruler"}
-            title="Ruler"
+            title={t(locale, "ruler")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "ruler" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -761,6 +763,7 @@ export function DrawingToolbar({
           </label>
           <PalettePicker
             activePaletteId={activePalette.id}
+            locale={locale}
             onSelectPalette={(p) => {
               setActivePalette(p);
               onColorChange(p.colors[0]);
@@ -826,7 +829,7 @@ export function DrawingToolbar({
             type="button"
             onClick={onResetView}
             aria-label="reset view"
-            title="Reset view"
+            title={t(locale, "reset_view")}
             className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
           >
             <ResetIcon />

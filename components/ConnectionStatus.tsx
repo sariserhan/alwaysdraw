@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import { useConvexConnectionState } from "convex/react";
 import { captureEvent } from "@/lib/observability";
+import { t, type Locale } from "@/lib/i18n";
 
-export function ConnectionStatus() {
+export function ConnectionStatus({ locale }: { locale: Locale }) {
   const state = useConvexConnectionState();
   const connected = state.isWebSocketConnected;
   const wasConnectedRef = useRef(false);
@@ -37,7 +38,9 @@ export function ConnectionStatus() {
             : "animate-pulse bg-accent-yellow shadow-[0_0_6px_var(--accent-yellow)]"
         }`}
       />
-      <span className="tracking-wide text-ink-dim uppercase">{connected ? "live" : "reconnecting"}</span>
+      <span className="tracking-wide text-ink-dim uppercase">
+        {connected ? t(locale, "live") : t(locale, "reconnecting")}
+      </span>
     </div>
   );
 }

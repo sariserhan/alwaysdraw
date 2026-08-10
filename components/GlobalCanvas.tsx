@@ -56,7 +56,7 @@ import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
-import { type Locale } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
 import { SpatialCompass } from "./SpatialCompass";
@@ -1432,10 +1432,10 @@ export function GlobalCanvas() {
             className="hidden sm:flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"
           >
-            <span className="text-ink-dim">TILES:</span>
+            <span className="text-ink-dim">{t(locale, "tiles")}:</span>
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
-          <OnlineCount count={onlineCount ?? 0} />
+          <OnlineCount count={onlineCount ?? 0} locale={locale} />
         </div>
 
         {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
@@ -1450,25 +1450,27 @@ export function GlobalCanvas() {
               }}
             />
             <ThemeToggle />
-            <GridToggle config={gridConfig} onChange={setGridConfig} />
+            <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
           </div>
 
           <HeaderSeam />
 
           {/* Cluster 2: Spatial Navigation */}
           <div className="flex items-center gap-2" title="Spatial Navigation & Teleportation">
-            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
+            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
             <ExploreMenu
               onJumpToPoint={handleJumpToPoint}
               getBusiestPoint={getBusiestPoint}
               getRandomActivePoint={getRandomActivePoint}
               getLatestActivityPoint={getLatestActivityPoint}
               onlineCount={onlineCount ?? 1}
+              locale={locale}
             />
             <BookmarkMenu
               currentCamera={cameraSnapshot}
               clientId={clientId}
               onTeleport={handleBookmarkTeleport}
+              locale={locale}
             />
           </div>
 
@@ -1501,6 +1503,7 @@ export function GlobalCanvas() {
                 setReplaySequenceIndex(snapshotSequenceRef.current);
                 setIsPlayingReplay(true);
               }}
+              locale={locale}
             />
             <ExportModal
               getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
@@ -1510,6 +1513,7 @@ export function GlobalCanvas() {
               viewportHeight={viewportSize.height}
               worldWidth={WORLD_WIDTH}
               worldHeight={WORLD_HEIGHT}
+              locale={locale}
             />
           </div>
 
@@ -1517,9 +1521,9 @@ export function GlobalCanvas() {
 
           {/* Cluster 4: Help & Status */}
           <div className="flex items-center gap-2" title="Help & System Status">
-            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
+            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
             <HelpModal />
-            <ConnectionStatus />
+            <ConnectionStatus locale={locale} />
           </div>
         </div>
 
@@ -1536,12 +1540,12 @@ export function GlobalCanvas() {
             {mobileMenuOpen ? (
               <>
                 <span className="text-accent-crimson text-sm font-black">✕</span>
-                <span>CLOSE</span>
+                <span>{t(locale, "close")}</span>
               </>
             ) : (
               <>
                 <span className="text-accent-yellow text-sm font-black">☰</span>
-                <span>MENU</span>
+                <span>{t(locale, "menu")}</span>
               </>
             )}
           </button>
@@ -1551,11 +1555,11 @@ export function GlobalCanvas() {
         {mobileMenuOpen && (
           <div className="lg:hidden absolute top-full left-0 right-0 z-50 border-b-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
             <div className="mb-2 flex items-center justify-between border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
-              <span>🛠️ CANVAS TOOLS & PANELS</span>
-              <span className="text-accent-yellow">TILES: {visibleTileCount || 1}/1600</span>
+              <span>🛠️ {t(locale, "canvas_tools_panels")}</span>
+              <span className="text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
             </div>
 
-            <MobileGroupLabel>🌐 View &amp; Display</MobileGroupLabel>
+            <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <LanguagePicker
@@ -1570,14 +1574,14 @@ export function GlobalCanvas() {
                 <ThemeToggle />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <GridToggle config={gridConfig} onChange={setGridConfig} />
+                <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
               </div>
             </div>
 
-            <MobileGroupLabel>🧭 Spatial Navigation</MobileGroupLabel>
+            <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
+                <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <ExploreMenu
@@ -1586,6 +1590,7 @@ export function GlobalCanvas() {
                   getRandomActivePoint={getRandomActivePoint}
                   getLatestActivityPoint={getLatestActivityPoint}
                   onlineCount={onlineCount ?? 1}
+                  locale={locale}
                 />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
@@ -1593,11 +1598,12 @@ export function GlobalCanvas() {
                   currentCamera={cameraSnapshot}
                   clientId={clientId}
                   onTeleport={handleBookmarkTeleport}
+                  locale={locale}
                 />
               </div>
             </div>
 
-            <MobileGroupLabel>🎥 Timeline &amp; Export</MobileGroupLabel>
+            <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <TimeTravelMenu
@@ -1625,6 +1631,7 @@ export function GlobalCanvas() {
                     setReplaySequenceIndex(snapshotSequenceRef.current);
                     setIsPlayingReplay(true);
                   }}
+                  locale={locale}
                 />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
@@ -1636,20 +1643,21 @@ export function GlobalCanvas() {
                   viewportHeight={viewportSize.height}
                   worldWidth={WORLD_WIDTH}
                   worldHeight={WORLD_HEIGHT}
+                  locale={locale}
                 />
               </div>
             </div>
 
-            <MobileGroupLabel>❓ Help &amp; Status</MobileGroupLabel>
+            <MobileGroupLabel>❓ {t(locale, "group_help_status")}</MobileGroupLabel>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
+                <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <HelpModal />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
-                <ConnectionStatus />
+                <ConnectionStatus locale={locale} />
               </div>
             </div>
           </div>

@@ -6,14 +6,16 @@ import { api } from "@/convex/_generated/api";
 import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
 import type { Point } from "@/lib/types";
+import { t, type Locale } from "@/lib/i18n";
 
 export interface BookmarkMenuProps {
   currentCamera: Camera;
   clientId: string;
   onTeleport: (pt: Point, zoom: number, label: string) => void;
+  locale: Locale;
 }
 
-export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMenuProps) {
+export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: BookmarkMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -87,8 +89,8 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
-        title="Saved Favorite Canvas Spots"
-        aria-label="Bookmark Locations Menu"
+        title={t(locale, "bookmark_current_view")}
+        aria-label={t(locale, "bookmarks")}
         aria-expanded={isOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow">
@@ -99,13 +101,13 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
             strokeLinejoin="round"
           />
         </svg>
-        <span>BOOKMARKS</span>
+        <span>{t(locale, "bookmarks").toUpperCase()}</span>
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          aria-label="Saved Favorite Locations"
+          aria-label={t(locale, "saved_locations")}
           className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] sm:w-[360px]"
         >
           <ChromeRivet className="top-2 left-2" />
@@ -114,14 +116,14 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
           {/* Form to bookmark current location */}
           <form onSubmit={handleSaveCurrentSpot} className="flex flex-col gap-1.5 border-b border-chrome-border/60 pb-3">
             <span className="font-mono text-xs font-bold uppercase text-accent-yellow">
-              Bookmark Current View
+              {t(locale, "bookmark_current_view")}
             </span>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
-                placeholder="Label (e.g. Mona Lisa Wall)..."
+                placeholder={t(locale, "bookmark_placeholder")}
                 maxLength={40}
                 className="flex-1 rounded-sm border border-chrome-border bg-chrome-bg-raised px-2 py-1 font-mono text-xs text-ink placeholder:text-ink-dim/50 focus:border-rust focus:outline-none"
               />
@@ -130,7 +132,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
                 disabled={!titleInput.trim() || isSaving}
                 className="rounded-sm border border-rust bg-rust/30 px-3 py-1 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white disabled:opacity-40"
               >
-                SAVE
+                {t(locale, "save").toUpperCase()}
               </button>
             </div>
             <span className="font-mono text-[10px] text-ink-dim">
@@ -141,11 +143,11 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
           {/* List of Bookmarks */}
           <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
             <span className="font-mono text-[11px] font-bold uppercase text-ink-dim">
-              Saved Locations ({bookmarks.length})
+              {t(locale, "saved_locations")} ({bookmarks.length})
             </span>
             {bookmarks.length === 0 ? (
               <p className="font-mono text-xs text-ink-dim/70 py-2 text-center italic">
-                No bookmarks saved yet. Be the first to tag a spot!
+                {t(locale, "no_bookmarks")}
               </p>
             ) : (
               bookmarks.map((bm) => (
@@ -170,9 +172,9 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport }: BookmarkMe
                     type="button"
                     onClick={(e) => handleCopyLink(e, bm)}
                     className="rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-blue"
-                    title="Copy 1-Click Share Link"
+                    title={t(locale, "share")}
                   >
-                    {copiedId === bm._id ? "COPIED!" : "SHARE"}
+                    {copiedId === bm._id ? t(locale, "copied").toUpperCase() : t(locale, "share").toUpperCase()}
                   </button>
                 </div>
               ))

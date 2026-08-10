@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
+import { t, type Locale } from "@/lib/i18n";
 
 export interface TimeTravelMenuProps {
   isReplayMode: boolean;
@@ -16,6 +17,7 @@ export interface TimeTravelMenuProps {
   onSpeedChange: (speed: number) => void;
   onExitReplay: () => void;
   onEnterReplay: () => void;
+  locale: Locale;
 }
 
 const SPEEDS = [1, 5, 20, 100];
@@ -33,6 +35,7 @@ export function TimeTravelMenu({
   onSpeedChange,
   onExitReplay,
   onEnterReplay,
+  locale,
 }: TimeTravelMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,21 +95,21 @@ export function TimeTravelMenu({
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
-        title="Open Historical Time-Travel Replay"
-        aria-label="Time Travel Replay Menu"
+        title={t(locale, "history_replay")}
+        aria-label={t(locale, "history_replay")}
         aria-expanded={isOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
           <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <span>TIME TRAVEL</span>
+        <span>{t(locale, "timetravel").toUpperCase()}</span>
       </button>
 
       {isOpen && (
         <div
           role="region"
-          aria-label="Time Travel Replay Controls"
+          aria-label={t(locale, "history_replay")}
           className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] sm:w-[440px]"
         >
           <ChromeRivet className="top-2 left-2" />
@@ -117,7 +120,7 @@ export function TimeTravelMenu({
             <div className="flex items-center gap-2 pl-4">
               <span className="h-2 w-2 rounded-full bg-accent-yellow animate-pulse" />
               <span className="font-mono text-xs font-bold uppercase tracking-wider text-accent-yellow">
-                HISTORY REPLAY
+                {t(locale, "history_replay").toUpperCase()}
               </span>
               <span className="font-mono text-xs text-ink-dim">
                 #{currentSequence} / #{maxSequence}
@@ -128,9 +131,9 @@ export function TimeTravelMenu({
               type="button"
               onClick={handleExit}
               className="flex items-center gap-1 rounded-sm border border-accent-crimson/50 bg-accent-crimson/20 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-crimson transition-colors hover:bg-accent-crimson hover:text-white"
-              title="Return to Live Canvas"
+              title={t(locale, "live")}
             >
-              <span>LIVE</span>
+              <span>{t(locale, "live").toUpperCase()}</span>
               <span className="h-1.5 w-1.5 rounded-full bg-accent-crimson" />
             </button>
           </div>
@@ -180,14 +183,14 @@ export function TimeTravelMenu({
                       <rect x="6" y="4" width="4" height="16" />
                       <rect x="14" y="4" width="4" height="16" />
                     </svg>
-                    <span>PAUSE</span>
+                    <span>{t(locale, "pause").toUpperCase()}</span>
                   </>
                 ) : (
                   <>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M8 5v14l11-7z" />
                     </svg>
-                    <span>PLAY</span>
+                    <span>{t(locale, "play").toUpperCase()}</span>
                   </>
                 )}
               </button>
@@ -209,7 +212,7 @@ export function TimeTravelMenu({
 
             {/* Speed Selector */}
             <div className="flex items-center gap-1">
-              <span className="mr-1 font-mono text-[10px] uppercase text-ink-dim">Speed:</span>
+              <span className="mr-1 font-mono text-[10px] uppercase text-ink-dim">{t(locale, "speed")}</span>
               {SPEEDS.map((speed) => (
                 <button
                   key={speed}
