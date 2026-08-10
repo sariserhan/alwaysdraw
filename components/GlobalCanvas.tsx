@@ -24,6 +24,9 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors } from "./RemoteCursors";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChromeRivet } from "./ChromeRivet";
+import { BrushCursor } from "./BrushCursor";
+
+const MIN_CURSOR_DIAMETER_PX = 4;
 
 const LIVE_TAIL_LIMIT = 300;
 const REPLAY_PAGE_SIZE = 1000;
@@ -41,6 +44,8 @@ export function GlobalCanvas() {
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const cursorElRef = useRef<HTMLDivElement>(null);
+  const lastScreenPosRef = useRef<Point | null>(null);
 
   const [clientId] = useState(() => getClientId());
   const cameraRef = useRef<Camera>(defaultCamera(WORLD_WIDTH, WORLD_HEIGHT));
@@ -110,6 +115,33 @@ export function GlobalCanvas() {
     for (const s of pendingRef.current.values()) paintOneStroke(ctx, width, height, s);
   }, [paintOneStroke]);
 
+  // ---------------------------------------------------------------------
+  // Brush cursor overlay: shows the brush's actual on-screen size/color so a
+  // visitor always knows exactly how much of the wall their next stroke will
+  // affect. Position/size are set imperatively (mousemove is too
+  // high-frequency for React state); shape/color come from props, which
+  // change rarely.
+  // ---------------------------------------------------------------------
+  const updateCursorOverlay = useCallback(() => {
+    const el = cursorElRef.current;
+    const pos = lastScreenPosRef.current;
+    if (!el) return;
+    if (!pos || (tool !== "brush" && tool !== "eraser")) {
+      el.style.display = "none";
+      return;
+    }
+    const diameter = Math.max(MIN_CURSOR_DIAMETER_PX, brushWidth * cameraRef.current.zoom);
+    el.style.left = `${pos.x}px`;
+    el.style.top = `${pos.y}px`;
+    el.style.width = `${diameter}px`;
+    el.style.height = `${diameter}px`;
+    el.style.display = "block";
+  }, [tool, brushWidth]);
+
+  useEffect(() => {
+    updateCursorOverlay();
+  }, [updateCursorOverlay]);
+
   const rafRef = useRef<number | null>(null);
   const dirtyRef = useRef({ world: true, strokes: true });
   const scheduleRedraw = useCallback(
@@ -132,10 +164,16 @@ export function GlobalCanvas() {
           const next = Math.round(cameraRef.current.zoom * 100);
           return prev === next ? prev : next;
         });
+        updateCursorOverlay();
       });
     },
-    [redrawWorld, redrawStrokes],
+    [redrawWorld, redrawStrokes, updateCursorOverlay],
   );
+
+  const hideCursorOverlay = useCallback(() => {
+    lastScreenPosRef.current = null;
+    if (cursorElRef.current) cursorElRef.current.style.display = "none";
+  }, []);
 
   // ---------------------------------------------------------------------
   // Canvas sizing / HiDPI
@@ -441,6 +479,12 @@ export function GlobalCanvas() {
         activePointersRef.current.set(e.pointerId, screenPt);
       }
 
+      // Touch has no hover concept — a finger already shows its own position.
+      if (e.pointerType === "mouse") {
+        lastScreenPosRef.current = screenPt;
+        updateCursorOverlay();
+      }
+
       if (isPanningRef.current) {
         const { width, height } = viewportRef.current;
         if (activePointersRef.current.size >= 2) {
@@ -496,7 +540,7 @@ export function GlobalCanvas() {
 
       lastCursorWorldRef.current = getPointerWorld(e.clientX, e.clientY);
     },
-    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw],
+    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, updateCursorOverlay],
   );
 
   const handlePointerUp = useCallback(
@@ -514,6 +558,14 @@ export function GlobalCanvas() {
       }
     },
     [endDraw],
+  );
+
+  const handlePointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      handlePointerUp(e);
+      hideCursorOverlay();
+    },
+    [handlePointerUp, hideCursorOverlay],
   );
 
   const resetView = useCallback(() => {
@@ -537,14 +589,19 @@ export function GlobalCanvas() {
         <canvas
           ref={canvasRef}
           className={`absolute inset-0 h-full w-full touch-none ${
-            tool === "pan" ? "cursor-grab active:cursor-grabbing" : tool === "zoom" ? "cursor-ns-resize" : "cursor-crosshair"
+            tool === "pan"
+              ? "cursor-grab active:cursor-grabbing"
+              : tool === "zoom"
+                ? "cursor-ns-resize"
+                : "cursor-none"
           }`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
         />
+        <BrushCursor ref={cursorElRef} tool={tool} brushType={brushType} color={color} />
       </div>
 
       <RemoteCursors

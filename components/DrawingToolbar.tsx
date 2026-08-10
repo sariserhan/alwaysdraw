@@ -147,6 +147,28 @@ function ChevronUpIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 9l7 7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CollapseHandle({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={collapsed ? "expand toolbar" : "collapse toolbar"}
+      title={collapsed ? "Expand" : "Collapse"}
+      className="absolute -top-3.5 left-1/2 flex h-3.5 w-10 -translate-x-1/2 items-center justify-center rounded-t-sm border border-b-0 border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
+    >
+      {collapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+    </button>
+  );
+}
+
 function MinusIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -194,7 +216,7 @@ function BrushPicker({
       <div className="absolute bottom-full left-0 z-20 mb-3 w-56 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
         {CATEGORIES.map((category) => (
           <div key={category} className="mb-1.5 last:mb-0">
-            <div className="px-1.5 py-1 font-mono text-[10px] tracking-widest text-ink-dim uppercase">
+            <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
               {category}
             </div>
             <div className="grid grid-cols-2 gap-1">
@@ -256,6 +278,7 @@ export function DrawingToolbar({
   onResetView: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
 
   return (
@@ -268,7 +291,8 @@ export function DrawingToolbar({
       >
         <MountBracket side="left" />
         <MountBracket side="right" />
-        <DripEdge />
+        <CollapseHandle collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
+        {!collapsed && <DripEdge />}
 
         <div className="relative flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
           <button
@@ -289,7 +313,7 @@ export function DrawingToolbar({
             }`}
           >
             <BrushIcon />
-            <span className="stencil-cut-sm hidden sm:inline">{activeBrushLabel}</span>
+            <span className="hidden sm:inline">{activeBrushLabel}</span>
             <ChevronUpIcon />
           </button>
           {pickerOpen && (
@@ -312,7 +336,7 @@ export function DrawingToolbar({
             }`}
           >
             <EraserIcon />
-            <span className="stencil-cut-sm hidden sm:inline">Erase</span>
+            <span className="hidden sm:inline">Erase</span>
           </button>
           <button
             type="button"
@@ -338,7 +362,9 @@ export function DrawingToolbar({
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        {!collapsed && (
+        <>
+        <div className="flex items-center gap-2">
           {SWATCHES.map((sw) => (
             <button
               key={sw}
@@ -349,8 +375,10 @@ export function DrawingToolbar({
               }}
               aria-label={`color ${sw}`}
               aria-pressed={color === sw}
-              className={`relative h-6 w-6 rounded-full ring-1 ring-black/40 transition ${
-                color === sw ? "ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised" : ""
+              className={`relative shrink-0 rounded-full ring-1 ring-black/40 transition-all ${
+                color === sw
+                  ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                  : "h-6 w-6"
               }`}
               style={{
                 background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sw} 100%, white 35%), ${sw} 60%)`,
@@ -358,8 +386,10 @@ export function DrawingToolbar({
             />
           ))}
           <label
-            className={`relative h-6 w-6 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition ${
-              !SWATCHES.includes(color) ? "ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised" : ""
+            className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
+              !SWATCHES.includes(color)
+                ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                : "h-6 w-6"
             }`}
             title="Custom color"
             style={{
@@ -389,7 +419,7 @@ export function DrawingToolbar({
         <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <RulerIcon />
-            <span className="font-mono text-[10px] tracking-widest uppercase">Size</span>
+            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Size</span>
           </span>
           <input
             type="range"
@@ -406,7 +436,7 @@ export function DrawingToolbar({
         <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <DropletIcon />
-            <span className="font-mono text-[10px] tracking-widest uppercase">Opacity</span>
+            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Opacity</span>
           </span>
           <input
             type="range"
@@ -450,6 +480,8 @@ export function DrawingToolbar({
             <ResetIcon />
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

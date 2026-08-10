@@ -11,7 +11,7 @@
   --rust: #b5502c;
   --concrete: #b7b0a1;
   --ink: #f5f1e6;
-  --ink-dim: #b8b3a6;
+  --ink-dim: #cdc7b8;
   --accent-crimson: #e0432b;
   --accent-crimson-deep: #b8371f;
   --accent-green: #39c07a;
@@ -31,7 +31,7 @@
   --chrome-bg-recessed: #d8d3c4;
   --chrome-border: #a89f8c;
   --ink: #201d18;
-  --ink-dim: #62594a;
+  --ink-dim: #4d4536;
 }
 
 @theme inline {
@@ -75,18 +75,19 @@ body {
   outline-offset: 2px;
 }
 
+button:not(:disabled),
+label:has(input[type="color"]) {
+  cursor: pointer;
+}
+
 /*
  * Real stencil-plate construction: the horizontal "bridges" a physical
  * stencil needs so cut letterforms (O, A, B...) don't fall apart. Applied as
- * a mask, not a decorative font, so the wordmark/numerals stay legible at
- * any size instead of costuming as a novelty stencil typeface.
+ * a mask, not a decorative font. Wordmark-only: a smaller variant applied to
+ * toolbar labels and numerals hurt legibility in testing (twice) and was
+ * removed from everywhere except this one large, static piece of text.
  */
 .stencil-cut {
   -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 6px, transparent 6px 8px);
   mask-image: repeating-linear-gradient(180deg, #000 0 6px, transparent 6px 8px);
-}
-
-.stencil-cut-sm {
-  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px);
-  mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px);
 }

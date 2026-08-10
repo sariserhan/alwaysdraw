@@ -12,7 +12,7 @@ colors:
   rust: "#b5502c"
   concrete: "#b7b0a1"
   ink: "#f5f1e6"
-  ink-dim: "#b8b3a6"
+  ink-dim: "#cdc7b8"
   accent-crimson: "#e0432b"
   accent-crimson-deep: "#b8371f"
   accent-green: "#39c07a"
@@ -119,7 +119,7 @@ Dark is the committed default — a deliberate scene (an underpass at night), no
 | Chrome Recessed | `#101112` | `#d8d3c4` |
 | Steel Border | `#3a3530` | `#a89f8c` |
 | Stencil Ink | `#f5f1e6` | `#201d18` |
-| Ink Dim | `#b8b3a6` | `#62594a` |
+| Ink Dim | `#cdc7b8` | `#4d4536` |
 
 **The Wall Doesn't Change Rule.** Theme only ever swaps chrome (steel/text). The Concrete canvas, Rust, and the four spray-paint accents are the same in both themes — the shared wall is one object regardless of what time of day you're looking at your own screen in.
 
@@ -136,13 +136,14 @@ Dark is the committed default — a deliberate scene (an underpass at night), no
 **Character:** A technical, slightly industrial grotesk paired with a mechanical mono — the same pairing an equipment placard or shipping-crate stencil would use. Space Grotesk carries every word; Space Mono is reserved strictly for things that count or measure.
 
 ### Hierarchy
-- **Wordmark** (700, 0.875rem / 14px, tracked 0.22em, uppercase, stencil-cut): the "AlwaysDraw" mark in the top bar — the only place the stencil-bridge mask is used.
-- **Label** (600, 0.75rem / 12px, uppercase, tracked wide, stencil-cut-sm on Space Grotesk words only): tool button labels (Brush/Erase), the "Size" caption, status pill captions ("live"/"online").
+- **Wordmark** (700, 0.875rem / 14px, tracked 0.22em, uppercase, stencil-cut): the "AlwaysDraw" mark in the top bar — the only place the stencil-bridge mask is used, anywhere, at any size.
+- **Label** (600 / 700, 0.6875–0.75rem / 11–12px, uppercase, tracked wide, plain — no mask): tool button labels (Brush/Erase/Pan/Zoom), the "Size"/"Opacity" captions, brush-picker category headers, status pill captions ("live"/"online").
 - **Measurement** (400, 0.75rem / 12px, Space Mono, tabular-nums, plain — no mask): every live number — online count, zoom percentage, brush-size value.
 
 ### Named Rules
 **The Numerals-Are-Instruments Rule.** Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono, always plain. Static UI words never use Space Mono.
-**The Mask-Needs-Mass Rule.** The stencil-cut bridge mask only goes on bold Space Grotesk letterforms (the wordmark, short labels) thick enough to survive a cut. Thin monospace digit strokes broke visibly under it in testing — numerals stay unmasked so the live counts stay instantly legible.
+**The Wordmark-Only Mask Rule.** The stencil-cut bridge mask is applied to exactly one element: the top-bar wordmark. It was tried on toolbar labels at a smaller scale twice — once on live numerals, once on the Brush/Erase tool labels — and broke legibility both times; real users could not read it. A mask that fails at every size except one isn't a scalable device, it's a single decoration, and this file now treats it as such.
+**The Legible-Secondary-Text Rule.** Secondary/inactive text (`--ink-dim`) must hold real contrast, not just pass a ratio check — the token was pushed further from its background in both themes (dark: lighter, `#b8b3a6`→`#cdc7b8`; light: darker, `#62594a`→`#4d4536`) after users reported toolbar captions unreadable even though the prior values cleared 4.5:1. Small, thin, wide-tracked mono/grotesk text needs contrast headroom beyond the legal minimum.
 
 ## Layout
 
@@ -181,16 +182,20 @@ Additional signature geometry: small teardrop drip shapes hanging from the toolb
 - **Indicator:** a 6px dot with a matching `0 0 6px` color glow — green for live/online, yellow (pulsing) for reconnecting.
 
 ### The Toolbar (signature component)
-The system's one distinctive custom component. A rectilinear rack (`rounded-sm`, 2px border, `ring-1 ring-rust/25` inset accent) mounted to the bottom edge via two small square bracket tabs at its top-left/top-right corners, each carrying a rivet. A row of teardrop drip shapes hangs from its bottom edge. Internally, left to right: a bordered four-tool group (Brush/Erase/Pan/Zoom), seven fixed spray-cap color swatches plus a rainbow-conic custom-color picker, a ruler-icon Size control, a droplet-icon Opacity control, and a zoom%/reset cluster — all Space Mono for the live numbers, Space Grotesk labels for everything else.
+The system's one distinctive custom component. A rectilinear rack (`rounded-sm`, 2px border, `ring-1 ring-rust/25` inset accent) mounted to the bottom edge via two small square bracket tabs at its top-left/top-right corners, each carrying a rivet, plus a third top-center tab as a collapse handle (chevron icon). Internally, left to right: a bordered four-tool group (Brush/Erase/Pan/Zoom), seven fixed spray-cap color swatches plus a rainbow-conic custom-color picker, a ruler-icon Size control, a droplet-icon Opacity control, and a zoom%/reset cluster — all Space Mono for the live numbers, Space Grotesk labels for everything else. Collapsing (the top-center handle) hides everything but the four-tool group, for when the rack is taking up too much of a small screen; a row of teardrop drip shapes hangs from the bottom edge only while expanded.
+- **Selected-state rule:** the active color swatch and active custom-color ring grow from 24px to 32px (not just a ring change) — a same-size selection ring alone tested as too subtle to notice at a glance; size change is the primary signal, the yellow ring is secondary confirmation.
 
 ### Brush Picker (signature component)
 Tapping the active Brush tool (when it's already selected) opens a popover above the rack — same rectilinear-rack language (`rounded-sm`, 2px border, Chrome Raised) as the toolbar itself, not a separate floating card. Twelve brushes grouped under three plain category captions (Basic, Artistic, Effects) matching the product's own catalog, each a two-column grid of text buttons using the same active/inactive treatment as every other button (Deep Crimson fill + On-Accent text when selected). Selecting a brush also switches the active tool to Brush, so picking a texture and drawing with it is one motion, not two.
 
 ### Pan & Zoom Tools
-Two explicit modes alongside Brush/Erase, for touch users (and anyone who'd rather not learn space-drag or pinch): Pan turns any single-pointer drag into a camera pan; Zoom turns a vertical drag into a zoom anchored at the press point (drag up = in, down = out). Both suppress drawing entirely while active — they are camera tools, not brush variants. The canvas cursor reflects the active tool (grab/grabbing for Pan, a vertical resize cursor for Zoom, crosshair otherwise), since a bolted rack with unlabeled hand/magnifier icons needs the cursor to confirm the mode.
+Two explicit modes alongside Brush/Erase, for touch users (and anyone who'd rather not learn space-drag or pinch): Pan turns any single-pointer drag into a camera pan; Zoom turns a vertical drag into a zoom anchored at the press point (drag up = in, down = out). Both suppress drawing entirely while active — they are camera tools, not brush variants. The canvas cursor reflects the active tool: grab/grabbing for Pan, a vertical resize cursor for Zoom, and the custom Brush Cursor (below) for Brush/Erase — the browser's own arrow cursor never appears over the canvas.
+
+### Brush Cursor (signature component)
+The OS cursor is hidden over the canvas whenever Brush or Erase is active; a custom overlay takes its place, rendered at the brush's real on-screen diameter (`brushWidth × zoom`, in screen pixels — not a fixed icon size), so a visitor always sees exactly how much of the shared wall their next stroke or erase will affect before they commit to it. A translucent color-tinted ring plus a small solid center dot for most brushes; per-brush variants read the same identity the brush renders with — square for Pixel, a rotated ellipse for Calligraphy, a dashed ring for the grainy brushes (Chalk/Charcoal), a soft blurred ring for Watercolor/Highlighter, a glow (`box-shadow`) for Neon Glow, a small authored sparkle mark for Glitter, and a neutral ring with an authored × mark (not the color) for Erase, since erasing has no "color" of its own. Position/size update via direct DOM style writes on every pointer move and on every camera-zoom frame — too high-frequency for React state — while shape/color are ordinary props that only change when the toolbar selection changes.
 
 ### Remote Cursors
-- **Style:** a small SVG paint-drip (teardrop) shape, not a plain circle or arrow — each remote visitor's cursor is colored by hashing their anonymous client ID against the four-color accent set, so different visitors read as visibly different "spray cans" on the wall.
+- **Style:** a small SVG paint-drip (teardrop) shape, not a plain circle or arrow — each remote visitor's cursor is colored by hashing their anonymous client ID against the four-color accent set, so different visitors read as visibly different "spray cans" on the wall. (Distinct from the Brush Cursor above, which represents your own tool, not another visitor.)
 
 ### Canvas Ground
 - **Style:** a flat Concrete fill with a 1px Rust-colored border along the world edge. Deliberately plain — no grid, crack, seam, or grain texture. This was tried (a poured-slab expansion-joint grid plus hairline cracks) and pulled after real use: the texture visually competed with the strokes people actually draw, which defeats the point of a drawing surface. The strokes are the only visual complexity the ground carries.
@@ -201,7 +206,7 @@ Two explicit modes alongside Brush/Erase, for touch users (and anyone who'd rath
 
 ### Do:
 - **Do** keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.
-- **Do** apply the stencil-cut mask (`.stencil-cut` / `.stencil-cut-sm`) only to bold Space Grotesk words (the wordmark, short labels) — never to numerals, body prose, or anything set in Space Mono.
+- **Do** keep the stencil-cut mask confined to the wordmark alone — it was tried at smaller scale twice and hurt legibility both times; treat it as a one-off identity mark, not a reusable texture.
 - **Do** give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it; a panel with none of the three will read as a floating card.
 - **Do** reserve fully circular shapes for hardware/indicators (rivets, caps, dots, cursors); keep panels and buttons rectilinear at the `2px` radius.
 - **Do** author any new texture (grain, wear, damage) as explicit, deterministic vector geometry — polylines, filled shapes, gradients along a path — never a repeating/random noise pattern.
