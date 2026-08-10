@@ -66,7 +66,19 @@ export function HelpModal({ locale = "en" }: HelpModalProps) {
           </div>
 
           {/* Feature Showcase Body */}
-          <div className="mt-4 space-y-3 font-mono text-xs text-ink-dim leading-relaxed max-h-[62vh] overflow-y-auto pr-1">
+          <div className="mt-4 space-y-3.5 font-mono text-xs text-ink-dim leading-relaxed max-h-[62vh] overflow-y-auto pr-1">
+            {/* Introductory Overview Card (What, How & Who) */}
+            <div className="rounded border border-rust/60 bg-chrome-bg-raised/90 p-3 shadow-inner">
+              <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1.5">
+                {tHelp.introTitle}
+              </h3>
+              <p className="text-[11px] text-ink leading-relaxed mb-2">
+                {tHelp.introDesc1}
+              </p>
+              <p className="text-[11px] text-ink-dim leading-relaxed">
+                {tHelp.introDesc2}
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               <div className="rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2.5">
                 <h3 className="font-display text-xs font-bold text-accent-yellow uppercase tracking-wide mb-1">
