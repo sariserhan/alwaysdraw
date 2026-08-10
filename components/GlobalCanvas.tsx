@@ -244,34 +244,6 @@ export function GlobalCanvas() {
     }
   }, []);
 
-  const handleCommitText = useCallback(() => {
-    if (!textInputPos || !textInputText.trim()) {
-      setTextInputPos(null);
-      setTextInputText("");
-      return;
-    }
-
-    const pts = convertTextToPoints(textInputText, textInputPos.world, textSize, textStyle);
-    if (pts.length >= 2) {
-      const buffer = new StrokeBuffer(
-        clientId,
-        "draw",
-        "brush",
-        color,
-        brushWidth,
-        opacity,
-        username,
-        countryCode,
-        commitOwnChunk,
-      );
-      for (const p of pts) buffer.addPoint(p);
-      buffer.flush();
-      scheduleRedraw({ strokes: true });
-    }
-    setTextInputPos(null);
-    setTextInputText("");
-  }, [textInputPos, textInputText, textSize, textStyle, clientId, color, brushWidth, opacity, username, countryCode, commitOwnChunk, scheduleRedraw]);
-
   const handleStartImagePlacement = useCallback((file: File, url: string, aspectRatio: number) => {
     const initialWidth = 400;
     const initialHeight = Math.round(initialWidth / aspectRatio);
@@ -1073,6 +1045,34 @@ export function GlobalCanvas() {
     setImagePlacement(null);
     scheduleRedraw({ world: true, strokes: true });
   }, [rollbackClient, adminPasscode, scheduleRedraw]);
+
+  const handleCommitText = useCallback(() => {
+    if (!textInputPos || !textInputText.trim()) {
+      setTextInputPos(null);
+      setTextInputText("");
+      return;
+    }
+
+    const pts = convertTextToPoints(textInputText, textInputPos.world, textSize, textStyle);
+    if (pts.length >= 2) {
+      const buffer = new StrokeBuffer(
+        clientId,
+        "draw",
+        "brush",
+        color,
+        brushWidth,
+        opacity,
+        username,
+        countryCode,
+        commitOwnChunk,
+      );
+      for (const p of pts) buffer.addPoint(p);
+      buffer.finish();
+      scheduleRedraw({ strokes: true });
+    }
+    setTextInputPos(null);
+    setTextInputText("");
+  }, [textInputPos, textInputText, textSize, textStyle, clientId, color, brushWidth, opacity, username, countryCode, commitOwnChunk, scheduleRedraw]);
 
   useEffect(() => {
     if (!submitError) return;
