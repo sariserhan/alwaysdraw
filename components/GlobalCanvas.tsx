@@ -58,6 +58,7 @@ import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
+import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
@@ -128,6 +129,7 @@ export function GlobalCanvas() {
   const initialCamera =
     parseCameraFromSearch(window.location.search) ?? defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
   const cameraRef = useRef<Camera>(initialCamera);
+  const [cameraState, setCameraState] = useState<Camera>(initialCamera);
   const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportRef = useRef({ width: 0, height: 0 });
 
@@ -171,8 +173,11 @@ export function GlobalCanvas() {
     }
     return "";
   });
+  const [imagePlacement, setImagePlacement] = useState<AdminImagePlacement | null>(null);
+  const [isStampingImage, setIsStampingImage] = useState(false);
 
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
+  const rollbackClient = useMutation(api.admin.rollbackClient);
 
   const handleAuthenticateAdmin = useCallback(async (passcode: string): Promise<boolean> => {
     const isValid = await verifyAdminPasscode({ passcode });
@@ -189,9 +194,25 @@ export function GlobalCanvas() {
   const handleLogoutAdmin = useCallback(() => {
     setAdminPasscode("");
     setAdminOpen(false);
+    setImagePlacement(null);
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("alwaysdraw_admin_passcode");
     }
+  }, []);
+
+  const handleStartImagePlacement = useCallback((file: File, url: string, aspectRatio: number) => {
+    setCameraState({ ...cameraRef.current });
+    const initialWidth = 400;
+    const initialHeight = Math.round(initialWidth / aspectRatio);
+    setImagePlacement({
+      file,
+      url,
+      worldX: Math.round(cameraRef.current.x),
+      worldY: Math.round(cameraRef.current.y),
+      width: initialWidth,
+      height: initialHeight,
+      aspectRatio,
+    });
   }, []);
   const [locale, setLocale] = useState<Locale>(() => {
     if (typeof window !== "undefined") {
@@ -852,6 +873,116 @@ export function GlobalCanvas() {
     [scheduleRedraw, submitStroke],
   );
 
+  const handleConfirmStampImage = useCallback(async () => {
+    if (!imagePlacement) return;
+    setIsStampingImage(true);
+
+    try {
+      const img = new Image();
+      img.src = imagePlacement.url;
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+      });
+
+      const canvas = document.createElement("canvas");
+      const maxDim = 70;
+      let targetW = img.width;
+      let targetH = img.height;
+
+      if (targetW > maxDim || targetH > maxDim) {
+        if (targetW > targetH) {
+          targetH = Math.round((targetH / targetW) * maxDim);
+          targetW = maxDim;
+        } else {
+          targetW = Math.round((targetW / targetH) * maxDim);
+          targetW = maxDim;
+        }
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
+
+      const pixelSize = imagePlacement.width / targetW;
+      const halfW = imagePlacement.width / 2;
+      const halfH = (imagePlacement.width * (targetH / targetW)) / 2;
+
+      const pointsByColor = new Map<string, { points: Point[]; opacity: number }>();
+
+      for (let y = 0; y < targetH; y++) {
+        for (let x = 0; x < targetW; x++) {
+          const idx = (y * targetW + x) * 4;
+          const r = imgData[idx];
+          const g = imgData[idx + 1];
+          const b = imgData[idx + 2];
+          const a = imgData[idx + 3] / 255;
+
+          if (a < 0.1) continue;
+
+          const qR = Math.round(r / 8) * 8;
+          const qG = Math.round(g / 8) * 8;
+          const qB = Math.round(b / 8) * 8;
+          const colorHex = `#${((1 << 24) + (Math.min(255, qR) << 16) + (Math.min(255, qG) << 8) + Math.min(255, qB)).toString(16).slice(1)}`;
+          const px = Math.round(imagePlacement.worldX - halfW + x * pixelSize + pixelSize / 2);
+          const py = Math.round(imagePlacement.worldY - halfH + y * pixelSize + pixelSize / 2);
+
+          const existing = pointsByColor.get(colorHex);
+          if (existing) {
+            existing.points.push({ x: px, y: py });
+          } else {
+            pointsByColor.set(colorHex, {
+              points: [{ x: px, y: py }],
+              opacity: Math.max(0.1, Math.min(1, Math.round(a * 100) / 100)),
+            });
+          }
+        }
+      }
+
+      const batchTasks: Promise<unknown>[] = [];
+      let totalPixels = 0;
+
+      for (const [color, { points, opacity }] of pointsByColor.entries()) {
+        totalPixels += points.length;
+        for (let i = 0; i < points.length; i += 90) {
+          const chunk = points.slice(i, i + 90);
+          const clientStrokeId = `admin-img-${Date.now()}-${totalPixels}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+          batchTasks.push(
+            submitStroke({
+              clientStrokeId,
+              clientId: "ADMIN_IMAGE_STAMPER",
+              mode: "draw",
+              brushType: "pixel",
+              color,
+              width: Math.max(3, Math.round(pixelSize)),
+              opacity,
+              points: chunk,
+              clientTimestamp: Date.now(),
+            }),
+          );
+        }
+      }
+
+      await Promise.all(batchTasks);
+      setImagePlacement(null);
+      scheduleRedraw({ world: true, strokes: true });
+    } finally {
+      setIsStampingImage(false);
+    }
+  }, [imagePlacement, submitStroke, scheduleRedraw]);
+
+  const handlePurgeAllStampedImages = useCallback(async () => {
+    await rollbackClient({
+      passcode: adminPasscode,
+      targetClientId: "ADMIN_IMAGE_STAMPER",
+    });
+    setImagePlacement(null);
+    scheduleRedraw({ world: true, strokes: true });
+  }, [rollbackClient, adminPasscode, scheduleRedraw]);
+
   useEffect(() => {
     if (!submitError) return;
     const id = setTimeout(() => setSubmitError(null), 4000);
@@ -1438,6 +1569,20 @@ export function GlobalCanvas() {
           />
         </aside>
 
+        {imagePlacement && (
+          <AdminImageOverlay
+            placement={imagePlacement}
+            camera={cameraState}
+            viewportWidth={viewportSize.width}
+            viewportHeight={viewportSize.height}
+            onChangePlacement={setImagePlacement}
+            onConfirmStamp={handleConfirmStampImage}
+            onCancel={() => setImagePlacement(null)}
+            onDeleteImage={() => setImagePlacement(null)}
+            isStamping={isStampingImage}
+          />
+        )}
+
         {!replayDone && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-chrome-bg/80">
             <span className="font-mono text-sm tracking-wide text-ink-dim">
@@ -1780,6 +1925,8 @@ export function GlobalCanvas() {
           authenticated={Boolean(adminPasscode)}
           passcode={adminPasscode}
           onAuthenticate={handleAuthenticateAdmin}
+          onStartImagePlacement={handleStartImagePlacement}
+          onPurgeAllStampedImages={handlePurgeAllStampedImages}
         />
       </nav>
     </div>

@@ -63,7 +63,15 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-display), system-ui, sans-serif;
+  font-family: var(--font-display), var(--font-display-ext), system-ui, sans-serif;
+}
+
+/* Unlayered, so it beats Tailwind's own @layer utilities .font-mono rule
+   regardless of source order. --font-mono-ext covers Turkish/Latin
+   Extended-A glyphs (ş ğ ı İ, etc.) missing from the latin-only base font —
+   see app/layout.tsx for why the two can't just be combined into one var. */
+.font-mono {
+  font-family: var(--font-mono), var(--font-mono-ext), monospace;
 }
 
 ::selection {

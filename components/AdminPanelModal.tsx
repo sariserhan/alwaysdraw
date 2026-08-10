@@ -11,6 +11,8 @@ export interface AdminPanelModalProps {
   authenticated: boolean;
   passcode: string;
   onAuthenticate: (passcode: string) => Promise<boolean>;
+  onStartImagePlacement: (file: File, url: string, aspectRatio: number) => void;
+  onPurgeAllStampedImages: () => Promise<void>;
 }
 
 export function AdminPanelModal({
@@ -19,6 +21,8 @@ export function AdminPanelModal({
   authenticated,
   passcode: activePasscode,
   onAuthenticate,
+  onStartImagePlacement,
+  onPurgeAllStampedImages,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -35,14 +39,6 @@ export function AdminPanelModal({
   // Broadcast state
   const [broadcastMessage, setBroadcastMessage] = useState("");
 
-  // Image Upload state
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [stampX, setStampX] = useState(10000);
-  const [stampY, setStampY] = useState(10000);
-  const [stampWidthPx, setStampWidthPx] = useState(400);
-  const [isStamping, setIsStamping] = useState(false);
-
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Mutations & Queries
@@ -50,7 +46,6 @@ export function AdminPanelModal({
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
   const clearBroadcast = useMutation(api.admin.clearBroadcast);
-  const submitStroke = useMutation(api.strokes.submit);
 
   const telemetry = useQuery(
     api.admin.getTelemetry,
@@ -84,120 +79,20 @@ export function AdminPanelModal({
     }
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    setImagePreviewUrl(URL.createObjectURL(file));
-  };
 
-  const handleStampImage = async () => {
-    if (!imageFile || !imagePreviewUrl) return;
-    setIsStamping(true);
-    setActionStatus("Processing image pixels...");
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    await new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+    });
 
-    try {
-      const img = new Image();
-      img.src = imagePreviewUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Failed to load image"));
-      });
-
-      const canvas = document.createElement("canvas");
-      const maxDim = 70; // Grid density
-      let targetW = img.width;
-      let targetH = img.height;
-
-      if (targetW > maxDim || targetH > maxDim) {
-        if (targetW > targetH) {
-          targetH = Math.round((targetH / targetW) * maxDim);
-          targetW = maxDim;
-        } else {
-          targetW = Math.round((targetW / targetH) * maxDim);
-          targetH = maxDim;
-        }
-      }
-
-      canvas.width = targetW;
-      canvas.height = targetH;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not create off-screen canvas context");
-
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
-
-      const pixelSize = stampWidthPx / targetW;
-      const halfW = stampWidthPx / 2;
-      const halfH = (stampWidthPx * (targetH / targetW)) / 2;
-
-      // Group pixel points by hex color for instant ultra-fast batch submission
-      const pointsByColor = new Map<string, { points: { x: number; y: number }[]; opacity: number }>();
-
-      for (let y = 0; y < targetH; y++) {
-        for (let x = 0; x < targetW; x++) {
-          const idx = (y * targetW + x) * 4;
-          const r = imgData[idx];
-          const g = imgData[idx + 1];
-          const b = imgData[idx + 2];
-          const a = imgData[idx + 3] / 255;
-
-          if (a < 0.1) continue;
-
-          // Quantize color slightly to group similar shades efficiently
-          const qR = Math.round(r / 8) * 8;
-          const qG = Math.round(g / 8) * 8;
-          const qB = Math.round(b / 8) * 8;
-          const colorHex = `#${((1 << 24) + (Math.min(255, qR) << 16) + (Math.min(255, qG) << 8) + Math.min(255, qB)).toString(16).slice(1)}`;
-          const px = Math.round(stampX - halfW + x * pixelSize + pixelSize / 2);
-          const py = Math.round(stampY - halfH + y * pixelSize + pixelSize / 2);
-
-          const existing = pointsByColor.get(colorHex);
-          if (existing) {
-            existing.points.push({ x: px, y: py });
-          } else {
-            pointsByColor.set(colorHex, {
-              points: [{ x: px, y: py }],
-              opacity: Math.max(0.1, Math.min(1, Math.round(a * 100) / 100)),
-            });
-          }
-        }
-      }
-
-      const batchTasks: Promise<unknown>[] = [];
-      let totalPixels = 0;
-
-      for (const [color, { points, opacity }] of pointsByColor.entries()) {
-        totalPixels += points.length;
-        // Chunk points in groups of max 90 (below MAX_POINTS_PER_STROKE = 100 limit)
-        for (let i = 0; i < points.length; i += 90) {
-          const chunk = points.slice(i, i + 90);
-          const clientStrokeId = `admin-img-${Date.now()}-${totalPixels}-${i}-${Math.random().toString(36).slice(2, 6)}`;
-          batchTasks.push(
-            submitStroke({
-              clientStrokeId,
-              clientId: "ADMIN_IMAGE_STAMPER",
-              mode: "draw",
-              brushType: "pixel",
-              color,
-              width: Math.max(3, Math.round(pixelSize)),
-              opacity,
-              points: chunk,
-              clientTimestamp: Date.now(),
-            }),
-          );
-        }
-      }
-
-      setActionStatus(`Stamping ${totalPixels} pixels across ${batchTasks.length} batched strokes...`);
-      await Promise.all(batchTasks);
-
-      setActionStatus(`Success! Stamped image (${totalPixels} pixels) onto canvas at (${stampX}, ${stampY}).`);
-    } catch (err: unknown) {
-      setActionStatus(`Error: ${err instanceof Error ? err.message : "Image stamp failed"}`);
-    } finally {
-      setIsStamping(false);
-    }
+    const aspectRatio = (img.width || 1) / (img.height || 1);
+    onStartImagePlacement(file, url, aspectRatio);
+    onClose(); // Minimize admin panel to reveal interactive placement overlay on canvas
   };
 
   const handleWipeArea = async () => {
@@ -227,6 +122,16 @@ export function AdminPanelModal({
       setActionStatus(`Success! Purged ${res.deletedCount} strokes drawn by ${targetClientId}.`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Rollback failed"}`);
+    }
+  };
+
+  const handlePurgeImages = async () => {
+    try {
+      setActionStatus("Deleting all stamped images from canvas...");
+      await onPurgeAllStampedImages();
+      setActionStatus("Success! All stamped images deleted from canvas.");
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Purge failed"}`);
     }
   };
 
@@ -451,63 +356,30 @@ export function AdminPanelModal({
           {activeTab === "image" && (
             <div className="flex flex-col gap-3 text-left font-mono text-xs">
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
-                <span className="font-bold text-accent-yellow uppercase">🖼️ Image Upload &amp; Stamp</span>
+                <span className="font-bold text-accent-yellow uppercase">🖼️ Interactive Image Placement</span>
+                <p className="text-[10px] text-ink-dim">
+                  Select an image to place directly on the canvas. Drag to move, pull corner handle to resize, then click Stamp!
+                </p>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
                   className="block w-full text-xs text-ink file:mr-2 file:rounded file:border file:border-rust file:bg-rust file:px-2 file:py-1 file:text-xs file:font-bold file:text-on-accent hover:file:brightness-110"
                 />
+              </div>
 
-                {imagePreviewUrl && (
-                  <div className="flex flex-col gap-2 mt-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imagePreviewUrl}
-                      alt="Stamp Preview"
-                      className="h-28 w-full rounded border border-chrome-border object-contain bg-black/40"
-                    />
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[10px] text-ink-dim">Stamp X</label>
-                        <input
-                          type="number"
-                          value={stampX}
-                          onChange={(e) => setStampX(Number(e.target.value))}
-                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-ink-dim">Stamp Y</label>
-                        <input
-                          type="number"
-                          value={stampY}
-                          onChange={(e) => setStampY(Number(e.target.value))}
-                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-ink-dim">Width (px)</label>
-                        <input
-                          type="number"
-                          value={stampWidthPx}
-                          onChange={(e) => setStampWidthPx(Number(e.target.value))}
-                          className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={isStamping}
-                      onClick={handleStampImage}
-                      className="mt-1 rounded border-2 border-rust bg-rust px-3 py-2 font-bold text-on-accent hover:brightness-110 disabled:opacity-50"
-                    >
-                      {isStamping ? "STAMPING IMAGE..." : "🖼️ STAMP IMAGE ONTO CANVAS"}
-                    </button>
-                  </div>
-                )}
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-crimson uppercase">🗑️ Purge Stamped Images</span>
+                <p className="text-[10px] text-ink-dim">
+                  Remove all image stamps previously placed on the canvas by Admin.
+                </p>
+                <button
+                  type="button"
+                  onClick={handlePurgeImages}
+                  className="rounded border border-accent-crimson bg-accent-crimson/20 px-3 py-1.5 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent transition-all"
+                >
+                  DELETE ALL STAMPED IMAGES
+                </button>
               </div>
             </div>
           )}

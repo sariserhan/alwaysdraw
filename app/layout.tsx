@@ -12,6 +12,11 @@ const spaceGrotesk = localFont({
   ],
   variable: "--font-display",
   display: "swap",
+  // No bundled system-metric fallback: it would sit right after the real
+  // font in --font-display and, for a glyph missing from the latin-only
+  // file (e.g. Turkish ş/ğ/ı), the browser would grab that generic system
+  // font before ever reaching --font-display-ext below. See spaceGroteskExt.
+  adjustFontFallback: false,
 });
 
 const spaceMono = localFont({
@@ -20,6 +25,32 @@ const spaceMono = localFont({
     { path: "../node_modules/@fontsource/space-mono/files/space-mono-latin-700-normal.woff2", weight: "700" },
   ],
   variable: "--font-mono",
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+// latin-only Space Grotesk/Mono lack Turkish (ş ğ ı İ), Vietnamese, and other
+// Latin Extended-A characters, so those glyphs were silently falling back to
+// a generic system font mid-word — same typeface everywhere except those
+// specific letters. These latin-ext files (already in @fontsource, just not
+// wired up) cover the gap; globals.css chains them in right after the base
+// font so a missing glyph tries this before any generic fallback.
+const spaceGroteskExt = localFont({
+  src: [
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-ext-500-normal.woff2", weight: "500" },
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-ext-600-normal.woff2", weight: "600" },
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-ext-700-normal.woff2", weight: "700" },
+  ],
+  variable: "--font-display-ext",
+  display: "swap",
+});
+
+const spaceMonoExt = localFont({
+  src: [
+    { path: "../node_modules/@fontsource/space-mono/files/space-mono-latin-ext-400-normal.woff2", weight: "400" },
+    { path: "../node_modules/@fontsource/space-mono/files/space-mono-latin-ext-700-normal.woff2", weight: "700" },
+  ],
+  variable: "--font-mono-ext",
   display: "swap",
 });
 
@@ -136,7 +167,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full overscroll-none antialiased`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${spaceGroteskExt.variable} ${spaceMonoExt.variable} h-full overscroll-none antialiased`}
       suppressHydrationWarning
     >
       <head>
