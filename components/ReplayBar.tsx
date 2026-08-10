@@ -25,6 +25,7 @@ export interface TimeTravelMenuProps {
   onSelectRegion: () => void;
   onClearRegion: () => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
 const SPEEDS = [1, 5, 20, 100];
@@ -46,6 +47,7 @@ export function TimeTravelMenu({
   onSelectRegion,
   onClearRegion,
   locale,
+  iconOnly = false,
 }: TimeTravelMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -83,21 +85,21 @@ export function TimeTravelMenu({
 
   const handleToggle = () => {
     if (!isOpen) {
-      if (!isReplayMode) onEnterReplay();
+      if (!isReplayMode) {
+        onEnterReplay();
+      }
       if (buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
         if (window.innerWidth >= 1360) {
-          const top = Math.max(12, Math.min(rect.top, window.innerHeight - 380));
+          const top = Math.max(12, Math.min(rect.top, window.innerHeight - 360));
           const right = window.innerWidth - rect.left + 12;
           setCoords({ top, right });
         } else {
           setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
         }
       }
-      setIsOpen(true);
-    } else {
-      setIsOpen(false);
     }
+    setIsOpen((prev) => !prev);
   };
 
   const handleExit = () => {
@@ -116,7 +118,11 @@ export function TimeTravelMenu({
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isReplayMode || isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -125,11 +131,11 @@ export function TimeTravelMenu({
         aria-label={t(locale, "history_replay")}
         aria-expanded={isOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow shrink-0">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
           <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <span>{t(locale, "timetravel").toUpperCase()}</span>
+        {!iconOnly && <span>{t(locale, "timetravel").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

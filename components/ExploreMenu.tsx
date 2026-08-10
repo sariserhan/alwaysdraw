@@ -14,6 +14,7 @@ export interface ExploreMenuProps {
   getLatestActivityPoint: () => Point | null;
   onlineCount: number;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
 const FALLBACK_CENTER: Point = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
@@ -25,6 +26,7 @@ export function ExploreMenu({
   getLatestActivityPoint,
   onlineCount,
   locale,
+  iconOnly = false,
 }: ExploreMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -85,7 +87,11 @@ export function ExploreMenu({
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -94,11 +100,11 @@ export function ExploreMenu({
         aria-label={t(locale, "explore_wall_title")}
         aria-expanded={isOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-blue">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-blue shrink-0">
           <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
           <path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="1.5" />
         </svg>
-        <span>{t(locale, "explore").toUpperCase()}</span>
+        {!iconOnly && <span>{t(locale, "explore").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

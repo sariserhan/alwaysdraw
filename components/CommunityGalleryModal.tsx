@@ -15,9 +15,10 @@ export interface CommunityGalleryModalProps {
   username: string | undefined;
   onTeleport: (pt: Point, zoom: number, label: string) => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
-export function CommunityGalleryModal({ clientId, username, onTeleport, locale }: CommunityGalleryModalProps) {
+export function CommunityGalleryModal({ clientId, username, onTeleport, locale, iconOnly = false }: CommunityGalleryModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<Id<"bookmarks"> | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
@@ -148,12 +149,16 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale }
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2.5 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
+        className={`flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/90 text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        }`}
         title={t(locale, "gallery_title")}
         aria-label={t(locale, "gallery_title")}
       >
-        <span>🏆</span>
-        <span>{t(locale, "gallery").toUpperCase()}</span>
+        <span>🖼️</span>
+        {!iconOnly && <span>{t(locale, "gallery").toUpperCase()}</span>}
       </button>
 
       {modalMarkup && createPortal(modalMarkup, document.body)}

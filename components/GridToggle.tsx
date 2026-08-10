@@ -10,9 +10,10 @@ export interface GridToggleProps {
   config: GridConfig;
   onChange: (config: GridConfig) => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
-export function GridToggle({ config, onChange, locale }: GridToggleProps) {
+export function GridToggle({ config, onChange, locale, iconOnly = false }: GridToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -85,7 +86,11 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isOpen || config.mode !== "none"
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -94,15 +99,16 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
         aria-label={t(locale, "grid_title")}
         aria-expanded={isOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-current">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-current shrink-0">
           <path
             d="M3 3h18v18H3V3zm6 0v18M15 3v18M3 9h18M3 15h18"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="2"
             strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
-        <span>{t(locale, "grid").toUpperCase()}</span>
+        {!iconOnly && <span>{t(locale, "grid").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

@@ -33,7 +33,6 @@
 
 ## 🪄 3. Special Creative Tools
 
-- **Flood Fill Bucket (`F`):** Tap any area to generate dense spiral fill strokes in your active color.
 - **Architectural Ruler (`R`):** Measure distance (in canvas world units) between any two points with dynamic screen-space guides.
 - **Industrial Stencil Sprayer (`T`):** Spray industrial stencil art (Biohazard, Crown, Skull) onto the canvas.
 - **Laser Pointer (`L`):** Temporary glowing laser trail that fades away after 2 seconds.
@@ -101,10 +100,6 @@
 - **Normalized Glyph Maps:** Contains normalized stroke polyline paths ($[0..1] \times [0..1]$) for every letter in the alphabet, numbers, and symbols (`GLYPHS`).
 - **Path Generation (`convertTextToStrokePaths`):** Translates input text string into world-coordinate vector paths (`Point[][]`), scaling by selected font size (`textSize`) and adding letter/line spacing.
 - **Zero Zig-Zag Webbing:** Each letter path is flushed as separate continuous stroke lines via `StrokeBuffer`, preventing cross-line artifacts and producing sharp, crisp vector text across all clients.
-
-### 9.5 Flood Fill Engine (`lib/floodFill.ts`)
-- **Spiral Fill Generator:** `generateFloodFillPoints` calculates an expanding spiral path originating from target click coordinates $(X_0, Y_0)$ with radial step spacing.
-- **Server Persistence:** The generated spiral points are submitted as standard stroke mutations, allowing filled areas to be stored, tile-indexed, snapshot-cached, and synced across players.
 
 ### 9.6 Deterministic Brush Texture Rendering (`lib/brushes.ts`)
 - **Flicker-Free Textures:** Texture grain and scatter (for Chalk, Charcoal, Oil Paint, Glitter, and Neon Glow) are generated using a deterministic integer hash function (`hash(seed)` and `pointSeed(point, salt)`) seeded by world coordinates.

@@ -46,6 +46,5 @@ export type Tool =
   | "laser"
   | "eyedropper"
   | "text"
-  | "fill"
   | "comment"
   | "region";

@@ -177,15 +177,6 @@ function TextIcon() {
   );
 }
 
-function BucketIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="m19 11-8-8-8.5 8.5a3 3 0 0 0 0 4.24l2.83 2.83a3 3 0 0 0 4.24 0L18 10zM14 6l4 4" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M22 19a2 2 0 1 1-4 0c0-1.5 2-3 2-3s2 1.5 2 3z" fill="currentColor" />
-    </svg>
-  );
-}
-
 function CommentIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -762,17 +753,6 @@ export function DrawingToolbar({
             }`}
           >
             <TextIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange("fill")}
-            aria-pressed={tool === "fill"}
-            title="Flood Fill Bucket (F)"
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "fill" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <BucketIcon />
           </button>
           <button
             type="button"

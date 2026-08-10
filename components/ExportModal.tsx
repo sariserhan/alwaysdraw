@@ -21,6 +21,7 @@ export interface ExportModalProps {
    * cropped to strokes in this region with a camera fit to match. */
   region: WorldRect | null;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
 export function ExportModal({
@@ -33,6 +34,7 @@ export function ExportModal({
   worldHeight,
   region,
   locale,
+  iconOnly = false,
 }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -128,7 +130,11 @@ export function ExportModal({
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -137,16 +143,16 @@ export function ExportModal({
         aria-label={t(locale, "export_canvas_media")}
         aria-expanded={isOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-green">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-green shrink-0">
           <path
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
         </svg>
-        <span>{t(locale, "export").toUpperCase()}</span>
+        {!iconOnly && <span>{t(locale, "export").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

@@ -10,9 +10,10 @@ export interface UsernameControlProps {
   username: string | undefined;
   onUsernameChange: (name: string) => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
-export function UsernameControl({ username, onUsernameChange, locale }: UsernameControlProps) {
+export function UsernameControl({ username, onUsernameChange, locale, iconOnly = false }: UsernameControlProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [draft, setDraft] = useState(username ?? "");
@@ -74,7 +75,11 @@ export function UsernameControl({ username, onUsernameChange, locale }: Username
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -84,7 +89,7 @@ export function UsernameControl({ username, onUsernameChange, locale }: Username
         aria-expanded={isOpen}
       >
         <span>👤</span>
-        <span>{username ?? t(locale, "anonymous").toUpperCase()}</span>
+        {!iconOnly && <span>{username ?? t(locale, "anonymous").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

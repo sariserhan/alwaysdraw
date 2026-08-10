@@ -39,7 +39,6 @@ import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedC
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
-import { floodFillMask } from "@/lib/floodFill";
 import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
@@ -96,10 +95,6 @@ const MIN_SHAPE_DRAG = 2;
 // commitment (scopes replay/export) than starting a shape, so a stray click
 // shouldn't silently create a near-zero-area region.
 const MIN_REGION_DRAG = 20;
-const FILL_CHUNK_SIZE = 90;
-// Hard ceiling regardless of the fill's true size, so one click can't blow
-// past the per-client rate limit (STROKES_PER_CLIENT_WINDOW) on its own.
-const MAX_FILL_CHUNKS = 60;
 const HOVER_SCREEN_RADIUS_PX = 8;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
@@ -1310,80 +1305,6 @@ export function GlobalCanvas() {
     [getScreenPoint, gridConfig],
   );
 
-  const handleFloodFillAt = useCallback(
-    (worldPt: Point) => {
-      const worldCanvas = worldCanvasRef.current;
-      const strokesCanvas = canvasRef.current;
-      if (!worldCanvas || !strokesCanvas) return;
-      const { width, height } = viewportRef.current;
-      if (width === 0 || height === 0) return;
-
-      // Flood fill has to see what's actually on screen — background +
-      // committed strokes composited — not just the vector stroke data,
-      // since the boundary it respects is whatever's visibly drawn.
-      const composite = document.createElement("canvas");
-      composite.width = width;
-      composite.height = height;
-      const compositeCtx = composite.getContext("2d", { willReadFrequently: true });
-      if (!compositeCtx) return;
-      compositeCtx.drawImage(worldCanvas, 0, 0);
-      compositeCtx.drawImage(strokesCanvas, 0, 0);
-      const imageData = compositeCtx.getImageData(0, 0, width, height);
-
-      const screenSeed = worldToScreen(worldPt.x, worldPt.y, cameraRef.current, width, height);
-      const filledScreenPoints = floodFillMask(imageData, screenSeed.x, screenSeed.y, {
-        step: Math.max(2, Math.round(3 / cameraRef.current.zoom)),
-      });
-      if (filledScreenPoints.length === 0) return;
-
-      const worldPoints = filledScreenPoints.map((p) =>
-        clampToWorld(screenToWorld(p.x, p.y, cameraRef.current, width, height)),
-      );
-      const dabWidth = Math.max(3, Math.round((3 / cameraRef.current.zoom) * 1.6));
-
-      for (let i = 0; i < worldPoints.length && i < FILL_CHUNK_SIZE * MAX_FILL_CHUNKS; i += FILL_CHUNK_SIZE) {
-        const chunkPoints = worldPoints.slice(i, i + FILL_CHUNK_SIZE);
-        const tiles = getTileKeysForStroke(chunkPoints, dabWidth, WORLD_WIDTH, WORLD_HEIGHT);
-        const clientStrokeId = `${clientId}-fill-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
-        const stroke: LocalStroke = {
-          clientStrokeId,
-          clientId,
-          username,
-          countryCode,
-          mode: "draw",
-          brushType: "pixel",
-          color,
-          width: dabWidth,
-          opacity,
-          points: chunkPoints,
-          tiles,
-          clientTimestamp: Date.now(),
-        };
-        pendingRef.current.set(stroke.clientStrokeId, stroke);
-
-        submitStroke({
-          clientStrokeId: stroke.clientStrokeId,
-          clientId,
-          username: stroke.username,
-          countryCode: stroke.countryCode,
-          mode: stroke.mode,
-          brushType: stroke.brushType,
-          color: stroke.color,
-          width: stroke.width,
-          opacity: stroke.opacity,
-          points: stroke.points,
-          clientTimestamp: stroke.clientTimestamp,
-        }).catch(() => {
-          pendingRef.current.delete(stroke.clientStrokeId);
-          scheduleRedraw({ world: true, strokes: true });
-        });
-      }
-      scheduleRedraw({ world: true, strokes: true });
-    },
-    [color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
-  );
-
-
   const handleSubmitComment = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -1533,11 +1454,6 @@ export function GlobalCanvas() {
         return;
       }
 
-      if (tool === "fill") {
-        handleFloodFillAt(worldPt);
-        return;
-      }
-
       if (tool === "comment") {
         const screenPt = getScreenPoint(e.clientX, e.clientY);
         setCommentInputPos({ world: worldPt, screen: screenPt });
@@ -1592,7 +1508,6 @@ export function GlobalCanvas() {
       endDraw,
       getPointerWorld,
       getScreenPoint,
-      handleFloodFillAt,
       isReplayMode,
       scheduleRedraw,
       stampStencilAt,
@@ -1928,7 +1843,7 @@ export function GlobalCanvas() {
                   ? "cursor-default"
                   : tool === "text"
                     ? "cursor-text"
-                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "fill" || tool === "comment"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment"
                       ? "cursor-crosshair"
                       : "cursor-none"
             }`}
@@ -1971,7 +1886,7 @@ export function GlobalCanvas() {
         {sidebarCollapsed ? (
           <div
             aria-label="Canvas Tools & Controls (collapsed)"
-            className="pointer-events-auto hidden min-[1360px]:flex flex-col items-center gap-1 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
+            className="pointer-events-auto hidden min-[1360px]:flex flex-col items-center gap-1.5 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
             style={{ top: sidebarTop, maxHeight: `calc(100vh - ${sidebarTop}px - 12px)` }}
           >
             <button
@@ -1984,65 +1899,109 @@ export function GlobalCanvas() {
               ◂
             </button>
 
-            {[
-              ["Grid", "🔳"],
-              ["Username", "👤"],
-              [showComments ? "Hide Comments" : "Show Comments", showComments ? "💬" : "🚫"],
-              ["Zoom Out", "➖"],
-              ["Zoom In", "➕"],
-              ["Reset View", "↺"],
-              [showHeatmap ? "Hide Heatmap" : "Heatmap", "🔥"],
-              ["Share Link", "🔗"],
-            ].map(([label, icon]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setSidebarCollapsed(false)}
-                aria-label={`${label} (expand sidebar)`}
-                title={label}
-                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
-              >
-                {icon}
-              </button>
-            ))}
+            <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} iconOnly />
+            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} iconOnly />
+            <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} iconOnly />
+
+            <button
+              type="button"
+              onClick={() => zoomButton(1 / 1.2)}
+              aria-label="zoom out"
+              title="Zoom Out"
+              className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised font-mono text-sm font-bold text-ink hover:border-rust hover:text-accent-yellow"
+            >
+              -
+            </button>
+            <button
+              type="button"
+              onClick={() => zoomButton(1.2)}
+              aria-label="zoom in"
+              title="Zoom In"
+              className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised font-mono text-sm font-bold text-ink hover:border-rust hover:text-accent-yellow"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={resetView}
+              aria-label="reset view"
+              title={t(locale, "reset_view")}
+              className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised font-mono text-sm font-bold text-ink hover:border-rust hover:text-accent-yellow"
+            >
+              ↺
+            </button>
+
+            <HeatmapToggle showHeatmap={showHeatmap} onToggle={handleToggleHeatmap} locale={locale} iconOnly />
+            <ShareButton onShare={handleShare} locale={locale} iconOnly />
 
             <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
 
-            {[
-              ["Center", "🧭"],
-              ["Explore", "🔭"],
-              ["Bookmarks", "🔖"],
-              ["Gallery", "🖼️"],
-            ].map(([label, icon]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setSidebarCollapsed(false)}
-                aria-label={`${label} (expand sidebar)`}
-                title={label}
-                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
-              >
-                {icon}
-              </button>
-            ))}
+            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} iconOnly />
+            <ExploreMenu
+              onJumpToPoint={handleJumpToPoint}
+              getBusiestPoint={getBusiestPoint}
+              getRandomActivePoint={getRandomActivePoint}
+              getLatestActivityPoint={getLatestActivityPoint}
+              onlineCount={onlineCount ?? 1}
+              locale={locale}
+              iconOnly
+            />
+            <BookmarkMenu
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+              iconOnly
+            />
+            <CommunityGalleryModal
+              clientId={clientId}
+              username={username}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+              iconOnly
+            />
 
             <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
 
-            {[
-              ["Time Travel", "🎥"],
-              ["Export", "📤"],
-            ].map(([label, icon]) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setSidebarCollapsed(false)}
-                aria-label={`${label} (expand sidebar)`}
-                title={label}
-                className="flex h-8 w-8 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised text-base hover:border-rust hover:bg-rust/20"
-              >
-                {icon}
-              </button>
-            ))}
+            <TimeTravelMenu
+              isReplayMode={isReplayMode}
+              isPlaying={isPlayingReplay}
+              currentSequence={replaySequenceIndex}
+              minSequence={minSequence}
+              maxSequence={maxSequence}
+              playbackSpeed={playbackSpeed}
+              onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+              onSeek={(seq) => setReplaySequenceIndex(seq)}
+              onStep={(delta) =>
+                setReplaySequenceIndex((prev) =>
+                  Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                )
+              }
+              onSpeedChange={setPlaybackSpeed}
+              onExitReplay={() => {
+                setIsReplayMode(false);
+                setIsPlayingReplay(false);
+                scheduleRedraw({ world: true, strokes: true });
+              }}
+              onEnterReplay={handleEnterReplay}
+              region={replayRegion}
+              onSelectRegion={handleSelectRegion}
+              onClearRegion={handleClearRegion}
+              locale={locale}
+              iconOnly
+            />
+            <ExportModal
+              getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+              getCommittedStrokes={() => committedRef.current}
+              currentCamera={cameraSnapshot}
+              viewportWidth={viewportSize.width}
+              viewportHeight={viewportSize.height}
+              worldWidth={WORLD_WIDTH}
+              worldHeight={WORLD_HEIGHT}
+              region={replayRegion}
+              locale={locale}
+              iconOnly
+            />
           </div>
         ) : (
         <aside

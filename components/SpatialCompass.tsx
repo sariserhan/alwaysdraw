@@ -12,9 +12,10 @@ export interface SpatialCompassProps {
   camera: Camera;
   onTeleport: (pt: Point, label: string) => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
-export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassProps) {
+export function SpatialCompass({ camera, onTeleport, locale, iconOnly = false }: SpatialCompassProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -49,20 +50,18 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
     };
   }, [isOpen]);
 
-  const originX = WORLD_WIDTH / 2;
-  const originY = WORLD_HEIGHT / 2;
-
-  const dx = camera.x - originX;
-  const dy = camera.y - originY;
+  const centerX = WORLD_WIDTH / 2;
+  const centerY = WORLD_HEIGHT / 2;
+  const dx = centerX - camera.x;
+  const dy = centerY - camera.y;
   const distance = Math.round(Math.hypot(dx, dy));
-  const angleRad = Math.atan2(dy, dx);
-  const angleDeg = Math.round((angleRad * 180) / Math.PI + 90);
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
   const toggleOpen = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       if (window.innerWidth >= 1360) {
-        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 300));
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 340));
         const right = window.innerWidth - rect.left + 12;
         setCoords({ top, right });
       } else {
@@ -78,7 +77,11 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
+        className={`flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/90 text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        }`}
         title={t(locale, "compass_title")}
         aria-label={t(locale, "compass_title")}
         aria-expanded={isOpen}
@@ -89,9 +92,11 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
         >
           🧩
         </span>
-        <span className="font-mono text-xs font-bold text-accent-yellow">
-          {distance === 0 ? t(locale, "center").toUpperCase() : `${distance}px`}
-        </span>
+        {!iconOnly && (
+          <span className="font-mono text-xs font-bold text-accent-yellow">
+            {distance === 0 ? t(locale, "center").toUpperCase() : `${distance}px`}
+          </span>
+        )}
       </button>
 
       {isOpen && mounted && coords && createPortal(
@@ -110,7 +115,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
               {t(locale, "compass_title")}
             </h3>
             <p className="font-mono text-[10px] text-ink-dim">
-              Relative to Center Origin ({originX.toLocaleString()}, {originY.toLocaleString()})
+              Relative to Center Origin ({centerX.toLocaleString()}, {centerY.toLocaleString()})
             </p>
           </div>
 
@@ -125,7 +130,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
             <button
               type="button"
               onClick={() => {
-                onTeleport({ x: originX, y: 1000 }, "North Edge");
+                onTeleport({ x: centerX, y: 1000 }, "North Edge");
                 setIsOpen(false);
               }}
               className="rounded border border-chrome-border bg-chrome-bg-raised py-1 text-center font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow"
@@ -138,7 +143,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
             <button
               type="button"
               onClick={() => {
-                onTeleport({ x: 1000, y: originY }, "West Edge");
+                onTeleport({ x: 1000, y: centerY }, "West Edge");
                 setIsOpen(false);
               }}
               className="rounded border border-chrome-border bg-chrome-bg-raised py-1 text-center font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow"
@@ -150,7 +155,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
             <button
               type="button"
               onClick={() => {
-                onTeleport({ x: originX, y: originY }, "Center Origin");
+                onTeleport({ x: centerX, y: centerY }, "Center Origin");
                 setIsOpen(false);
               }}
               className="rounded border border-rust bg-rust/30 py-1 text-center font-mono text-xs font-bold text-accent-yellow hover:bg-rust/50"
@@ -162,7 +167,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
             <button
               type="button"
               onClick={() => {
-                onTeleport({ x: WORLD_WIDTH - 1000, y: originY }, "East Edge");
+                onTeleport({ x: WORLD_WIDTH - 1000, y: centerY }, "East Edge");
                 setIsOpen(false);
               }}
               className="rounded border border-chrome-border bg-chrome-bg-raised py-1 text-center font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow"
@@ -175,7 +180,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
             <button
               type="button"
               onClick={() => {
-                onTeleport({ x: originX, y: WORLD_HEIGHT - 1000 }, "South Edge");
+                onTeleport({ x: centerX, y: WORLD_HEIGHT - 1000 }, "South Edge");
                 setIsOpen(false);
               }}
               className="rounded border border-chrome-border bg-chrome-bg-raised py-1 text-center font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow"

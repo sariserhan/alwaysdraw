@@ -14,9 +14,10 @@ export interface BookmarkMenuProps {
   clientId: string;
   onTeleport: (pt: Point, zoom: number, label: string) => void;
   locale: Locale;
+  iconOnly?: boolean;
 }
 
-export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: BookmarkMenuProps) {
+export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, iconOnly = false }: BookmarkMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [titleInput, setTitleInput] = useState("");
@@ -96,7 +97,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
     }
   };
 
-  const handleCopyLink = (e: React.MouseEvent, bm: (typeof bookmarks)[number]) => {
+  const handleCopyLink = (bm: (typeof bookmarks)[number], e: React.MouseEvent) => {
     e.stopPropagation();
     const url = `${window.location.origin}${window.location.pathname}?x=${Math.round(bm.x)}&y=${Math.round(bm.y)}&z=${bm.zoom}`;
     navigator.clipboard?.writeText(url).then(() => {
@@ -111,7 +112,11 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
+        className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
+          iconOnly
+            ? "h-7 w-7 text-sm"
+            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+        } ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
@@ -120,7 +125,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
         aria-label={t(locale, "bookmarks")}
         aria-expanded={isOpen}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-yellow shrink-0">
           <path
             d="M5 3v18l7-5 7 5V3H5z"
             stroke="currentColor"
@@ -128,7 +133,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
             strokeLinejoin="round"
           />
         </svg>
-        <span>{t(locale, "bookmarks").toUpperCase()}</span>
+        {!iconOnly && <span>{t(locale, "bookmarks").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(
@@ -197,7 +202,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
 
                   <button
                     type="button"
-                    onClick={(e) => handleCopyLink(e, bm)}
+                    onClick={(e) => handleCopyLink(bm, e)}
                     className="shrink-0 rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-yellow"
                     title={t(locale, "share")}
                   >
