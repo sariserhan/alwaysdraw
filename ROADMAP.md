@@ -124,11 +124,11 @@ Goal: an effectively infinite, persistent world.
 
 Near-term, concrete, not tied to a specific numbered version:
 
-- [ ] Verify and record production deployment (public URL, deployed Git commit, Convex deployment, smoke result, and rollback target); this checkout has no tracked OpenNext/Wrangler configuration yet
+- [x] Verify production deployment — live at https://alwaysdraw.alwaysdraw.workers.dev/, `npm run smoke:production` passes, existing history replays correctly. Still open: exact deployed Git commit / Convex production deployment name / rollback target aren't recorded (see `DEPLOYMENT.md`) — Cloudflare's GitHub integration builds outside this repo, so these need recording by hand each release
 - [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
 - [x] Scale online-count reads with a cron-maintained singleton; remote cursor fan-out remains intentionally capped
 - [x] Cursor-based live catch-up shipped with sequence-cursor coverage
-- [ ] Activate Sentry/PostHog with real production project keys and verify receipt; optional privacy-safe instrumentation is implemented
+- [ ] Activate Sentry/PostHog with real production project keys and verify receipt — instrumentation is implemented and committed, but verified NOT active on the current production deployment (no Sentry/PostHog network activity found live); `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_POSTHOG_KEY` are build-time values, so this deployment predates whichever of them were just added — needs a fresh Cloudflare build, then re-verification
 - [x] Public-write guardrails: bounded identifiers, per-client/global fixed-window limits for strokes and presence, and an `ALWAYSDRAW_READ_ONLY=1` incident switch
 - [x] Browser smoke coverage for desktop/mobile plus an opt-in, non-production two-browser synchronization/reload test
 
