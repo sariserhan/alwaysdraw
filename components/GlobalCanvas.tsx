@@ -1417,13 +1417,10 @@ export function GlobalCanvas() {
           <OnlineCount count={onlineCount ?? 0} />
         </div>
 
-        {/* Desktop Controls (>= lg) — grouped into clusters (was one flat
-            12-item row) separated by a thin seam, the same panel-seam
-            language ChromeRivet/DripEdge already use elsewhere, rather than
-            wrapping each already-self-bordered chip in a second border. */}
+        {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
         <div className="hidden lg:flex items-center gap-3 pr-4">
-          {/* Preferences: how the app looks/sounds to you */}
-          <div className="flex items-center gap-2">
+          {/* Cluster 1: View & Display */}
+          <div className="flex items-center gap-2" title="View & Display Settings">
             <LanguagePicker
               currentLocale={locale}
               onLocaleChange={(loc) => {
@@ -1437,8 +1434,8 @@ export function GlobalCanvas() {
 
           <HeaderSeam />
 
-          {/* Discover: take me somewhere on the wall */}
-          <div className="flex items-center gap-2">
+          {/* Cluster 2: Spatial Navigation */}
+          <div className="flex items-center gap-2" title="Spatial Navigation & Teleportation">
             <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
             <ExploreMenu
               onJumpToPoint={handleJumpToPoint}
@@ -1456,8 +1453,8 @@ export function GlobalCanvas() {
 
           <HeaderSeam />
 
-          {/* History & export: do something with the wall's data */}
-          <div className="flex items-center gap-2">
+          {/* Cluster 3: Timeline & Export */}
+          <div className="flex items-center gap-2" title="Timeline & Export Tools">
             <TimeTravelMenu
               isReplayMode={isReplayMode}
               isPlaying={isPlayingReplay}
@@ -1497,15 +1494,12 @@ export function GlobalCanvas() {
 
           <HeaderSeam />
 
-          {/* Reference */}
-          <div className="flex items-center gap-2">
+          {/* Cluster 4: Help & Status */}
+          <div className="flex items-center gap-2" title="Help & System Status">
             <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
             <HelpModal />
+            <ConnectionStatus />
           </div>
-
-          <HeaderSeam />
-
-          <ConnectionStatus />
         </div>
 
         {/* Mobile Hamburger Button Controls (< lg) */}
@@ -1540,7 +1534,7 @@ export function GlobalCanvas() {
               <span className="text-accent-yellow">TILES: {visibleTileCount || 1}/1600</span>
             </div>
 
-            <MobileGroupLabel>Preferences</MobileGroupLabel>
+            <MobileGroupLabel>🌐 View &amp; Display</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <LanguagePicker
@@ -1552,11 +1546,14 @@ export function GlobalCanvas() {
                 />
               </div>
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <ThemeToggle />
+              </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <GridToggle config={gridConfig} onChange={setGridConfig} />
               </div>
             </div>
 
-            <MobileGroupLabel>Discover</MobileGroupLabel>
+            <MobileGroupLabel>🧭 Spatial Navigation</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} />
@@ -1579,7 +1576,7 @@ export function GlobalCanvas() {
               </div>
             </div>
 
-            <MobileGroupLabel>History &amp; Export</MobileGroupLabel>
+            <MobileGroupLabel>🎥 Timeline &amp; Export</MobileGroupLabel>
             <div className="mb-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <TimeTravelMenu
@@ -1622,7 +1619,7 @@ export function GlobalCanvas() {
               </div>
             </div>
 
-            <MobileGroupLabel>Reference &amp; Status</MobileGroupLabel>
+            <MobileGroupLabel>❓ Help &amp; Status</MobileGroupLabel>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} />
