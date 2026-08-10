@@ -39,7 +39,6 @@ const MAGNIFIER_OFFSET_PX = 24;
 const MIN_SHAPE_DRAG = 2;
 const SHAPE_BRUSH_TYPE: BrushType = "brush";
 
-const LIVE_TAIL_LIMIT = 300;
 const REPLAY_PAGE_SIZE = 1000;
 // Dev-only safety cap on full-history replay; V2 replaces this with snapshots.
 const REPLAY_HARD_CAP = 20000;
@@ -85,6 +84,13 @@ export function GlobalCanvas() {
   const firstMarkTrackedRef = useRef(false);
   const [replayDone, setReplayDone] = useState(false);
   const [replayError, setReplayError] = useState(false);
+  // Cursor-based live catch-up: null until replay seeds it with the last
+  // sequence it saw, then advances to the max sequence applied on every live
+  // batch. Unlike a fixed-size "last N" window, this can never silently skip
+  // strokes no matter how long a client was disconnected — a bigger gap just
+  // means the next listSince page (capped at MAX_LIST_LIMIT) is bigger, and
+  // the cursor keeps advancing until it's caught up.
+  const [liveTailCursor, setLiveTailCursor] = useState<number | null>(null);
 
   const [tool, setTool] = useState<Tool>("brush");
   const [brushType, setBrushType] = useState<BrushType>("brush");
@@ -105,7 +111,10 @@ export function GlobalCanvas() {
 
   const onlineCount = useQuery(api.presence.onlineCount);
   const presenceList = useQuery(api.presence.list);
-  const liveTail = useQuery(api.strokes.listRecent, { limit: LIVE_TAIL_LIMIT });
+  const liveTail = useQuery(
+    api.strokes.listSince,
+    liveTailCursor === null ? "skip" : { afterSequence: liveTailCursor },
+  );
 
   // ---------------------------------------------------------------------
   // Rendering
@@ -396,6 +405,7 @@ export function GlobalCanvas() {
         }
         if (!cancelled) {
           setReplayDone(true);
+          setLiveTailCursor(after);
           captureEvent("wall_loaded", {
             duration_ms: Math.round(
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
@@ -423,16 +433,28 @@ export function GlobalCanvas() {
   // Live tail: apply strokes we haven't seen yet (remote, or our own confirmed)
   // ---------------------------------------------------------------------
   useEffect(() => {
-    if (!replayDone || !liveTail) return;
-    let changed = false;
-    for (const s of liveTail) {
-      if (appliedIdsRef.current.has(s.clientStrokeId)) continue;
-      appliedIdsRef.current.add(s.clientStrokeId);
-      pendingRef.current.delete(s.clientStrokeId);
-      committedRef.current.push(s);
-      changed = true;
-    }
-    if (changed) scheduleRedraw();
+    if (!replayDone || !liveTail || liveTail.length === 0) return;
+    // Deferred a tick so the cursor-advancing setState below isn't called
+    // synchronously within the effect body (same reasoning as the async
+    // replay() above: this is "call setState when external state changes,"
+    // React's own blessed effect use case, just made async to satisfy the
+    // compiler's stricter static check).
+    queueMicrotask(() => {
+      let changed = false;
+      for (const s of liveTail) {
+        if (appliedIdsRef.current.has(s.clientStrokeId)) continue;
+        appliedIdsRef.current.add(s.clientStrokeId);
+        pendingRef.current.delete(s.clientStrokeId);
+        committedRef.current.push(s);
+        changed = true;
+      }
+      if (changed) scheduleRedraw();
+      // Advance regardless of `changed` — listSince's afterSequence bound
+      // means everything here is new-to-the-cursor even if it happened to
+      // already be applied locally (e.g. our own optimistic stroke), so
+      // re-querying the same range forever would just waste bandwidth.
+      setLiveTailCursor(liveTail[liveTail.length - 1].sequence);
+    });
   }, [liveTail, replayDone, scheduleRedraw]);
 
   // ---------------------------------------------------------------------
