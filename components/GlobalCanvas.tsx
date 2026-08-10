@@ -1059,20 +1059,20 @@ export function GlobalCanvas() {
         className="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
       >
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2" />
-        <div className="flex items-center gap-3 pl-4">
+        <div className="flex items-center gap-2 pl-4">
           <h1 id="app-heading" className="stencil-cut font-display text-sm font-bold tracking-[0.22em] text-ink uppercase">
             AlwaysDraw
           </h1>
-          <div
-            className="hidden md:flex items-center gap-1 rounded-sm border border-rust/50 bg-chrome-bg-raised px-2 py-0.5 font-mono text-[10px] text-ink-dim"
-            title="Active 500x500 spatial tiles in current camera viewport"
-          >
-            <span>TILES:</span>
-            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/400</span>
-          </div>
         </div>
 
         <div className="flex items-center gap-3 pr-4">
+          <div
+            className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm"
+            title="Active 500x500 spatial tiles in current camera viewport"
+          >
+            <span className="text-ink-dim">TILES:</span>
+            <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/400</span>
+          </div>
           <SpatialDiscoveryMenu
             onJumpToPoint={handleJumpToPoint}
             getBusiestPoint={getBusiestPoint}
