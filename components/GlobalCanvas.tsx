@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import {
