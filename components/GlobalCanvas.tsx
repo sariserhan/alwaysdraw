@@ -203,7 +203,7 @@ export function GlobalCanvas() {
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
     drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
-    drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig);
+    drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
   }, [gridConfig]);
 
   const redrawHeatmap = useCallback(() => {

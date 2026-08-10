@@ -38,7 +38,8 @@ export function snapPointToGrid(pt: Point, config: GridConfig): Point {
 }
 
 /**
- * Renders an architectural blueprint grid overlay on the world canvas layer.
+ * Renders an architectural blueprint grid overlay strictly clipped inside the
+ * drawable world canvas boundary [0, worldWidth] x [0, worldHeight].
  */
 export function drawGridOverlay(
   ctx: CanvasRenderingContext2D,
@@ -46,6 +47,8 @@ export function drawGridOverlay(
   viewportWidth: number,
   viewportHeight: number,
   config: GridConfig,
+  worldWidth: number = 20000,
+  worldHeight: number = 20000,
 ) {
   if (config.mode === "none") return;
 
@@ -54,48 +57,61 @@ export function drawGridOverlay(
   if (screenCellSize < 8) return; // Hide grid when zoomed too far out to prevent moiré patterns
 
   ctx.save();
-  ctx.strokeStyle = "rgba(140, 141, 144, 0.25)";
+
+  // Screen coordinates for top-left (0,0) and dimensions of world canvas
+  const left = (0 - camera.x) * camera.zoom + viewportWidth / 2;
+  const top = (0 - camera.y) * camera.zoom + viewportHeight / 2;
+  const w = worldWidth * camera.zoom;
+  const h = worldHeight * camera.zoom;
+
+  // Clip rendering strictly inside the drawable world canvas rectangle
+  ctx.beginPath();
+  ctx.rect(left, top, w, h);
+  ctx.clip();
+
+  ctx.strokeStyle = "rgba(140, 141, 144, 0.35)";
   ctx.lineWidth = Math.max(1, 1 * camera.zoom);
 
   const halfVW = viewportWidth / (2 * camera.zoom);
   const halfVH = viewportHeight / (2 * camera.zoom);
 
-  const minX = Math.floor((camera.x - halfVW) / size) * size;
-  const maxX = Math.ceil((camera.x + halfVW) / size) * size;
-  const minY = Math.floor((camera.y - halfVH) / size) * size;
-  const maxY = Math.ceil((camera.y + halfVH) / size) * size;
+  // Clamp grid line iteration strictly to [0, worldWidth] and [0, worldHeight]
+  const minX = Math.max(0, Math.floor((camera.x - halfVW) / size) * size);
+  const maxX = Math.min(worldWidth, Math.ceil((camera.x + halfVW) / size) * size);
+  const minY = Math.max(0, Math.floor((camera.y - halfVH) / size) * size);
+  const maxY = Math.min(worldHeight, Math.ceil((camera.y + halfVH) / size) * size);
 
   if (config.mode === "square") {
-    // Vertical grid lines
+    // Vertical grid lines within canvas bounds
     for (let x = minX; x <= maxX; x += size) {
       const screenX = (x - camera.x) * camera.zoom + viewportWidth / 2;
       ctx.beginPath();
-      ctx.moveTo(screenX, 0);
-      ctx.lineTo(screenX, viewportHeight);
+      ctx.moveTo(screenX, top);
+      ctx.lineTo(screenX, top + h);
       ctx.stroke();
     }
 
-    // Horizontal grid lines
+    // Horizontal grid lines within canvas bounds
     for (let y = minY; y <= maxY; y += size) {
       const screenY = (y - camera.y) * camera.zoom + viewportHeight / 2;
       ctx.beginPath();
-      ctx.moveTo(0, screenY);
-      ctx.lineTo(viewportWidth, screenY);
+      ctx.moveTo(left, screenY);
+      ctx.lineTo(left + w, screenY);
       ctx.stroke();
     }
   } else if (config.mode === "isometric") {
-    // Isometric 30-degree diagonal lines
-    const h = size * Math.sin(Math.PI / 6);
-    for (let y = minY; y <= maxY; y += h) {
+    // Isometric 30-degree diagonal lines clipped to canvas
+    const isoStep = size * Math.sin(Math.PI / 6);
+    for (let y = minY; y <= maxY; y += isoStep) {
       const screenY = (y - camera.y) * camera.zoom + viewportHeight / 2;
       ctx.beginPath();
-      ctx.moveTo(0, screenY);
-      ctx.lineTo(viewportWidth, screenY + viewportWidth * 0.577);
+      ctx.moveTo(left, screenY);
+      ctx.lineTo(left + w, screenY + w * 0.577);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(0, screenY);
-      ctx.lineTo(viewportWidth, screenY - viewportWidth * 0.577);
+      ctx.moveTo(left, screenY);
+      ctx.lineTo(left + w, screenY - w * 0.577);
       ctx.stroke();
     }
   }
