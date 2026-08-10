@@ -42,7 +42,7 @@ export function HotkeysModal({ isOpen, onToggle, locale }: HotkeysModalProps) {
       <button
         type="button"
         onClick={onToggle}
-        className={`flex h-7 items-center gap-1 rounded-sm border px-2 font-mono text-xs font-bold transition-colors ${
+        className={`flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-sm border px-2 font-mono text-xs font-bold transition-colors ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold shadow-sm"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink-dim hover:border-rust hover:text-ink"

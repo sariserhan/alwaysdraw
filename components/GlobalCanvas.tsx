@@ -1424,12 +1424,12 @@ export function GlobalCanvas() {
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2 hidden sm:block" />
         
         {/* Left Section: Branding & Info Badges */}
-        <div className="flex items-center gap-2 pl-1 sm:pl-4">
-          <h1 id="app-heading" className="stencil-cut font-display text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-ink uppercase">
+        <div className="flex shrink-0 items-center gap-2 pl-1 sm:pl-4">
+          <h1 id="app-heading" className="stencil-cut font-display text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-ink uppercase whitespace-nowrap">
             AlwaysDraw
           </h1>
           <div
-            className="hidden sm:flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
+            className="hidden sm:flex items-center gap-1 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"
           >
             <span className="text-ink-dim">{t(locale, "tiles")}:</span>
@@ -1439,9 +1439,9 @@ export function GlobalCanvas() {
         </div>
 
         {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
-        <div className="hidden lg:flex items-center gap-3 pr-4">
+        <div className="hidden lg:flex min-w-0 items-center gap-3 overflow-x-auto pr-4">
           {/* Cluster 1: View & Display */}
-          <div className="flex items-center gap-2" title="View & Display Settings">
+          <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
             <LanguagePicker
               currentLocale={locale}
               onLocaleChange={(loc) => {
@@ -1456,7 +1456,7 @@ export function GlobalCanvas() {
           <HeaderSeam />
 
           {/* Cluster 2: Spatial Navigation */}
-          <div className="flex items-center gap-2" title="Spatial Navigation & Teleportation">
+          <div className="flex shrink-0 items-center gap-2" title="Spatial Navigation & Teleportation">
             <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
             <ExploreMenu
               onJumpToPoint={handleJumpToPoint}
@@ -1477,7 +1477,7 @@ export function GlobalCanvas() {
           <HeaderSeam />
 
           {/* Cluster 3: Timeline & Export */}
-          <div className="flex items-center gap-2" title="Timeline & Export Tools">
+          <div className="flex shrink-0 items-center gap-2" title="Timeline & Export Tools">
             <TimeTravelMenu
               isReplayMode={isReplayMode}
               isPlaying={isPlayingReplay}
@@ -1520,7 +1520,7 @@ export function GlobalCanvas() {
           <HeaderSeam />
 
           {/* Cluster 4: Help & Status */}
-          <div className="flex items-center gap-2" title="Help & System Status">
+          <div className="flex shrink-0 items-center gap-2" title="Help & System Status">
             <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
             <HelpModal />
             <ConnectionStatus locale={locale} />
@@ -1533,7 +1533,7 @@ export function GlobalCanvas() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1 font-mono text-xs font-bold text-ink uppercase shadow-sm transition hover:bg-chrome-bg-recessed active:scale-95"
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1 font-mono text-xs font-bold text-ink uppercase shadow-sm transition hover:bg-chrome-bg-recessed active:scale-95"
             aria-label="Toggle Mobile Menu"
             aria-expanded={mobileMenuOpen}
           >
@@ -1554,9 +1554,9 @@ export function GlobalCanvas() {
         {/* Mobile Drawer Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden absolute top-full left-0 right-0 z-50 border-b-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.85)] backdrop-blur-md">
-            <div className="mb-2 flex items-center justify-between border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
-              <span>🛠️ {t(locale, "canvas_tools_panels")}</span>
-              <span className="text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-chrome-border/60 pb-1.5 font-mono text-[11px] font-bold text-ink-dim uppercase">
+              <span className="whitespace-nowrap">🛠️ {t(locale, "canvas_tools_panels")}</span>
+              <span className="whitespace-nowrap text-accent-yellow">{t(locale, "tiles")}: {visibleTileCount || 1}/1600</span>
             </div>
 
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>

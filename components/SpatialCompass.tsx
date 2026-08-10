@@ -31,7 +31,7 @@ export function SpatialCompass({ camera, onTeleport, locale }: SpatialCompassPro
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
+        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-1 font-mono text-xs font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
         title={t(locale, "compass_title")}
         aria-label={t(locale, "compass_title")}
         aria-expanded={isOpen}

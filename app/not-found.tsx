@@ -1,6 +1,14 @@
 import Link from "next/link";
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 
 export default function NotFound() {
+  const centerX = Math.round(WORLD_WIDTH / 2);
+  const centerY = Math.round(WORLD_HEIGHT / 2);
+  
+  const widthFormatted = WORLD_WIDTH >= 1000 ? `${WORLD_WIDTH / 1000}k` : `${WORLD_WIDTH}`;
+  const heightFormatted = WORLD_HEIGHT >= 1000 ? `${WORLD_HEIGHT / 1000}k` : `${WORLD_HEIGHT}`;
+  const centerFormatted = WORLD_WIDTH >= 1000 ? `${WORLD_WIDTH / 2000}k, ${WORLD_HEIGHT / 2000}k` : `${centerX}, ${centerY}`;
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-chrome-bg px-4 py-12 text-center text-ink selection:bg-accent-crimson selection:text-on-accent">
       {/* Industrial Urban Frame / Canvas Backdrop */}
@@ -43,17 +51,17 @@ export default function NotFound() {
           </Link>
 
           <Link
-            href="/?x=10000&y=10000&z=100"
+            href={`/?x=${centerX}&y=${centerY}&z=100`}
             className="flex flex-1 items-center justify-center gap-2 rounded-sm border border-chrome-border bg-chrome-bg px-4 py-2.5 font-mono text-xs font-bold text-ink transition-all hover:border-rust hover:text-accent-yellow active:scale-95"
           >
             <span>🧭</span>
-            <span>CENTER WALL (10k, 10k)</span>
+            <span>CENTER WALL ({centerFormatted})</span>
           </Link>
         </div>
 
         {/* Footer Badge */}
         <div className="mt-2 border-t border-chrome-border/60 pt-3 font-mono text-[10px] text-ink-dim">
-          <span>ALWAYS DRAW • 20k × 20k WORLD CANVAS</span>
+          <span>ALWAYS DRAW • {widthFormatted} × {heightFormatted} WORLD CANVAS</span>
         </div>
       </div>
     </div>
