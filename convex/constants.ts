@@ -21,6 +21,10 @@ export const MAX_POINTS_PER_STROKE = 100;
 export const MAX_CLIENT_ID_LENGTH = 64;
 export const MAX_CLIENT_STROKE_ID_LENGTH = 128;
 export const MAX_COLOR_LENGTH = 64;
+export const MAX_USERNAME_LENGTH = 24;
+// ISO 3166-1 alpha-2, resolved server-side from the visitor's IP — never the
+// raw IP itself. See app/api/geo/route.ts.
+export const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 
 // Anonymous clients are intentionally allowed, but writes still need a
 // server-enforced cost boundary. Limits are generous enough for normal fast

@@ -94,6 +94,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Spatial Navigation",
     group_timeline_export: "Timeline & Export",
     group_help_status: "Help & Status",
+    display_name: "Display Name",
+    display_name_subtitle: "Shown when someone hovers your drawings",
+    anonymous: "Anonymous",
   },
   fr: {
     brush: "Pinceau",
@@ -170,6 +173,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Navigation Spatiale",
     group_timeline_export: "Chronologie et Export",
     group_help_status: "Aide et État",
+    display_name: "Nom d'Affichage",
+    display_name_subtitle: "Affiché quand quelqu'un survole vos dessins",
+    anonymous: "Anonyme",
   },
   ar: {
     brush: "فرشاة",
@@ -246,6 +252,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "التنقل المكاني",
     group_timeline_export: "الجدول الزمني والتصدير",
     group_help_status: "المساعدة والحالة",
+    display_name: "اسم العرض",
+    display_name_subtitle: "يظهر عندما يمرر أحدهم الفأرة فوق رسوماتك",
+    anonymous: "مجهول",
   },
   ru: {
     brush: "Кисть",
@@ -322,6 +331,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Пространственная навигация",
     group_timeline_export: "Хронология и экспорт",
     group_help_status: "Помощь и статус",
+    display_name: "Отображаемое имя",
+    display_name_subtitle: "Отображается при наведении на ваши рисунки",
+    anonymous: "Аноним",
   },
   es: {
     brush: "Pincel",
@@ -398,6 +410,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Navegación Espacial",
     group_timeline_export: "Cronología y Exportación",
     group_help_status: "Ayuda y Estado",
+    display_name: "Nombre para Mostrar",
+    display_name_subtitle: "Se muestra al pasar el cursor sobre tus dibujos",
+    anonymous: "Anónimo",
   },
   pt: {
     brush: "Pincel",
@@ -474,6 +489,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Navegação Espacial",
     group_timeline_export: "Linha do Tempo e Exportação",
     group_help_status: "Ajuda e Status",
+    display_name: "Nome de Exibição",
+    display_name_subtitle: "Exibido ao passar o cursor sobre seus desenhos",
+    anonymous: "Anônimo",
   },
   tr: {
     brush: "Fırça",
@@ -550,6 +568,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "Uzamsal Gezinme",
     group_timeline_export: "Zaman Çizelgesi ve Dışa Aktarma",
     group_help_status: "Yardım ve Durum",
+    display_name: "Görünen Ad",
+    display_name_subtitle: "Çizimlerinizin üzerine gelindiğinde gösterilir",
+    anonymous: "Anonim",
   },
   ja: {
     brush: "ブラシ",
@@ -626,6 +647,9 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     group_spatial_nav: "空間ナビゲーション",
     group_timeline_export: "タイムラインと書き出し",
     group_help_status: "ヘルプと状態",
+    display_name: "表示名",
+    display_name_subtitle: "あなたの絵にカーソルを合わせたときに表示されます",
+    anonymous: "匿名",
   },
 };
 

@@ -27,6 +27,8 @@ export class StrokeBuffer {
     public readonly color: string,
     public readonly width: number,
     public readonly opacity: number,
+    private readonly username: string | undefined,
+    private readonly countryCode: string | undefined,
     private readonly onFlush: (chunk: LocalStroke) => void,
   ) {}
 
@@ -53,6 +55,8 @@ export class StrokeBuffer {
     const chunk: LocalStroke = {
       clientStrokeId: generateChunkId(),
       clientId: this.clientId,
+      username: this.username,
+      countryCode: this.countryCode,
       mode: this.mode,
       brushType: this.brushType,
       color: this.color,

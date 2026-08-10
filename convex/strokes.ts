@@ -17,6 +17,8 @@ import {
   MAX_CLIENT_ID_LENGTH,
   MAX_CLIENT_STROKE_ID_LENGTH,
   MAX_COLOR_LENGTH,
+  MAX_USERNAME_LENGTH,
+  COUNTRY_CODE_PATTERN,
   RATE_LIMIT_WINDOW_MS,
   STROKES_PER_CLIENT_WINDOW,
   STROKES_GLOBAL_WINDOW,
@@ -35,6 +37,8 @@ const strokeReturnFields = v.object({
   _creationTime: v.number(),
   clientStrokeId: v.string(),
   clientId: v.string(),
+  username: v.optional(v.string()),
+  countryCode: v.optional(v.string()),
   mode: v.union(v.literal("draw"), v.literal("erase")),
   brushType: v.optional(brushTypeValidator),
   color: v.string(),
@@ -51,6 +55,8 @@ export const submit = mutation({
   args: {
     clientStrokeId: v.string(),
     clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
     mode: v.union(v.literal("draw"), v.literal("erase")),
     brushType: v.optional(brushTypeValidator),
     color: v.string(),
@@ -73,6 +79,12 @@ export const submit = mutation({
     }
     if (!Number.isFinite(args.clientTimestamp)) {
       throw new Error("clientTimestamp must be a finite number");
+    }
+    if (args.username !== undefined) {
+      assertBoundedIdentifier(args.username, "username", MAX_USERNAME_LENGTH);
+    }
+    if (args.countryCode !== undefined && !COUNTRY_CODE_PATTERN.test(args.countryCode)) {
+      throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
     }
     // --- Abuse boundary: validate hard, reject on violation ---
     if (
@@ -156,6 +168,8 @@ export const submit = mutation({
     await ctx.db.insert("strokes", {
       clientStrokeId: args.clientStrokeId,
       clientId: args.clientId,
+      username: args.username,
+      countryCode: args.countryCode,
       mode: args.mode,
       brushType: args.mode === "draw" ? (args.brushType ?? "brush") : undefined,
       color: args.color,

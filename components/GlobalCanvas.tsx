@@ -34,7 +34,8 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
-import { getClientId } from "@/lib/identity";
+import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
+import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
@@ -62,6 +63,7 @@ import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
+import { UsernameControl } from "./UsernameControl";
 import { SpatialCompass } from "./SpatialCompass";
 import { FpsHud } from "./FpsHud";
 import { RateLimitToast } from "./RateLimitToast";
@@ -71,13 +73,15 @@ import { calculateShapeMetrics } from "@/lib/shapeMetrics";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
 import { drawGridOverlay, snapPointToGrid, type GridConfig } from "@/lib/grid";
-import { getVisibleTileKeys, getTileKeysForStroke, TILE_SIZE } from "@/lib/tiling";
+import { getVisibleTileKeys, getTileKeysForStroke, getTileCoords, getTileId, TILE_SIZE } from "@/lib/tiling";
+import { findStrokeNearPoint } from "@/lib/hitTest";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
 const MAGNIFIER_FACTOR = 2.5;
 const MAGNIFIER_OFFSET_PX = 24;
 const MIN_SHAPE_DRAG = 2;
+const HOVER_SCREEN_RADIUS_PX = 8;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
 
@@ -126,6 +130,34 @@ export function GlobalCanvas() {
   const snapshotSequenceRef = useRef(0);
 
   const [clientId] = useState(() => getClientId());
+  const [username, setUsernameState] = useState(() => getUsername());
+  const [countryCode, setCountryCode] = useState(() => getCachedCountryCode());
+
+  // Resolve once per browser (cached to localStorage) rather than per
+  // stroke — an IP-derived country doesn't change mid-session, and this
+  // keeps the geo lookup off the hot drawing path entirely.
+  useEffect(() => {
+    if (countryCode) return;
+    let cancelled = false;
+    fetch("/api/geo")
+      .then((res) => res.json())
+      .then((data: { countryCode: string | null }) => {
+        if (cancelled || !data.countryCode) return;
+        setCachedCountryCode(data.countryCode);
+        setCountryCode(data.countryCode);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleUsernameChange = useCallback((name: string) => {
+    setUsername(name);
+    setUsernameState(getUsername());
+  }, []);
+
   const initialCamera =
     parseCameraFromSearch(window.location.search) ?? defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
   const cameraRef = useRef<Camera>(initialCamera);
@@ -224,6 +256,13 @@ export function GlobalCanvas() {
     return "en";
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [hoverAttribution, setHoverAttribution] = useState<{
+    screenX: number;
+    screenY: number;
+    username: string | undefined;
+    clientId: string;
+    countryCode: string | undefined;
+  } | null>(null);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -1009,13 +1048,15 @@ export function GlobalCanvas() {
         color,
         brushWidth,
         opacity,
+        username,
+        countryCode,
         commitOwnChunk,
       );
       buffer.addPoint(worldPoint);
       drawBufferRef.current = buffer;
       lastDrawWorldRef.current = worldPoint;
     },
-    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity],
+    [commitOwnChunk, clientId, tool, brushType, color, brushWidth, opacity, username, countryCode],
   );
 
   const continueDraw = useCallback((worldPoint: Point) => {
@@ -1157,6 +1198,8 @@ export function GlobalCanvas() {
         const stroke: LocalStroke = {
           clientStrokeId,
           clientId,
+          username,
+          countryCode,
           mode: "draw",
           brushType: "chalk",
           color,
@@ -1171,6 +1214,8 @@ export function GlobalCanvas() {
         submitStroke({
           clientStrokeId: stroke.clientStrokeId,
           clientId,
+          username: stroke.username,
+          countryCode: stroke.countryCode,
           mode: stroke.mode,
           brushType: stroke.brushType,
           color: stroke.color,
@@ -1185,7 +1230,7 @@ export function GlobalCanvas() {
       }
       scheduleRedraw({ world: true, strokes: true });
     },
-    [brushWidth, selectedStencil, color, opacity, clientId, submitStroke, scheduleRedraw],
+    [brushWidth, selectedStencil, color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
   );
 
   const handlePointerDown = useCallback(
@@ -1337,6 +1382,33 @@ export function GlobalCanvas() {
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
 
+      // Attribution tooltip: only while genuinely hovering (mouse, no button
+      // held) — a stencil/shape/ruler drag or an active brush stroke has its
+      // own meaning for pointer movement and shouldn't also flip a tooltip
+      // in and out under the cursor. Pre-filtered to strokes tagged with the
+      // cursor's own spatial tile (already stored per stroke for rendering)
+      // so this stays cheap regardless of how many strokes the wall has.
+      if (e.pointerType === "mouse" && e.buttons === 0) {
+        const { tileX, tileY } = getTileCoords(worldPt.x, worldPt.y, TILE_SIZE);
+        const cursorTileId = getTileId(tileX, tileY);
+        const candidates = committedRef.current.filter((s) => s.tiles?.includes(cursorTileId));
+        const extraRadiusWorld = HOVER_SCREEN_RADIUS_PX / cameraRef.current.zoom;
+        const hit = findStrokeNearPoint(candidates, worldPt, extraRadiusWorld);
+        setHoverAttribution(
+          hit
+            ? {
+                screenX: screenPt.x,
+                screenY: screenPt.y,
+                username: hit.username,
+                clientId: hit.clientId,
+                countryCode: hit.countryCode,
+              }
+            : null,
+        );
+      } else {
+        setHoverAttribution(null);
+      }
+
       if (tool === "laser") {
         if (activeLaserTrailIdRef.current) {
           const trail = laserTrailsRef.current.find((t) => t.id === activeLaserTrailIdRef.current);
@@ -1428,6 +1500,8 @@ export function GlobalCanvas() {
               color,
               brushWidth,
               opacity,
+              username,
+              countryCode,
               commitOwnChunk,
             );
             for (const p of pts) buffer.addPoint(p);
@@ -1452,12 +1526,13 @@ export function GlobalCanvas() {
         lastPanScreenRef.current = remaining;
       }
     },
-    [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, commitOwnChunk, scheduleRedraw, updateRuler],
+    [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw, updateRuler],
   );
 
   const handlePointerLeave = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       hideCursorOverlay();
+      setHoverAttribution(null);
       handlePointerUp(e);
     },
     [handlePointerUp, hideCursorOverlay],
@@ -1671,6 +1746,7 @@ export function GlobalCanvas() {
             />
             <ThemeToggle />
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
+            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
           </div>
 
           <HeaderSeam />
@@ -1796,6 +1872,9 @@ export function GlobalCanvas() {
               <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
                 <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
               </div>
+              <div className="flex items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised/70 p-1.5">
+                <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
+              </div>
             </div>
 
             <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
@@ -1889,6 +1968,18 @@ export function GlobalCanvas() {
         <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2">
           <div className="rounded-sm border border-accent-crimson-deep bg-chrome-bg-raised px-3 py-1.5 text-xs text-ink shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
             {submitError}
+          </div>
+        </div>
+      )}
+
+      {hoverAttribution && (
+        <div
+          className="pointer-events-none absolute z-50 -translate-y-full"
+          style={{ left: hoverAttribution.screenX + 14, top: hoverAttribution.screenY - 10 }}
+        >
+          <div className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg/95 px-2 py-1 font-mono text-[11px] font-bold text-ink shadow-[0_4px_12px_rgba(0,0,0,0.7)] backdrop-blur-sm">
+            <span>{countryCodeToFlag(hoverAttribution.countryCode)}</span>
+            <span>{hoverAttribution.username ?? hoverAttribution.clientId}</span>
           </div>
         </div>
       )}

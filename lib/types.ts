@@ -8,6 +8,10 @@ export type Point = { x: number; y: number };
 export type LocalStroke = {
   clientStrokeId: string;
   clientId: string;
+  /** Self-reported display name, snapshotted at draw time — see convex/schema.ts. */
+  username?: string;
+  /** ISO 3166-1 alpha-2, resolved server-side from IP; never the IP itself. */
+  countryCode?: string;
   mode: StrokeMode;
   /** Only meaningful when mode === "draw"; omitted for erase strokes. */
   brushType?: BrushType;
