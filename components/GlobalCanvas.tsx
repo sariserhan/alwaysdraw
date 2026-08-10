@@ -48,6 +48,7 @@ import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
 import { ReplayBar } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
+import { HelpModal } from "./HelpModal";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
@@ -1043,6 +1044,7 @@ export function GlobalCanvas() {
             getRandomActivePoint={getRandomActivePoint}
             getLatestActivityPoint={getLatestActivityPoint}
           />
+          <HelpModal />
           <ThemeToggle />
           <ConnectionStatus />
           <OnlineCount count={onlineCount ?? 0} />
