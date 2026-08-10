@@ -128,15 +128,14 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-label="Admin Control Center"
-        className="relative flex w-full max-w-lg flex-col gap-4 rounded-sm border-2 border-rust bg-chrome-bg/95 p-5 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.85)]"
-      >
-        <ChromeRivet className="top-2 left-2" />
-        <ChromeRivet className="top-2 right-2" />
+    <aside
+      ref={modalRef}
+      role="dialog"
+      aria-label="Admin Control Center"
+      className="pointer-events-auto fixed right-4 top-16 bottom-20 z-40 flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-sm border-2 border-rust bg-chrome-bg/95 p-4 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-md"
+    >
+      <ChromeRivet className="top-2 left-2" />
+      <ChromeRivet className="top-2 right-2" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-chrome-border/60 pb-2">
@@ -370,7 +369,6 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
             )}
           </div>
         )}
-      </div>
-    </div>
+    </aside>
   );
 }
