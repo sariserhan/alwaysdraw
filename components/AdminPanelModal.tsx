@@ -131,8 +131,8 @@ export function AdminPanelModal({
       const halfW = stampWidthPx / 2;
       const halfH = (stampWidthPx * (targetH / targetW)) / 2;
 
-      let count = 0;
-      const clientId = "ADMIN_IMAGE_STAMPER";
+      // Group pixel points by hex color for instant ultra-fast batch submission
+      const pointsByColor = new Map<string, { points: { x: number; y: number }[]; opacity: number }>();
 
       for (let y = 0; y < targetH; y++) {
         for (let x = 0; x < targetW; x++) {
@@ -144,26 +144,55 @@ export function AdminPanelModal({
 
           if (a < 0.1) continue;
 
-          const colorHex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-          const px = stampX - halfW + x * pixelSize + pixelSize / 2;
-          const py = stampY - halfH + y * pixelSize + pixelSize / 2;
+          // Quantize color slightly to group similar shades efficiently
+          const qR = Math.round(r / 8) * 8;
+          const qG = Math.round(g / 8) * 8;
+          const qB = Math.round(b / 8) * 8;
+          const colorHex = `#${((1 << 24) + (Math.min(255, qR) << 16) + (Math.min(255, qG) << 8) + Math.min(255, qB)).toString(16).slice(1)}`;
+          const px = Math.round(stampX - halfW + x * pixelSize + pixelSize / 2);
+          const py = Math.round(stampY - halfH + y * pixelSize + pixelSize / 2);
 
-          await submitStroke({
-            clientStrokeId: `admin-img-${Date.now()}-${x}-${y}-${Math.random().toString(36).slice(2, 5)}`,
-            clientId,
-            mode: "draw",
-            brushType: "pixel",
-            color: colorHex,
-            width: Math.max(2, Math.round(pixelSize)),
-            opacity: a,
-            points: [{ x: px, y: py }],
-            clientTimestamp: Date.now(),
-          });
-          count++;
+          const existing = pointsByColor.get(colorHex);
+          if (existing) {
+            existing.points.push({ x: px, y: py });
+          } else {
+            pointsByColor.set(colorHex, {
+              points: [{ x: px, y: py }],
+              opacity: Math.max(0.1, Math.min(1, Math.round(a * 100) / 100)),
+            });
+          }
         }
       }
 
-      setActionStatus(`Success! Stamped image (${count} pixels) onto canvas at (${stampX}, ${stampY}).`);
+      const batchTasks: Promise<unknown>[] = [];
+      let totalPixels = 0;
+
+      for (const [color, { points, opacity }] of pointsByColor.entries()) {
+        totalPixels += points.length;
+        // Chunk points in groups of max 90 (below MAX_POINTS_PER_STROKE = 100 limit)
+        for (let i = 0; i < points.length; i += 90) {
+          const chunk = points.slice(i, i + 90);
+          const clientStrokeId = `admin-img-${Date.now()}-${totalPixels}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+          batchTasks.push(
+            submitStroke({
+              clientStrokeId,
+              clientId: "ADMIN_IMAGE_STAMPER",
+              mode: "draw",
+              brushType: "pixel",
+              color,
+              width: Math.max(3, Math.round(pixelSize)),
+              opacity,
+              points: chunk,
+              clientTimestamp: Date.now(),
+            }),
+          );
+        }
+      }
+
+      setActionStatus(`Stamping ${totalPixels} pixels across ${batchTasks.length} batched strokes...`);
+      await Promise.all(batchTasks);
+
+      setActionStatus(`Success! Stamped image (${totalPixels} pixels) onto canvas at (${stampX}, ${stampY}).`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Image stamp failed"}`);
     } finally {
