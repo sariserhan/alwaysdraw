@@ -302,6 +302,7 @@ export function GlobalCanvas() {
   // under the header — chained offsets so both stay aligned as the header's
   // height changes (it wraps to 1-3 rows depending on viewport width).
   const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
@@ -2055,6 +2056,112 @@ export function GlobalCanvas() {
             viewportRectRef={miniMapViewportRectRef}
             onJump={handleMiniMapJump}
           />
+        </aside>
+
+        {/* Desktop Sidebar (>= 1360px) — every control that used to live in
+            the header row, stacked vertically and docked directly under the
+            mini-map instead. Same breakpoint the header row used to switch
+            on, so this and the mobile hamburger drawer are still mutually
+            exclusive. */}
+        <aside
+          id="desktop-sidebar"
+          aria-label="Canvas Tools & Controls"
+          className="pointer-events-auto hidden min-[1360px]:flex w-[196px] flex-col gap-3 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
+          style={{ top: sidebarTop, maxHeight: `calc(100vh - ${sidebarTop}px - 12px)` }}
+        >
+          <div className="flex flex-col items-start gap-2">
+            <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
+            <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
+            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
+            <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
+          </div>
+
+          <div className="border-t border-chrome-border/60" />
+
+          <div className="flex flex-col items-start gap-2">
+            <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>
+            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
+            <ExploreMenu
+              onJumpToPoint={handleJumpToPoint}
+              getBusiestPoint={getBusiestPoint}
+              getRandomActivePoint={getRandomActivePoint}
+              getLatestActivityPoint={getLatestActivityPoint}
+              onlineCount={onlineCount ?? 1}
+              locale={locale}
+            />
+            <BookmarkMenu
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+            />
+            <CommunityGalleryModal
+              clientId={clientId}
+              username={username}
+              onTeleport={handleBookmarkTeleport}
+              locale={locale}
+            />
+          </div>
+
+          <div className="border-t border-chrome-border/60" />
+
+          <div className="flex flex-col items-start gap-2">
+            <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
+            <TimeTravelMenu
+              isReplayMode={isReplayMode}
+              isPlaying={isPlayingReplay}
+              currentSequence={replaySequenceIndex}
+              minSequence={minSequence}
+              maxSequence={maxSequence}
+              playbackSpeed={playbackSpeed}
+              onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+              onSeek={(seq) => setReplaySequenceIndex(seq)}
+              onStep={(delta) =>
+                setReplaySequenceIndex((prev) =>
+                  Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+                )
+              }
+              onSpeedChange={setPlaybackSpeed}
+              onExitReplay={() => {
+                setIsReplayMode(false);
+                setIsPlayingReplay(false);
+                scheduleRedraw({ world: true, strokes: true });
+              }}
+              onEnterReplay={handleEnterReplay}
+              region={replayRegion}
+              onSelectRegion={handleSelectRegion}
+              onClearRegion={handleClearRegion}
+              locale={locale}
+            />
+            <ExportModal
+              getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
+              getCommittedStrokes={() => committedRef.current}
+              currentCamera={cameraSnapshot}
+              viewportWidth={viewportSize.width}
+              viewportHeight={viewportSize.height}
+              worldWidth={WORLD_WIDTH}
+              worldHeight={WORLD_HEIGHT}
+              region={replayRegion}
+              locale={locale}
+            />
+          </div>
+
+          <div className="border-t border-chrome-border/60" />
+
+          <div className="flex flex-col items-start gap-2">
+            <MobileGroupLabel>❓ {t(locale, "group_help_status")}</MobileGroupLabel>
+            <LanguagePicker
+              currentLocale={locale}
+              onLocaleChange={(loc) => {
+                setLocale(loc);
+                localStorage.setItem("alwaysdraw_locale", loc);
+              }}
+            />
+            <ThemeToggle />
+            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
+            <HelpModal />
+            <ConnectionStatus locale={locale} />
+          </div>
         </aside>
 
         <ProtectedZonesOverlay
