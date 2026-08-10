@@ -1,7 +1,18 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { WORLD_WIDTH, WORLD_HEIGHT, MAX_CLIENT_ID_LENGTH } from "./constants";
-import { assertBoundedIdentifier, assertWritesEnabled } from "./abuse";
+import {
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  MAX_CLIENT_ID_LENGTH,
+  RATE_LIMIT_WINDOW_MS,
+  BOOKMARKS_PER_CLIENT_WINDOW,
+  BOOKMARKS_GLOBAL_WINDOW,
+} from "./constants";
+import {
+  assertBoundedIdentifier,
+  assertWritesEnabled,
+  consumeRateLimit,
+} from "./abuse";
 
 const bookmarkReturnFields = v.object({
   _id: v.id("bookmarks"),
@@ -42,6 +53,18 @@ export const create = mutation({
   handler: async (ctx, args) => {
     assertWritesEnabled();
     assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
+    await consumeRateLimit(
+      ctx,
+      `bookmarks:client:${args.clientId}`,
+      BOOKMARKS_PER_CLIENT_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
+    await consumeRateLimit(
+      ctx,
+      "bookmarks:global",
+      BOOKMARKS_GLOBAL_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
 
     const title = args.title.trim();
     if (!title || title.length > 50) {

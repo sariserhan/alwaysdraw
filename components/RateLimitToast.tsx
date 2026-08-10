@@ -21,6 +21,17 @@ export function RateLimitToast() {
     });
   }, []);
 
+  // Re-check once the oldest stroke in the window should have expired, so the
+  // toast clears itself even if the user stops drawing (no new submissions to
+  // trigger a re-evaluation otherwise).
+  useEffect(() => {
+    if (!warningState.isWarning) return;
+    const timer = setTimeout(() => {
+      rateLimitTracker.recheck();
+    }, warningState.resetMs + 50);
+    return () => clearTimeout(timer);
+  }, [warningState.isWarning, warningState.resetMs]);
+
   if (!warningState.isWarning) return null;
 
   const pct = Math.min(100, Math.round((warningState.count / STROKES_PER_CLIENT_WINDOW) * 100));

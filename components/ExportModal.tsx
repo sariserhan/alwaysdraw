@@ -7,7 +7,7 @@ import type { ServerStroke } from "@/lib/types";
 import type { Camera } from "@/lib/camera";
 
 export interface ExportModalProps {
-  getCanvasRef: () => HTMLCanvasElement | null;
+  getCanvasLayers: () => (HTMLCanvasElement | null)[];
   getCommittedStrokes: () => ServerStroke[];
   currentCamera: Camera;
   viewportWidth: number;
@@ -17,7 +17,7 @@ export interface ExportModalProps {
 }
 
 export function ExportModal({
-  getCanvasRef,
+  getCanvasLayers,
   getCommittedStrokes,
   currentCamera,
   viewportWidth,
@@ -54,10 +54,10 @@ export function ExportModal({
   }, [isOpen]);
 
   const handleDownloadSnapshot = () => {
-    const canvas = getCanvasRef();
-    if (!canvas) return;
+    const layers = getCanvasLayers();
+    if (layers.every((c) => !c)) return;
     const timestamp = new Date().toISOString().slice(0, 10);
-    downloadCanvasPNG(canvas, `alwaysdraw-${timestamp}.png`);
+    downloadCanvasPNG(layers, `alwaysdraw-${timestamp}.png`);
     setIsOpen(false);
   };
 

@@ -86,16 +86,35 @@ export function getTileKeysForStroke(
   const tileSet = new Set<string>();
   const radius = strokeWidth / 2;
 
-  for (const p of points) {
-    const minTX = Math.max(0, Math.min(maxTileX, Math.floor((p.x - radius) / tileSize)));
-    const maxTX = Math.max(0, Math.min(maxTileX, Math.floor((p.x + radius) / tileSize)));
-    const minTY = Math.max(0, Math.min(maxTileY, Math.floor((p.y - radius) / tileSize)));
-    const maxTY = Math.max(0, Math.min(maxTileY, Math.floor((p.y + radius) / tileSize)));
+  const tagPoint = (x: number, y: number) => {
+    const minTX = Math.max(0, Math.min(maxTileX, Math.floor((x - radius) / tileSize)));
+    const maxTX = Math.max(0, Math.min(maxTileX, Math.floor((x + radius) / tileSize)));
+    const minTY = Math.max(0, Math.min(maxTileY, Math.floor((y - radius) / tileSize)));
+    const maxTY = Math.max(0, Math.min(maxTileY, Math.floor((y + radius) / tileSize)));
 
     for (let tx = minTX; tx <= maxTX; tx++) {
       for (let ty = minTY; ty <= maxTY; ty++) {
         tileSet.add(getTileId(tx, ty));
       }
+    }
+  };
+
+  tagPoint(points[0].x, points[0].y);
+
+  // Also tag tiles along each segment, not just the recorded points, so
+  // straight-line jumps between far-apart points (e.g. the line tool) don't
+  // skip tiles the rendered stroke actually passes through.
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const dx = cur.x - prev.x;
+    const dy = cur.y - prev.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.ceil(dist / (tileSize / 2)));
+
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      tagPoint(prev.x + dx * t, prev.y + dy * t);
     }
   }
 

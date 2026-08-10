@@ -17,11 +17,20 @@ class RateLimitTracker {
 
   public recordRateLimitError() {
     const now = Date.now();
-    // Simulate 120 submissions to trigger cooling warning immediately
-    for (let i = 0; i < STROKES_PER_CLIENT_WINDOW; i++) {
+    this.clean(now);
+    // Simulate submissions to trigger cooling warning immediately, capped at
+    // the window size instead of stacking a flat penalty per failed chunk.
+    const deficit = STROKES_PER_CLIENT_WINDOW - this.timestamps.length;
+    for (let i = 0; i < deficit; i++) {
       this.timestamps.push(now);
     }
     this.notify(now);
+  }
+
+  // Re-evaluates the warning without recording a new submission, so callers
+  // can clear a stale warning once its window has elapsed with no activity.
+  public recheck() {
+    this.notify(Date.now());
   }
 
   private clean(now: number) {

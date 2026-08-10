@@ -24,6 +24,10 @@ export const STROKES_PER_CLIENT_WINDOW = 120;
 export const STROKES_GLOBAL_WINDOW = 2_000;
 export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
 export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
+// Bookmark rows are permanent (unlike presence/snapshots), so both a
+// per-client and a global cap bound table growth from a spoofed clientId.
+export const BOOKMARKS_PER_CLIENT_WINDOW = 10;
+export const BOOKMARKS_GLOBAL_WINDOW = 100;
 // Snapshots carry no per-client identity (they're a server-side optimization,
 // not a user action), so this is a global-only limit — legitimate submissions
 // are infrequent, so this is generous headroom, not a real throughput cap.
@@ -32,6 +36,8 @@ export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export const PRESENCE_ONLINE_WINDOW_MS = 30_000;
 export const PRESENCE_STALE_MS = 2 * 60_000;
+// A laser trail effect only ever needs a short recent tail of points.
+export const MAX_LASER_TRAIL_POINTS = 50;
 
 export const DEFAULT_LIST_LIMIT = 500;
 export const MAX_LIST_LIMIT = 1000;

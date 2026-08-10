@@ -457,7 +457,7 @@ function PalettePicker({
         <div
           role="menu"
           aria-label="Color Palettes"
-          className="absolute bottom-full mb-2 left-0 sm:left-auto sm:right-0 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[220px]"
+          className="absolute bottom-full right-0 mb-2 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[220px]"
         >
           <div className="border-b border-chrome-border/60 pb-1 font-mono text-xs font-bold uppercase text-accent-yellow">
             Color Palettes

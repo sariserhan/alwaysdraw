@@ -419,10 +419,10 @@ export function GlobalCanvas() {
       endNode.setAttribute("cy", String(drag.currentScreen.y));
     }
 
-    const distPx = Math.round(distance(drag.startWorld, drag.currentWorld));
-    const distMeters = (distPx / 38).toFixed(1);
-    const dx = Math.round(drag.currentWorld.x - drag.startWorld.x);
-    const dy = Math.round(drag.currentWorld.y - drag.startWorld.y);
+    const distPx = Math.round(distance(drag.startScreen, drag.currentScreen));
+    const distMeters = (distance(drag.startWorld, drag.currentWorld) / 38).toFixed(1);
+    const dx = Math.round(drag.currentScreen.x - drag.startScreen.x);
+    const dy = Math.round(drag.currentScreen.y - drag.startScreen.y);
     let angleDeg = Math.round((Math.atan2(dy, dx) * 180) / Math.PI);
     if (angleDeg < 0) angleDeg += 360;
 
@@ -883,6 +883,8 @@ export function GlobalCanvas() {
         setTool("stencil");
       } else if (key === "r" || key === "7") {
         setTool("ruler");
+      } else if (key === "l") {
+        setTool("laser");
       } else if (key === "g") {
         setGridConfig((prev) => ({
           ...prev,
@@ -983,39 +985,45 @@ export function GlobalCanvas() {
       }
 
       if (tool === "stencil") {
-        const points = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, brushWidth * 6);
-        const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
-        const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        const stroke: LocalStroke = {
-          clientStrokeId,
-          clientId,
-          mode: "draw",
-          brushType: "marker",
-          color,
-          width: Math.max(3, Math.round(brushWidth / 2)),
-          opacity,
-          points,
-          tiles,
-          clientTimestamp: Date.now(),
-        };
-        pendingRef.current.set(stroke.clientStrokeId, stroke);
+        // A stencil may be made of several disjoint sub-shapes (e.g.
+        // biohazard's 3 circles); each sub-path is submitted as its own
+        // stroke so the renderer's single-polyline-per-stroke drawing
+        // doesn't chain a straight connector line between them.
+        const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, brushWidth * 6);
+        for (const points of subPaths) {
+          const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
+          const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          const stroke: LocalStroke = {
+            clientStrokeId,
+            clientId,
+            mode: "draw",
+            brushType: "marker",
+            color,
+            width: Math.max(3, Math.round(brushWidth / 2)),
+            opacity,
+            points,
+            tiles,
+            clientTimestamp: Date.now(),
+          };
+          pendingRef.current.set(stroke.clientStrokeId, stroke);
+
+          submitStroke({
+            clientStrokeId: stroke.clientStrokeId,
+            clientId,
+            mode: stroke.mode,
+            brushType: stroke.brushType,
+            color: stroke.color,
+            width: stroke.width,
+            opacity: stroke.opacity,
+            points: stroke.points,
+            clientTimestamp: stroke.clientTimestamp,
+          }).catch(() => {
+            pendingRef.current.delete(stroke.clientStrokeId);
+            scheduleRedraw({ world: true, strokes: true });
+          });
+        }
         playBrushSound("marker");
         scheduleRedraw({ world: true, strokes: true });
-
-        submitStroke({
-          clientStrokeId: stroke.clientStrokeId,
-          clientId,
-          mode: stroke.mode,
-          brushType: stroke.brushType,
-          color: stroke.color,
-          width: stroke.width,
-          opacity: stroke.opacity,
-          points: stroke.points,
-          clientTimestamp: stroke.clientTimestamp,
-        }).catch(() => {
-          pendingRef.current.delete(stroke.clientStrokeId);
-          scheduleRedraw({ world: true, strokes: true });
-        });
         return;
       }
 
@@ -1387,7 +1395,7 @@ export function GlobalCanvas() {
             onTeleport={handleBookmarkTeleport}
           />
           <ExportModal
-            getCanvasRef={() => canvasRef.current}
+            getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
             getCommittedStrokes={() => committedRef.current}
             currentCamera={cameraSnapshot}
             viewportWidth={viewportSize.width}

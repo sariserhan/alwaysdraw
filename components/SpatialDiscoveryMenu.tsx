@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Point } from "@/lib/types";
-
-const DEFAULT_WORLD_SIZE = 10000;
+import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 
 export interface SpatialDiscoveryMenuProps {
   onJumpToPoint: (point: Point, label: string) => void;
@@ -46,14 +45,14 @@ export function SpatialDiscoveryMenu({
 
   const handleJumpBusiest = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const pt = getBusiestPoint() ?? { x: DEFAULT_WORLD_SIZE / 2, y: DEFAULT_WORLD_SIZE / 2 };
+    const pt = getBusiestPoint() ?? { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
     onJumpToPoint(pt, "Busiest Hotspot");
     setIsOpen(false);
   };
 
   const handleJumpLatest = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const pt = getLatestActivityPoint() ?? { x: DEFAULT_WORLD_SIZE / 2, y: DEFAULT_WORLD_SIZE / 2 };
+    const pt = getLatestActivityPoint() ?? { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
     onJumpToPoint(pt, "Latest Activity");
     setIsOpen(false);
   };
@@ -61,8 +60,8 @@ export function SpatialDiscoveryMenu({
   const handleJumpRandom = (e: React.MouseEvent) => {
     e.stopPropagation();
     const pt = getRandomActivePoint() ?? {
-      x: Math.floor(1000 + Math.random() * (DEFAULT_WORLD_SIZE - 2000)),
-      y: Math.floor(1000 + Math.random() * (DEFAULT_WORLD_SIZE - 2000)),
+      x: Math.floor(Math.random() * WORLD_WIDTH),
+      y: Math.floor(Math.random() * WORLD_HEIGHT),
     };
     onJumpToPoint(pt, "Random Art Spot");
     setIsOpen(false);

@@ -3,13 +3,34 @@ import type { Camera } from "./camera";
 import { clearCanvas, drawWorldBackground, drawStroke } from "./drawing";
 import { renderBrushStroke } from "./brushes";
 
+/**
+ * Composites one or more stacked canvas layers (e.g. world background, strokes,
+ * heatmap overlay) into a single offscreen canvas, in the order given, and
+ * downloads the result as a PNG. Passing a single canvas still works.
+ */
 export function downloadCanvasPNG(
-  canvas: HTMLCanvasElement,
+  layers: HTMLCanvasElement | (HTMLCanvasElement | null | undefined)[],
   filename = "alwaysdraw-snapshot.png",
 ) {
+  const canvases = (Array.isArray(layers) ? layers : [layers]).filter(
+    (c): c is HTMLCanvasElement => !!c,
+  );
+  if (canvases.length === 0) return;
+
+  const [first] = canvases;
+  const offscreen = document.createElement("canvas");
+  offscreen.width = first.width;
+  offscreen.height = first.height;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) return;
+
+  for (const canvas of canvases) {
+    ctx.drawImage(canvas, 0, 0);
+  }
+
   const link = document.createElement("a");
   link.download = filename;
-  link.href = canvas.toDataURL("image/png");
+  link.href = offscreen.toDataURL("image/png");
   link.click();
 }
 

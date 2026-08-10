@@ -7,8 +7,15 @@ export interface PerformanceMetrics {
   memoryEstimateMb: number;
 }
 
+// ponytail: on-demand redraws (not a continuous rAF loop) mean gaps between
+// tick() calls can be idle wall-clock time, not slow frames. Anything longer
+// than a dropped frame or two resets the measurement window instead of being
+// counted, so an idle period can't masquerade as a "1 FPS" reading.
+const IDLE_GAP_MS = 250;
+
 class FpsTracker {
   private lastTime = performance.now();
+  private lastTickTime = performance.now();
   private frames = 0;
   private currentFps = 60;
   private currentFrameTime = 16.6;
@@ -20,6 +27,14 @@ class FpsTracker {
 
   public tick(visibleTiles: number, totalTiles: number, committedStrokes: number) {
     const now = performance.now();
+    const sinceLastTick = now - this.lastTickTime;
+    this.lastTickTime = now;
+
+    if (sinceLastTick > IDLE_GAP_MS) {
+      this.lastTime = now;
+      this.frames = 0;
+    }
+
     const delta = now - this.lastTime;
     this.frames++;
 

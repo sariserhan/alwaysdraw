@@ -6,6 +6,7 @@ import {
   PRESENCE_ONLINE_WINDOW_MS,
   PRESENCE_STALE_MS,
   MAX_PRESENCE_LIST,
+  MAX_LASER_TRAIL_POINTS,
   MAX_CLIENT_ID_LENGTH,
   RATE_LIMIT_WINDOW_MS,
   HEARTBEATS_PER_CLIENT_WINDOW,
@@ -56,6 +57,24 @@ export const heartbeat = mutation({
     );
     const cursorX = clamp(args.cursorX, WORLD_WIDTH);
     const cursorY = clamp(args.cursorY, WORLD_HEIGHT);
+    // --- Abuse boundary: bound trail size like MAX_POINTS_PER_STROKE does for strokes ---
+    if (
+      args.laserTrail !== undefined &&
+      args.laserTrail.length > MAX_LASER_TRAIL_POINTS
+    ) {
+      throw new Error(
+        `laserTrail.length must not exceed ${MAX_LASER_TRAIL_POINTS}`,
+      );
+    }
+    const now = Date.now();
+    // Points are just for rendering — clamp x/y like cursorX/cursorY, and
+    // clamp timestamp to now so a future/spoofed timestamp can't freeze the
+    // decay-by-age render on every other client (see lib/laser.ts).
+    const laserTrail = args.laserTrail?.map((p) => ({
+      x: clamp(p.x, WORLD_WIDTH),
+      y: clamp(p.y, WORLD_HEIGHT),
+      timestamp: Number.isFinite(p.timestamp) ? Math.min(p.timestamp, now) : now,
+    }));
     const existing = await ctx.db
       .query("presence")
       .withIndex("by_clientId", (q) => q.eq("clientId", args.clientId))
@@ -64,16 +83,16 @@ export const heartbeat = mutation({
       await ctx.db.patch(existing._id, {
         cursorX,
         cursorY,
-        laserTrail: args.laserTrail,
-        lastSeenAt: Date.now(),
+        laserTrail,
+        lastSeenAt: now,
       });
     } else {
       await ctx.db.insert("presence", {
         clientId: args.clientId,
         cursorX,
         cursorY,
-        laserTrail: args.laserTrail,
-        lastSeenAt: Date.now(),
+        laserTrail,
+        lastSeenAt: now,
       });
     }
     return null;
