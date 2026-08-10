@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChromeRivet } from "./ChromeRivet";
@@ -17,19 +18,30 @@ export interface BookmarkMenuProps {
 
 export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: BookmarkMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
 
   const bookmarks = useQuery(api.bookmarks.list, { limit: 20 }) ?? [];
   const createBookmark = useMutation(api.bookmarks.create);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -47,6 +59,20 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
+
+  const toggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (window.innerWidth >= 1360) {
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 380));
+        const right = window.innerWidth - rect.left + 12;
+        setCoords({ top, right });
+      } else {
+        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
 
   const handleSaveCurrentSpot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,10 +106,11 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
@@ -104,11 +131,13 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
         <span>{t(locale, "bookmarks").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
           aria-label={t(locale, "saved_locations")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[320px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md w-[320px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
@@ -135,19 +164,17 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
                 {t(locale, "save").toUpperCase()}
               </button>
             </div>
-            <span className="font-mono text-[10px] text-ink-dim">
-              At ({Math.round(currentCamera.x)}, {Math.round(currentCamera.y)}) @ {currentCamera.zoom.toFixed(1)}x
-            </span>
           </form>
 
-          {/* List of Bookmarks */}
-          <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
-            <span className="font-mono text-[11px] font-bold uppercase text-ink-dim">
+          {/* List of saved spots */}
+          <div className="flex max-h-60 flex-col gap-1.5 overflow-y-auto pr-1">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-ink-dim">
               {t(locale, "saved_locations")} ({bookmarks.length})
             </span>
+
             {bookmarks.length === 0 ? (
-              <p className="font-mono text-xs text-ink-dim/70 py-2 text-center italic">
-                {t(locale, "no_bookmarks")}
+              <p className="py-3 text-center font-mono text-xs italic text-ink-dim">
+                {t(locale, "no_bookmarks_yet")}
               </p>
             ) : (
               bookmarks.map((bm) => (
@@ -157,21 +184,21 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
                     onTeleport({ x: bm.x, y: bm.y }, bm.zoom, bm.title);
                     setIsOpen(false);
                   }}
-                  className="group flex items-center justify-between rounded border border-chrome-border/70 bg-chrome-bg-raised/80 p-2 cursor-pointer transition-colors hover:border-rust hover:bg-rust/20"
+                  className="flex cursor-pointer items-center justify-between gap-2 rounded border border-chrome-border bg-chrome-bg-raised/80 px-2.5 py-1.5 transition-colors hover:border-rust hover:bg-rust/20"
                 >
-                  <div className="flex flex-col overflow-hidden pr-2">
-                    <span className="font-mono text-xs font-bold text-ink truncate group-hover:text-accent-yellow">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-mono text-xs font-bold text-ink">
                       {bm.title}
                     </span>
                     <span className="font-mono text-[10px] text-ink-dim">
-                      ({bm.x}, {bm.y}) · {bm.zoom}x
+                      ({Math.round(bm.x)}, {Math.round(bm.y)}) • {Math.round(bm.zoom * 100)}%
                     </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={(e) => handleCopyLink(e, bm)}
-                    className="rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-blue"
+                    className="shrink-0 rounded border border-chrome-border bg-chrome-bg px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim transition-colors hover:border-rust hover:text-accent-yellow"
                     title={t(locale, "share")}
                   >
                     {copiedId === bm._id ? t(locale, "copied").toUpperCase() : t(locale, "share").toUpperCase()}
@@ -180,8 +207,9 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale }: Bo
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

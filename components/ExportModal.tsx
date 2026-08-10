@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import { downloadCanvasPNG, generateTimelapseVideo } from "@/lib/exportMedia";
 import { strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
@@ -34,23 +35,31 @@ export function ExportModal({
   locale,
 }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-      }
+      if (e.key === "Escape") setIsOpen(false);
     };
 
     document.addEventListener("pointerdown", handleClickOutside);
@@ -61,66 +70,71 @@ export function ExportModal({
     };
   }, [isOpen]);
 
+  const toggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (window.innerWidth >= 1360) {
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 300));
+        const right = window.innerWidth - rect.left + 12;
+        setCoords({ top, right });
+      } else {
+        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   const handleDownloadSnapshot = () => {
     const layers = getCanvasLayers();
-    if (layers.every((c) => !c)) return;
-    const timestamp = new Date().toISOString().slice(0, 10);
-    downloadCanvasPNG(layers, `alwaysdraw-${timestamp}.png`);
+    downloadCanvasPNG(layers, `alwaysdraw-snapshot-${Date.now()}.png`);
     setIsOpen(false);
   };
 
-  const handleGenerateTimelapse = async () => {
-    const allStrokes = getCommittedStrokes();
-    const strokes = region
-      ? allStrokes.filter((s) => strokeIntersectsRegion(s.points, region))
-      : allStrokes;
-    if (strokes.length === 0 || isExporting) return;
+  const handleExportWebM = async () => {
+    let strokes = getCommittedStrokes();
+    let cam = currentCamera;
+    if (region) {
+      strokes = strokes.filter((s) => strokeIntersectsRegion(s.points, region));
+      cam = fitCameraToRegion(region, viewportWidth, viewportHeight);
+    }
+    if (strokes.length === 0) return;
 
     try {
       setIsExporting(true);
       setProgress(0);
 
-      const camera = region
-        ? fitCameraToRegion(region, viewportWidth || 1200, viewportHeight || 800)
-        : currentCamera;
-
-      const blob = await generateTimelapseVideo({
+      await generateTimelapseVideo({
         strokes,
-        camera,
-        viewportWidth: viewportWidth || 1200,
-        viewportHeight: viewportHeight || 800,
+        camera: cam,
+        viewportWidth,
+        viewportHeight,
         worldWidth,
         worldHeight,
-        onProgress: setProgress,
+        onProgress: (p) => setProgress(p),
       });
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `alwaysdraw-timelapse-${Date.now()}.webm`;
-      link.click();
-      URL.revokeObjectURL(url);
+      setIsOpen(false);
     } catch (err) {
-      console.error("Timelapse export failed:", err);
+      console.error("Failed to export WebM timelapse:", err);
     } finally {
       setIsExporting(false);
       setProgress(0);
-      setIsOpen(false);
     }
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
             : "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
         }`}
         title={t(locale, "export_canvas_media")}
-        aria-label={t(locale, "export")}
+        aria-label={t(locale, "export_canvas_media")}
         aria-expanded={isOpen}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent-green">
@@ -135,11 +149,13 @@ export function ExportModal({
         <span>{t(locale, "export").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
           aria-label={t(locale, "export_canvas_media")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[280px] sm:w-[320px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md w-[280px] sm:w-[320px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
@@ -153,9 +169,9 @@ export function ExportModal({
             type="button"
             onClick={handleDownloadSnapshot}
             disabled={isExporting}
-            className="flex items-center gap-2.5 rounded border border-chrome-border bg-chrome-bg-raised p-2 text-left transition-colors hover:border-rust hover:bg-rust/20 disabled:opacity-50"
+            className="flex items-center gap-3 rounded border border-chrome-border bg-chrome-bg-raised p-2 text-left transition-colors hover:border-rust hover:bg-rust/20 disabled:opacity-40"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-chrome-bg text-accent-yellow">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-chrome-bg text-accent-blue text-base font-bold">
               📷
             </div>
             <div className="flex flex-col">
@@ -164,32 +180,29 @@ export function ExportModal({
             </div>
           </button>
 
-          {/* Option 2: Export Timelapse Video */}
+          {/* Option 2: Render WebM Timelapse */}
           <button
             type="button"
-            onClick={handleGenerateTimelapse}
+            onClick={handleExportWebM}
             disabled={isExporting}
-            className="flex items-center gap-2.5 rounded border border-chrome-border bg-chrome-bg-raised p-2 text-left transition-colors hover:border-rust hover:bg-rust/20 disabled:opacity-50"
+            className="flex items-center gap-3 rounded border border-chrome-border bg-chrome-bg-raised p-2 text-left transition-colors hover:border-rust hover:bg-rust/20 disabled:opacity-40"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-chrome-bg text-accent-green">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-chrome-bg text-accent-yellow text-base font-bold">
               🎬
             </div>
             <div className="flex flex-col">
               <span className="font-mono text-xs font-bold text-ink">{t(locale, "timelapse_webm")}</span>
               <span className="font-mono text-[10px] text-ink-dim">
-                {region
-                  ? `${t(locale, "region")}: ${Math.round(region.maxX - region.minX)}×${Math.round(region.maxY - region.minY)}px`
-                  : t(locale, "timelapse_desc")}
+                {region ? `${t(locale, "region")}: ${Math.round(region.maxX - region.minX)}×${Math.round(region.maxY - region.minY)}px` : t(locale, "timelapse_desc")}
               </span>
             </div>
           </button>
 
-          {/* Progress Indicator */}
           {isExporting && (
-            <div className="flex flex-col gap-1 rounded bg-chrome-bg-raised p-2">
-              <div className="flex justify-between font-mono text-[10px] font-bold text-ink">
-                <span>{t(locale, "encoding")}</span>
-                <span className="text-accent-yellow">{progress}%</span>
+            <div className="mt-1 flex flex-col gap-1.5 rounded bg-chrome-bg-raised p-2 border border-rust/40">
+              <div className="flex items-center justify-between font-mono text-[10px] text-ink-dim">
+                <span>Rendering video...</span>
+                <span className="font-bold text-accent-yellow">{Math.round(progress)}%</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded bg-chrome-bg">
                 <div
@@ -199,8 +212,9 @@ export function ExportModal({
               </div>
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

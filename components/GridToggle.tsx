@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { GridConfig, GridMode } from "@/lib/grid";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
@@ -13,13 +14,24 @@ export interface GridToggleProps {
 
 export function GridToggle({ config, onChange, locale }: GridToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -38,6 +50,20 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
     };
   }, [isOpen]);
 
+  const toggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (window.innerWidth >= 1360) {
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 280));
+        const right = window.innerWidth - rect.left + 12;
+        setCoords({ top, right });
+      } else {
+        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   const handleSetMode = (mode: GridMode, cellSize: number = 50) => {
     onChange({
       ...config,
@@ -54,10 +80,11 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isOpen || config.mode !== "none"
             ? "border-rust bg-rust text-on-accent font-bold"
@@ -78,11 +105,13 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
         <span>{t(locale, "grid").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
           aria-label={t(locale, "grid_title")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-2 w-52 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-2 w-52 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-1.5 left-1.5" />
           <ChromeRivet className="top-1.5 right-1.5" />
@@ -160,8 +189,9 @@ export function GridToggle({ config, onChange, locale }: GridToggleProps) {
               </span>
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import type { Point } from "@/lib/types";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
@@ -17,13 +18,6 @@ export interface ExploreMenuProps {
 
 const FALLBACK_CENTER: Point = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
 
-/**
- * Was two near-identical dropdowns (SpatialDiscoveryMenu "EXPLORE" and
- * HighlightsModal "HIGHLIGHTS") — same three teleport actions duplicated
- * between them, plus a fourth ("Untouched Territory") that was never real
- * data, just a hardcoded point that drifted out of world bounds across two
- * world-size changes. One menu, three real actions, a live stats footer.
- */
 export function ExploreMenu({
   onJumpToPoint,
   getBusiestPoint,
@@ -33,13 +27,24 @@ export function ExploreMenu({
   locale,
 }: ExploreMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -55,16 +60,31 @@ export function ExploreMenu({
     };
   }, [isOpen]);
 
+  const toggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (window.innerWidth >= 1360) {
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 380));
+        const right = window.innerWidth - rect.left + 12;
+        setCoords({ top, right });
+      } else {
+        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+      }
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   const jump = (getPoint: () => Point | null, label: string) => {
     onJumpToPoint(getPoint() ?? FALLBACK_CENTER, label);
     setIsOpen(false);
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
@@ -81,11 +101,13 @@ export function ExploreMenu({
         <span>{t(locale, "explore").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
           aria-label={t(locale, "explore_wall_title")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[300px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-3 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md w-[300px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
@@ -151,8 +173,9 @@ export function ExploreMenu({
               <span className="font-bold text-accent-green">{onlineCount} {t(locale, "online")}</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

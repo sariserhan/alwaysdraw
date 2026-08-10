@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
 import { MAX_USERNAME_LENGTH } from "@/convex/constants";
@@ -13,14 +14,25 @@ export interface UsernameControlProps {
 
 export function UsernameControl({ username, onUsernameChange, locale }: UsernameControlProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [draft, setDraft] = useState(username ?? "");
-  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
@@ -42,16 +54,24 @@ export function UsernameControl({ username, onUsernameChange, locale }: Username
   };
 
   const handleToggle = () => {
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) setDraft(username ?? "");
-      return next;
-    });
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (window.innerWidth >= 1360) {
+        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 240));
+        const right = window.innerWidth - rect.left + 12;
+        setCoords({ top, right });
+      } else {
+        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+      }
+      setDraft(username ?? "");
+    }
+    setIsOpen((prev) => !prev);
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
@@ -67,11 +87,13 @@ export function UsernameControl({ username, onUsernameChange, locale }: Username
         <span>{username ?? t(locale, "anonymous").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="menu"
           aria-label={t(locale, "display_name")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[260px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md w-[260px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
@@ -100,8 +122,9 @@ export function UsernameControl({ username, onUsernameChange, locale }: Username
               {t(locale, "save").toUpperCase()}
             </button>
           </form>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
 import type { WorldRect } from "@/lib/types";
@@ -47,26 +48,29 @@ export function TimeTravelMenu({
   locale,
 }: TimeTravelMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
 
-  // Closing the panel (clicking elsewhere, Escape) only hides the controls —
-  // it does NOT exit replay mode. Panning or drawing-tool clicks land on the
-  // canvas, which is "outside" this panel; exiting replay on every such
-  // click would make it impossible to look around history without it
-  // snapping back to live. Only the explicit LIVE button exits replay.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        popoverRef.current && !popoverRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsOpen(false);
-      }
+      if (e.key === "Escape") setIsOpen(false);
     };
 
     document.addEventListener("pointerdown", handleClickOutside);
@@ -79,12 +83,19 @@ export function TimeTravelMenu({
 
   const handleToggle = () => {
     if (!isOpen) {
-      if (!isReplayMode) {
-        onEnterReplay();
+      if (!isReplayMode) onEnterReplay();
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        if (window.innerWidth >= 1360) {
+          const top = Math.max(12, Math.min(rect.top, window.innerHeight - 380));
+          const right = window.innerWidth - rect.left + 12;
+          setCoords({ top, right });
+        } else {
+          setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+        }
       }
       setIsOpen(true);
     } else {
-      onExitReplay();
       setIsOpen(false);
     }
   };
@@ -100,8 +111,9 @@ export function TimeTravelMenu({
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
@@ -120,11 +132,13 @@ export function TimeTravelMenu({
         <span>{t(locale, "timetravel").toUpperCase()}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && coords && createPortal(
         <div
+          ref={popoverRef}
           role="region"
           aria-label={t(locale, "history_replay")}
-          className="fixed max-[1359px]:right-3 max-[1359px]:top-20 min-[1360px]:absolute min-[1360px]:right-full min-[1360px]:top-0 min-[1360px]:mr-3 z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[320px] sm:w-[440px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
+          className="fixed z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.95)] backdrop-blur-md w-[320px] sm:w-[440px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4rem)] overflow-y-auto"
+          style={{ top: `${coords.top}px`, right: `${coords.right}px` }}
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
@@ -270,8 +284,9 @@ export function TimeTravelMenu({
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
