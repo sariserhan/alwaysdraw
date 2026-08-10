@@ -65,6 +65,7 @@ import { CommunityGalleryModal } from "./CommunityGalleryModal";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
+import { MoreMenu } from "./MoreMenu";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
@@ -2155,14 +2156,6 @@ export function GlobalCanvas() {
         <div className="hidden xl:flex items-center gap-3 pr-4">
           {/* Cluster 1: View & Display */}
           <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
-            <LanguagePicker
-              currentLocale={locale}
-              onLocaleChange={(loc) => {
-                setLocale(loc);
-                localStorage.setItem("alwaysdraw_locale", loc);
-              }}
-            />
-            <ThemeToggle />
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
             <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
           </div>
@@ -2239,12 +2232,24 @@ export function GlobalCanvas() {
 
           <HeaderSeam />
 
-          {/* Cluster 4: Help & Status */}
-          <div className="flex shrink-0 items-center gap-2" title="Help & System Status">
+          {/* Overflow: language, theme, hotkeys, help, connection status —
+              lower-frequency controls that don't need to stay always
+              visible. The mobile drawer keeps showing these in their own
+              labeled sections regardless, since it never had the row's
+              fixed-width overflow problem to begin with. */}
+          <MoreMenu locale={locale}>
+            <LanguagePicker
+              currentLocale={locale}
+              onLocaleChange={(loc) => {
+                setLocale(loc);
+                localStorage.setItem("alwaysdraw_locale", loc);
+              }}
+            />
+            <ThemeToggle />
             <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
             <HelpModal />
             <ConnectionStatus locale={locale} />
-          </div>
+          </MoreMenu>
         </div>
 
         {/* Mobile Hamburger Button Controls (< xl) */}
