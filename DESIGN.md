@@ -1,0 +1,186 @@
+---
+name: AlwaysDraw
+description: One world. One canvas. Always drawing.
+colors:
+  chrome-bg: "#17181a"
+  chrome-bg-raised: "#202224"
+  chrome-border: "#3a3530"
+  rust: "#b5502c"
+  concrete: "#b7b0a1"
+  ink: "#f5f1e6"
+  ink-dim: "#b8b3a6"
+  accent-crimson: "#e0432b"
+  accent-crimson-deep: "#b8371f"
+  accent-green: "#39c07a"
+  accent-blue: "#2f9fe0"
+  accent-yellow: "#e0b13a"
+typography:
+  display:
+    fontFamily: "Space Grotesk, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "0.22em"
+  label:
+    fontFamily: "Space Grotesk, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.02em"
+  mono:
+    fontFamily: "Space Mono, ui-monospace, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1
+    letterSpacing: "normal"
+rounded:
+  none: "0px"
+  sm: "2px"
+  full: "9999px"
+spacing:
+  xs: "4px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+components:
+  toolbar-panel:
+    backgroundColor: "{colors.chrome-bg-raised}"
+    rounded: "{rounded.sm}"
+    padding: "10px 12px"
+  status-pill:
+    backgroundColor: "{colors.chrome-bg-raised}"
+    textColor: "{colors.ink-dim}"
+    rounded: "{rounded.sm}"
+    padding: "4px 10px"
+  button-active:
+    backgroundColor: "{colors.accent-crimson-deep}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.sm}"
+    padding: "6px 10px"
+  button-inactive:
+    textColor: "{colors.ink-dim}"
+    rounded: "{rounded.sm}"
+    padding: "6px 10px"
+---
+
+# Design System: AlwaysDraw
+
+## Overview
+
+**Creative North Star: "The Bolted Rack"**
+
+AlwaysDraw is a rusted train-yard wall that the whole internet keeps tagging — not a whiteboard app with a toolbar politely floating over a blank page. The interface reads as mounted hardware: a riveted steel strip and a bolted spray-can rack, both bolted directly to the edges of the screen, framing a full-bleed slab of poured concrete that anyone can mark. Chrome is near-black weathered steel; the canvas itself is a plain, warm concrete gray so any color painted onto it reads clearly — the ground carries no texture of its own, deliberately, so it never competes with what people actually draw on it. Nothing about the chrome is soft, rounded, or ambient — depth comes from hard borders, mounting hardware, and directional shadows, the way real equipment sits on a wall, not from floating cards or glassy panels.
+
+This world was chosen explicitly against the category default for collaborative drawing tools (Miro/FigJam/Excalidraw-style soft pastel whiteboards) — that direction is the confirmed anti-reference. It was also chosen against a neon-cyberpunk night-district direction that scored well on recognition but ran into the same AI-generated-interface cliché (near-black + one neon accent) the brief asked to avoid.
+
+**Key Characteristics:**
+- Near-black steel chrome bolted to the viewport edges; a warm concrete-gray canvas in between
+- A curated four-color spray-paint accent set (crimson, acid green, electric blue, warning yellow), each with one fixed system role — never decorative
+- Real stencil-plate construction (masked bridge-gaps) on the wordmark and on every measurement/count numeral
+- Fully circular shapes reserved for literal hardware and indicator lights (rivets, swatches, cursors, status dots) — every panel and control otherwise stays rectilinear
+- No soft ambient shadows; depth reads as mounted hardware (rivets, brackets, hard borders) and directional drop shadows only
+
+## Colors
+
+A near-black steel-and-rust neutral system carries the interface; a four-color spray-paint accent set is reserved for status, action, and per-user identity — never used decoratively.
+
+### Primary
+- **Rust** (`#b5502c`): the system's signature accent. Marks anything tied to *shared/live state at the wall level* — the online-count plate's wash and border, canvas rust-bleed streaks, the top bar and toolbar's structural borders. Never used for interactive controls.
+- **Deep Crimson** (`#b8371f`): the accent-bearing-text variant of Crimson (below), used only where a solid fill sits directly under white text (the active Brush/Erase button) — picked specifically to clear 4.5:1 contrast at small bold sizes, where the brighter Crimson falls short.
+
+### Secondary
+- **Crimson** (`#e0432b`): the primary spray-can color — default brush-size slider accent, first color-swatch highlight ring is yellow but crimson anchors the swatch set's warm end.
+- **Acid Green** (`#39c07a`): "alive" — the online-presence dot and the "Live" connection state. Reserved for genuine live/connected signals only.
+- **Electric Blue** (`#2f9fe0`): one of the rotating per-user remote-cursor colors; otherwise a swatch option.
+- **Warning Yellow** (`#e0b13a`): "attention" — the "Reconnecting" connection state, the focus-visible ring color, and the selected-swatch ring. Reserved for states that need a second look.
+
+### Neutral
+- **Chrome Black** (`#17181a`): the base chrome surface — page background, top bar, inset control wells.
+- **Chrome Raised** (`#202224`): one step up from Chrome Black — toolbar body, status pills, the color-swatch tray. Never used for full-bleed backgrounds.
+- **Steel Border** (`#3a3530`): all structural hairline borders on chrome surfaces.
+- **Concrete** (`#b7b0a1`): the canvas ground — a plain flat fill, deliberately light so any spray color painted on it stays legible, and deliberately textureless so it never competes with what's drawn on it.
+- **Stencil Ink** (`#f5f1e6`): primary text on chrome.
+- **Ink Dim** (`#b8b3a6`): secondary/label text on chrome (tool labels, "online"/"live" captions, size labels).
+
+### Named Rules
+**The One Surface, One Voice Rule.** Chrome (steel, near-black, rust) and canvas (concrete, warm gray) never swap roles. If it's a control or status element, it lives on chrome. If it's paintable world, it's concrete.
+
+**The Reserved Accent Rule.** Each accent color has exactly one system meaning — green means live, yellow means attention, rust means "this plate is a live-count instrument," crimson-deep means "this control is active." None of the four are ever used interchangeably as generic decoration.
+
+## Typography
+
+**Display/UI Font:** Space Grotesk (with system-ui, sans-serif fallback)
+**Measurement Font:** Space Mono (with ui-monospace, monospace fallback)
+
+**Character:** A technical, slightly industrial grotesk paired with a mechanical mono — the same pairing an equipment placard or shipping-crate stencil would use. Space Grotesk carries every word; Space Mono is reserved strictly for things that count or measure.
+
+### Hierarchy
+- **Wordmark** (700, 0.875rem / 14px, tracked 0.22em, uppercase, stencil-cut): the "AlwaysDraw" mark in the top bar — the only place the full stencil-bridge mask is used at this size.
+- **Label** (600, 0.75rem / 12px, uppercase, tracked wide): tool button labels (Brush/Erase), the "Size" caption, status pill captions ("live"/"online").
+- **Measurement** (400, 0.75rem / 12px, Space Mono, tabular-nums, stencil-cut-sm): every live number — online count, zoom percentage, brush-size value. Always the small stencil-bridge mask, never plain.
+
+### Named Rules
+**The Numerals-Are-Instruments Rule.** Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono with the small stencil-cut mask. Static UI words never use Space Mono or the stencil mask — that combination is reserved for live measurements.
+
+## Layout
+
+A single full-bleed canvas fills the viewport; all UI is two bolted fixtures at the screen's edges, never a floating card layout. The top bar is a full-width strip flush to the top edge (padding: 10px 16px). The toolbar is a compact rack centered at the bottom edge, flush enough to read as mounted rather than floating (bottom padding reduced to 8px, not the ~16px a typical floating-FAB toolbar would use). Control groups inside the toolbar are separated by hairline dividers and 12px gaps; individual controls sit on 4-8px internal padding. The toolbar wraps onto a second row on narrow viewports rather than truncating or scrolling.
+
+## Elevation & Depth
+
+No soft ambient shadows or glassy panels. Depth comes from three devices instead: (1) hard 1-2px borders on every chrome surface, (2) directional drop shadows that ground a fixture against the canvas behind it, and (3) physical mounting hardware — rivets and bracket tabs — that implies the fixture is bolted on, not floating. The one deliberate exception is small point-glows on live-status indicator dots (green/yellow), styled like an LED rather than a decorative effect.
+
+### Shadow Vocabulary
+- **Rack drop** (`box-shadow: 0 10px 28px rgba(0,0,0,0.5)`): the toolbar's grounding shadow — heavy, directional, implies real weight hanging off the bottom edge.
+- **Strip drop** (`box-shadow: 0 2px 10px rgba(0,0,0,0.5)`): the top bar's shadow — shallow since it's flush to the edge, not hanging.
+- **Indicator glow** (`box-shadow: 0 0 6px var(--accent-green)` or `var(--accent-yellow)`): status-dot point light. Reserved for the two live-status dots only.
+- **Bolt-head relief** (`box-shadow: inset 0 1px 1.5px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.1)` over a radial-gradient fill): every rivet. This is hardware relief, not a card shadow — never apply it to a rectangular surface.
+
+### Named Rules
+**The No Floating Card Rule.** Nothing in this system is a rounded, softly-shadowed card hovering over the canvas. Every fixture is bolted (rivets/brackets), bordered, and grounded with a hard directional shadow.
+
+## Shapes
+
+**The Round-Is-Hardware Rule.** Fully circular geometry (`rounded-full`) is reserved for literal fasteners, caps, and indicators: rivets, color swatches (styled as spray-can caps), the custom-color picker, remote-cursor paint-drips, and status dots. Every panel, button, and input well stays rectilinear at a small `2px` radius (`rounded-sm`) or square (`rounded-none`) — never the `8-16px` soft-card radius common to whiteboard apps. Mounting brackets are small square-cornered tabs, not pills.
+
+Additional signature geometry: small teardrop drip shapes hanging from the toolbar's bottom edge. The canvas ground itself is deliberately bare geometry (a fill and a border, nothing more) — see Canvas Ground below.
+
+## Components
+
+### Buttons (tool toggle, zoom controls)
+- **Shape:** rectilinear, `rounded-sm` (2px), never pill-shaped.
+- **Active state:** solid Deep Crimson fill (`#b8371f`) with Stencil Ink text — the AA-safe crimson, not the brighter Crimson used for swatches/sliders.
+- **Inactive state:** Ink Dim text, no fill, hover raises to Chrome Raised background + Stencil Ink text.
+- **Icons:** authored inline SVG, one consistent 1.75-2px stroke weight — never a Unicode glyph or emoji standing in for an icon.
+
+### Status Pills (ConnectionStatus, OnlineCount)
+- **Style:** `rounded-sm`, Chrome Raised background, 1px border.
+- **Live/attention differentiation:** ConnectionStatus uses a plain Steel Border; OnlineCount uses a Rust border plus a subtle rust-tinted gradient wash — the two pills are deliberately NOT twins, since one is a live-count instrument and the other is a binary connection flag.
+- **Indicator:** a 6px dot with a matching `0 0 6px` color glow — green for live/online, yellow (pulsing) for reconnecting.
+
+### The Toolbar (signature component)
+The system's one distinctive custom component. A rectilinear rack (`rounded-sm`, 2px border, `ring-1 ring-rust/25` inset accent) mounted to the bottom edge via two small square bracket tabs at its top-left/top-right corners, each carrying a rivet. A row of teardrop drip shapes hangs from its bottom edge. Internally: a bordered brush/eraser toggle group, seven fixed spray-cap color swatches plus a native color-picker styled to match, a brush-size range input (Crimson accent-color), and a zoom/reset control cluster — all Space Mono for the live numbers, Space Grotesk labels for everything else.
+
+### Remote Cursors
+- **Style:** a small SVG paint-drip (teardrop) shape, not a plain circle or arrow — each remote visitor's cursor is colored by hashing their anonymous client ID against the four-color accent set, so different visitors read as visibly different "spray cans" on the wall.
+
+### Canvas Ground
+- **Style:** a flat Concrete fill with a 1px Rust-colored border along the world edge. Deliberately plain — no grid, crack, seam, or grain texture. This was tried (a poured-slab expansion-joint grid plus hairline cracks) and pulled after real use: the texture visually competed with the strokes people actually draw, which defeats the point of a drawing surface. The strokes are the only visual complexity the ground carries.
+- **Architecture:** rendered on its own canvas layer, stacked beneath a separate transparent strokes layer. This is load-bearing, not incidental — erasing (`destination-out`) clears pixels on the strokes layer only, revealing the Concrete ground underneath rather than punching a transparent hole to whatever sits behind the page.
+- **Rule:** if ground texture is ever reconsidered, it must be explicit, specifiable geometry (lines, polylines, filled shapes) — never a repeating-noise/`feTurbulence` grain effect.
+
+## Do's and Don'ts
+
+### Do:
+- **Do** keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.
+- **Do** apply the stencil-cut mask (`.stencil-cut` / `.stencil-cut-sm`) only to the wordmark and to live numeric measurements — never to body prose or static labels.
+- **Do** give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it; a panel with none of the three will read as a floating card.
+- **Do** reserve fully circular shapes for hardware/indicators (rivets, caps, dots, cursors); keep panels and buttons rectilinear at the `2px` radius.
+- **Do** author any new texture (grain, wear, damage) as explicit, deterministic vector geometry — polylines, filled shapes, gradients along a path — never a repeating/random noise pattern.
+
+### Don't:
+- **Don't** introduce rounded-lg/rounded-xl soft cards, pill-shaped panels, or ambient glassy blur — that's the whiteboard-SaaS world this system was explicitly built against.
+- **Don't** use a Unicode glyph or emoji as a functional icon; author real SVG at a consistent stroke weight.
+- **Don't** use the brighter Crimson (`#e0432b`) as a solid fill under white text — it fails the 4.5:1 contrast floor at small bold sizes; use Deep Crimson (`#b8371f`) for any text-bearing crimson fill.
+- **Don't** add a neon-on-black treatment anywhere in this system — it was a dealt, competitive alternative direction (Neon District) explicitly not chosen, in part because it reads as the generic AI-generated-interface cliché.
+- **Don't** let a new accent color creep in beyond the four reserved spray-paint colors (Crimson, Acid Green, Electric Blue, Warning Yellow) without updating this file — the palette's restraint is a named rule, not an accident.

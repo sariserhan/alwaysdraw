@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-10T00:00:00Z",
+  "title": "Design System: AlwaysDraw",
+  "extensions": {
+    "colorMeta": {
+      "rust": {
+        "role": "primary",
+        "displayName": "Rust",
+        "canonical": "#b5502c",
+        "tonalRamp": ["#2a1409", "#421f0e", "#5f2c15", "#7d3a1c", "#b5502c", "#cc7148", "#e2996f", "#f2c7a8"]
+      },
+      "accent-crimson-deep": {
+        "role": "primary",
+        "displayName": "Deep Crimson",
+        "canonical": "#b8371f",
+        "tonalRamp": ["#210a05", "#39120a", "#571c10", "#7a2815", "#b8371f", "#d15a3f", "#e58469", "#f3b8a4"]
+      },
+      "accent-crimson": {
+        "role": "secondary",
+        "displayName": "Crimson",
+        "canonical": "#e0432b",
+        "tonalRamp": ["#2e0e07", "#4b160c", "#6f2011", "#a12e18", "#e0432b", "#ea6f57", "#f19d87", "#f9cec3"]
+      },
+      "accent-green": {
+        "role": "secondary",
+        "displayName": "Acid Green",
+        "canonical": "#39c07a",
+        "tonalRamp": ["#082617", "#0e3d25", "#155935", "#1e7e4a", "#39c07a", "#63d199", "#95e2ba", "#cbf3dd"]
+      },
+      "accent-blue": {
+        "role": "secondary",
+        "displayName": "Electric Blue",
+        "canonical": "#2f9fe0",
+        "tonalRamp": ["#082234", "#0e3852", "#155178", "#1e70a8", "#2f9fe0", "#5cb6e8", "#93cdef", "#c9e6f7"]
+      },
+      "accent-yellow": {
+        "role": "secondary",
+        "displayName": "Warning Yellow",
+        "canonical": "#e0b13a",
+        "tonalRamp": ["#2e2408", "#4b3b0d", "#6f5713", "#a17c1c", "#e0b13a", "#e9c465", "#f0d894", "#f8ecc7"]
+      },
+      "chrome-bg": {
+        "role": "neutral",
+        "displayName": "Chrome Black",
+        "canonical": "#17181a",
+        "tonalRamp": ["#020202", "#0a0a0b", "#141517", "#17181a", "#28292c", "#454649", "#717376", "#a6a7aa"]
+      },
+      "chrome-bg-raised": {
+        "role": "neutral",
+        "displayName": "Chrome Raised",
+        "canonical": "#202224"
+      },
+      "chrome-border": {
+        "role": "neutral",
+        "displayName": "Steel Border",
+        "canonical": "#3a3530"
+      },
+      "concrete": {
+        "role": "neutral",
+        "displayName": "Concrete",
+        "canonical": "#b7b0a1",
+        "tonalRamp": ["#2a2721", "#433e35", "#615a4d", "#8f8676", "#b7b0a1", "#cac5b9", "#ddd9d0", "#f0eee9"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Stencil Ink",
+        "canonical": "#f5f1e6"
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "canonical": "#b8b3a6"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Wordmark", "purpose": "The stencil-cut 'AlwaysDraw' mark in the top bar only." },
+      "label": { "displayName": "Label", "purpose": "Tool button labels, captions, static UI words." },
+      "mono": { "displayName": "Measurement", "purpose": "Live numeric values only: online count, zoom %, brush size. Always paired with the small stencil-cut mask." }
+    },
+    "shadows": [
+      { "name": "rack-drop", "value": "0 10px 28px rgba(0,0,0,0.5)", "purpose": "Toolbar grounding shadow." },
+      { "name": "strip-drop", "value": "0 2px 10px rgba(0,0,0,0.5)", "purpose": "Top bar shadow." },
+      { "name": "indicator-glow-live", "value": "0 0 6px var(--accent-green)", "purpose": "Live/online status dot point-glow." },
+      { "name": "indicator-glow-attention", "value": "0 0 6px var(--accent-yellow)", "purpose": "Reconnecting status dot point-glow." },
+      { "name": "bolt-head-relief", "value": "inset 0 1px 1.5px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.1)", "purpose": "Rivet hardware relief, over a radial-gradient fill. Never used on rectangular surfaces." }
+    ],
+    "motion": [
+      { "name": "control-hover", "value": "150ms ease (Tailwind default `transition`)", "purpose": "Button/swatch hover and active-state color transitions. No other motion is currently authored in the system." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Toolbar Rack",
+      "kind": "custom",
+      "refersTo": "toolbar-panel",
+      "description": "The signature bolted-rack toolbar: bracket tabs + rivets, drip edge, hard rectilinear frame.",
+      "html": "<div class=\"ds-rack\"><span class=\"ds-bracket ds-bracket-left\"><span class=\"ds-rivet\"></span></span><span class=\"ds-bracket ds-bracket-right\"><span class=\"ds-rivet\"></span></span><div class=\"ds-drip\"></div><button class=\"ds-btn-active\">Brush</button><button class=\"ds-btn-inactive\">Erase</button></div>",
+      "css": ".ds-rack { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 2px; border: 2px solid #3a3530; box-shadow: 0 10px 28px rgba(0,0,0,0.5); background: linear-gradient(180deg, #202224, #101112); } .ds-bracket { position: absolute; top: -10px; width: 24px; height: 12px; border: 1px solid #3a3530; border-bottom: none; border-radius: 2px 2px 0 0; background: #202224; } .ds-bracket-left { left: 12px; } .ds-bracket-right { right: 12px; } .ds-rivet { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border-radius: 9999px; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.4), rgba(0,0,0,0.6) 75%); box-shadow: inset 0 1px 1.5px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.1); } .ds-btn-active { background: #b8371f; color: #f5f1e6; border-radius: 2px; padding: 6px 10px; font: 600 12px 'Space Grotesk', sans-serif; text-transform: uppercase; letter-spacing: 0.02em; border: none; } .ds-btn-inactive { color: #b8b3a6; background: transparent; border-radius: 2px; padding: 6px 10px; font: 600 12px 'Space Grotesk', sans-serif; text-transform: uppercase; letter-spacing: 0.02em; border: none; transition: color 150ms ease, background 150ms ease; } .ds-btn-inactive:hover, .ds-btn-inactive:focus-visible { color: #f5f1e6; background: #202224; } .ds-btn-inactive:focus-visible { outline: 2px solid #e0b13a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Pill (Online Count)",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Rust-washed live-instrument pill, distinct from the plain connection-status pill.",
+      "html": "<div class=\"ds-online-pill\"><span class=\"ds-dot\"></span><span class=\"ds-count\">128</span><span class=\"ds-caption\">online</span></div>",
+      "css": ".ds-online-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 2px; border: 1px solid rgba(181,80,44,0.7); background: linear-gradient(180deg, color-mix(in srgb, #b5502c 22%, #202224), #202224); font: 400 12px 'Space Mono', monospace; } .ds-dot { width: 6px; height: 6px; border-radius: 9999px; background: #39c07a; box-shadow: 0 0 6px #39c07a; } .ds-count { color: #f5f1e6; -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px); mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px); } .ds-caption { color: #b8b3a6; text-transform: uppercase; letter-spacing: 0.02em; font-family: 'Space Grotesk', sans-serif; }"
+    },
+    {
+      "name": "Color Swatch (Spray Cap)",
+      "kind": "input",
+      "refersTo": null,
+      "description": "Circular color-picker swatch styled as a spray-can cap with a highlight glint.",
+      "html": "<button class=\"ds-swatch\" style=\"--sw:#e0432b\" aria-pressed=\"false\"></button>",
+      "css": ".ds-swatch { width: 24px; height: 24px; border-radius: 9999px; border: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--sw) 100%, white 35%), var(--sw) 60%); transition: box-shadow 150ms ease; } .ds-swatch[aria-pressed=\"true\"] { box-shadow: 0 0 0 2px #e0b13a, 0 0 0 4px #202224; }"
+    },
+    {
+      "name": "Remote Cursor",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Paint-drip teardrop marker for a remote visitor's live cursor, colored per anonymous client id.",
+      "html": "<svg width=\"16\" height=\"20\" viewBox=\"0 0 16 20\"><path d=\"M8 1c3.5 4.5 6 8.1 6 11a6 6 0 1 1-12 0c0-2.9 2.5-6.5 6-11Z\" fill=\"#39c07a\" stroke=\"rgba(0,0,0,0.5)\" stroke-width=\"1\"/></svg>",
+      "css": ""
+    }
+  ],
+  "narrative": {
+    "northStar": "The Bolted Rack",
+    "overview": "AlwaysDraw is a rusted train-yard wall that the whole internet keeps tagging — not a whiteboard app with a toolbar politely floating over a blank page. The interface reads as mounted hardware: a riveted steel strip and a bolted spray-can rack, both bolted directly to the edges of the screen, framing a full-bleed slab of poured concrete that anyone can mark. Chrome is near-black weathered steel; the canvas itself is a plain warm concrete gray, deliberately textureless, so any color painted onto it reads clearly and nothing competes with the strokes people actually draw. Nothing about the chrome is soft, rounded, or ambient — depth comes from hard borders, mounting hardware, and directional shadows, the way real equipment sits on a wall, not from floating cards or glassy panels. This world was chosen explicitly against the category default for collaborative drawing tools (Miro/FigJam/Excalidraw-style soft pastel whiteboards) — that direction is the confirmed anti-reference. It was also chosen against a neon-cyberpunk night-district direction that scored well on recognition but ran into the same AI-generated-interface cliche (near-black + one neon accent) the brief asked to avoid.",
+    "keyCharacteristics": [
+      "Near-black steel chrome bolted to the viewport edges; a warm concrete-gray canvas in between",
+      "A curated four-color spray-paint accent set (crimson, acid green, electric blue, warning yellow), each with one fixed system role — never decorative",
+      "Real stencil-plate construction (masked bridge-gaps) on the wordmark and on every measurement/count numeral",
+      "Fully circular shapes reserved for literal hardware and indicator lights (rivets, swatches, cursors, status dots) — every panel and control otherwise stays rectilinear",
+      "No soft ambient shadows; depth reads as mounted hardware (rivets, brackets, hard borders) and directional drop shadows only"
+    ],
+    "rules": [
+      { "name": "The One Surface, One Voice Rule", "body": "Chrome (steel, near-black, rust) and canvas (concrete, warm gray) never swap roles. If it's a control or status element, it lives on chrome. If it's paintable world, it's concrete.", "section": "colors" },
+      { "name": "The Reserved Accent Rule", "body": "Each accent color has exactly one system meaning — green means live, yellow means attention, rust means 'this plate is a live-count instrument,' crimson-deep means 'this control is active.' None of the four are ever used interchangeably as generic decoration.", "section": "colors" },
+      { "name": "The Numerals-Are-Instruments Rule", "body": "Any number that changes at runtime (online count, zoom %, brush size) renders in Space Mono with the small stencil-cut mask. Static UI words never use Space Mono or the stencil mask.", "section": "typography" },
+      { "name": "The No Floating Card Rule", "body": "Nothing in this system is a rounded, softly-shadowed card hovering over the canvas. Every fixture is bolted (rivets/brackets), bordered, and grounded with a hard directional shadow.", "section": "elevation" },
+      { "name": "The Round-Is-Hardware Rule", "body": "Fully circular geometry is reserved for literal fasteners, caps, and indicators: rivets, color swatches, the custom-color picker, remote-cursor paint-drips, and status dots. Every panel, button, and input well stays rectilinear at a small 2px radius or square — never the 8-16px soft-card radius common to whiteboard apps.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep chrome near-black/steel and canvas warm-concrete-light — the contrast between the two is what makes painted strokes legible and is a load-bearing part of the identity.",
+      "Do apply the stencil-cut mask only to the wordmark and to live numeric measurements — never to body prose or static labels.",
+      "Do give every new fixed UI panel a hard border + directional drop shadow + at least implied mounting hardware before shipping it.",
+      "Do reserve fully circular shapes for hardware/indicators; keep panels and buttons rectilinear at the 2px radius.",
+      "Do author any new texture as explicit, deterministic vector geometry — never a repeating/random noise pattern."
+    ],
+    "donts": [
+      "Don't introduce rounded-lg/rounded-xl soft cards, pill-shaped panels, or ambient glassy blur — that's the whiteboard-SaaS world this system was explicitly built against.",
+      "Don't use a Unicode glyph or emoji as a functional icon; author real SVG at a consistent stroke weight.",
+      "Don't use the brighter Crimson (#e0432b) as a solid fill under white text — use Deep Crimson (#b8371f) for any text-bearing crimson fill.",
+      "Don't add a neon-on-black treatment anywhere in this system — it was a dealt, competitive alternative explicitly not chosen.",
+      "Don't let a new accent color creep in beyond the four reserved spray-paint colors without updating this file."
+    ]
+  }
+}

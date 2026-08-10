@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Yard Wall — rusted steel chrome over a shared concrete surface. */
+  --chrome-bg: #17181a;
+  --chrome-bg-raised: #202224;
+  --chrome-border: #3a3530;
+  --rust: #b5502c;
+  --concrete: #b7b0a1;
+  --ink: #f5f1e6;
+  --ink-dim: #b8b3a6;
+  --accent-crimson: #e0432b;
+  --accent-crimson-deep: #b8371f;
+  --accent-green: #39c07a;
+  --accent-blue: #2f9fe0;
+  --accent-yellow: #e0b13a;
+
+  --background: var(--chrome-bg);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-chrome-bg: var(--chrome-bg);
+  --color-chrome-bg-raised: var(--chrome-bg-raised);
+  --color-chrome-border: var(--chrome-border);
+  --color-rust: var(--rust);
+  --color-concrete: var(--concrete);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-accent-crimson: var(--accent-crimson);
+  --color-accent-crimson-deep: var(--accent-crimson-deep);
+  --color-accent-green: var(--accent-green);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-yellow: var(--accent-yellow);
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+::selection {
+  background: var(--accent-crimson);
+  color: var(--ink);
+}
+
+* {
+  scrollbar-color: var(--rust) var(--chrome-bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-yellow);
+  outline-offset: 2px;
+}
+
+/*
+ * Real stencil-plate construction: the horizontal "bridges" a physical
+ * stencil needs so cut letterforms (O, A, B...) don't fall apart. Applied as
+ * a mask, not a decorative font, so the wordmark/numerals stay legible at
+ * any size instead of costuming as a novelty stencil typeface.
+ */
+.stencil-cut {
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 6px, transparent 6px 8px);
+  mask-image: repeating-linear-gradient(180deg, #000 0 6px, transparent 6px 8px);
+}
+
+.stencil-cut-sm {
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px);
+  mask-image: repeating-linear-gradient(180deg, #000 0 3px, transparent 3px 4px);
 }

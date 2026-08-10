@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# impeccable design workflow — ephemeral working state, not source
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/review/
+.impeccable/live/

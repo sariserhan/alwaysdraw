@@ -1,36 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlwaysDraw — Version 1 (Functional MVP)
 
-## Getting Started
+One world. One canvas. Always drawing.
 
-First, run the development server:
+A single public 5000×5000 drawing canvas shared by everyone on the internet. No rooms, no accounts, no ownership, no undo. Anyone can draw, erase, or paint over anyone else, in real time.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 1. Architecture summary
+
+```
+Browser (Next.js App Router, client-only canvas component)
+  │
+  ├─ Local-first drawing: pointer input is drawn to the <canvas> immediately,
+  │  never blocked on the network.
+  │
+  ├─ StrokeBuffer batches points from one drag into ~40-point chunks, flushed
+  │  every ~40ms, each chunk submitted as its own Convex mutation.
+  │
+  └─ Convex (reactive backend)
+       ├─ strokes table — every draw/erase chunk, server-sequenced, append-only
+       ├─ canvasMetadata — singleton holding the global sequence counter
+       └─ presence table — one row per anonymous client, heartbeat every 5s
+
+Sync model:
+  - On mount: page a full history via strokes.listSince(afterSequence) until
+    caught up, replay it once onto the canvas (dev-capped at 20,000 strokes).
+  - Live tail: a reactive useQuery(strokes.listRecent) subscription pushes new
+    strokes (yours and everyone else's) as they're committed; the client
+    applies whatever it hasn't already drawn, keyed by clientStrokeId.
+  - Ordering is authoritative server-side: every mutation increments a single
+    global `sequence` counter inside the same transaction that inserts the
+    stroke, so render order is never ambiguous even under concurrent writers.
+  - Erase is stored as a `mode: "erase"` operation, never a deletion — it's
+    rendered with `globalCompositeOperation = "destination-out"`. History is
+    append-only; there is no undo.
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Coordinate math, stroke protocol, rendering, and persistence are kept in separate modules (`lib/camera.ts`, `lib/coordinates.ts`, `lib/drawing.ts`, `lib/strokeBuffer.ts` vs. `convex/*.ts`) specifically so Version 3's spatial tiling can slot in without a rewrite — world coordinates and camera transforms don't know or care how the backend partitions the world.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 2. Project tree
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+  layout.tsx            root layout, ConvexClientProvider wiring, metadata
+  page.tsx               client-only entry (dynamic import, ssr:false — see Known limitations)
+  globals.css
 
-## Learn More
+components/
+  GlobalCanvas.tsx        owns camera, tool state, pointer/touch input, redraw loop
+  DrawingToolbar.tsx       brush/eraser, color, size, zoom controls
+  OnlineCount.tsx
+  ConnectionStatus.tsx     live Convex websocket state
+  RemoteCursors.tsx
+  ConvexClientProvider.tsx
 
-To learn more about Next.js, take a look at the following resources:
+lib/
+  camera.ts               Camera type, pan/zoom math (pure, unit-testable)
+  coordinates.ts           screen<->world conversion, world-bounds clamping
+  drawing.ts               canvas draw calls (stroke, segment, background)
+  strokeBuffer.ts           batches pointer points into ~40pt chunks every ~40ms
+  identity.ts               anonymous clientId in localStorage
+  types.ts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+convex/
+  schema.ts               strokes / canvasMetadata / presence tables + indexes
+  constants.ts              shared world-bounds & validation limits
+  strokes.ts                submit (validated, sequenced, idempotent), listSince, listRecent
+  presence.ts                heartbeat, list, onlineCount, clearStale (cron target)
+  canvas.ts                  getMetadata
+  crons.ts                   1-minute stale-presence sweep
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 3. Local development
 
-## Deploy on Vercel
+```bash
+npm install
+npx convex dev     # in one terminal — pushes convex/ functions, keeps them live
+npm run dev         # in another terminal — Next.js on http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open `http://localhost:3000` — it opens directly into the canvas, no login, no homepage.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 4. Convex setup
+
+Already provisioned for this repo (dev deployment `sariserhan:alwaysdraw:dev/serhan`). To set up a new deployment from scratch:
+
+```bash
+npx convex dev --once --configure=new --project alwaysdraw
+```
+
+This writes `.env.local` with the deployment's connection info and pushes `convex/schema.ts` + functions. Re-run `npx convex dev` (no flags) during development to keep functions live-reloading.
+
+## 5. Required environment variables
+
+`.env.local` (gitignored, generated by `npx convex dev`):
+
+```
+CONVEX_DEPLOYMENT=dev:<your-deployment-name>
+NEXT_PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://<your-deployment>.convex.site
+```
+
+No other secrets are required for V1 (no auth, no third-party APIs).
+
+## 6. Deployment instructions
+
+**Convex (backend):**
+```bash
+npx convex deploy   # pushes convex/ to your production deployment
+```
+
+**Next.js (frontend), on Vercel:**
+1. Push this repo to GitHub and import it in Vercel, or run `vercel deploy` from the repo root.
+2. Set `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) in the Vercel project's environment variables to your **production** Convex deployment's URL (from `npx convex deploy` output or the Convex dashboard) — not the dev URL.
+3. Deploy. The root URL opens directly into the canvas.
+
+## 7. Testing instructions
+
+No test suite exists yet (spec's "Testing" section covers coordinate math, camera, sequencing, replay — good candidates for unit tests, not built for V1). Manual verification performed for this build:
+
+- Two browser sessions, same page: draw in A → appears in B within ~1s; erase in B over A's stroke → A updates live.
+- Reload mid-session: full history replays correctly (session B loaded fresh and saw session A's prior stroke).
+- Pan (space+drag), wheel-zoom (focal-point correct), 2-finger touch pinch-zoom + pan, and the toolbar's zoom/reset buttons all verified via synthetic pointer/wheel events.
+- Mobile viewport (390×844): toolbar wraps and remains usable; touch drawing and pinch both work.
+- `npx tsc --noEmit` and `npx eslint .` are clean.
+
+To repeat the two-browser check by hand: open `http://localhost:3000` in two windows and draw in both.
+
+## 8. Known limitations
+
+- **Live-tail window, not true cursor-based catch-up**: the reactive subscription (`strokes.listRecent`) returns the most recent 300 strokes. A client that's open but network-stalled for long enough to miss more than 300 strokes will only fully catch up on next reload (which does a full replay). Fine at V1 traffic; V2's snapshot system removes this ceiling.
+- **Full-history replay on every load**, capped at 20,000 strokes (dev safety valve, not a real limit) — gets expensive as history grows. This is explicitly deferred to V2 (snapshots) per the spec.
+- **`onlineCount`/presence `list`/stale cleanup** use `.collect()`/`.take()` over an index range rather than a running counter — fine at hundreds of concurrent users, not thousands.
+- **No rate limiting beyond input validation** (width/point-count/coordinate/color bounds, 100 pts/mutation). A malicious client could still spam many small mutations; acceptable for V1 per spec ("add reasonable limits if practical"), worth hardening before real public traffic.
+- **`app/page.tsx` opts the canvas out of SSR** (`next/dynamic(..., { ssr: false })`). The app is one imperative `<canvas>` plus entirely browser-only state (camera, websocket, anonymous identity in `localStorage`) — server-rendering it added nothing and only produced hydration mismatches, so it's skipped outright. This means the very first paint is a client-side render (brief blank/loading frame), not server-rendered HTML.
+- **No accounts, no moderation** — by design for V1, per spec.
+
+## 9. Performance notes
+
+- Local drawing never waits on the network: pointer moves draw an incremental line segment directly, independent of the ~40ms/40-point batch flush to Convex.
+- Camera state lives in a `ref`, not React state, so panning/zooming don't trigger React re-renders — only a `requestAnimationFrame`-throttled full canvas redraw plus a lightweight state sync (zoom %, cursor overlay) once per frame.
+- New remote strokes are drawn incrementally on top of the existing canvas bitmap (no full history redraw) except when the camera itself changes, which inherently requires repainting every visible stroke at the new transform.
+- Each stroke document caps at 100 points and each mutation is independently validated and sequenced — no unbounded payloads.
+
+## 10. Recommendations for Version 2
+
+Per the spec, in priority order:
+1. **Snapshot system** — the full-replay-on-load cost is the first real scaling wall; a periodic rendered snapshot + "strokes since snapshot" would remove the 20k-stroke dev cap entirely.
+2. **Cursor-based live catch-up** replacing the fixed 300-stroke `listRecent` window, so reconnects after a longer gap don't require a full reload to catch up.
+3. **Viewport URLs** (`?x=&y=&z=`) — small, high-value, and it's the one V2 feature that's nearly free given `lib/coordinates.ts` already isolates the camera math.
+4. **Heatmap / mini-map** — needs the presence/stroke data already being collected; mostly a new read-side aggregation, not a data model change.
+5. Everything else in the spec's V2 list (replay/time-travel, featured locations) builds on #1 and #2, so sequencing them after snapshots exist will be significantly less work than building them against the current full-replay model.
