@@ -165,6 +165,34 @@ export function GlobalCanvas() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("alwaysdraw_admin_passcode") || "";
+    }
+    return "";
+  });
+
+  const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
+
+  const handleAuthenticateAdmin = useCallback(async (passcode: string): Promise<boolean> => {
+    const isValid = await verifyAdminPasscode({ passcode });
+    if (isValid) {
+      setAdminPasscode(passcode);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("alwaysdraw_admin_passcode", passcode);
+      }
+      return true;
+    }
+    return false;
+  }, [verifyAdminPasscode]);
+
+  const handleLogoutAdmin = useCallback(() => {
+    setAdminPasscode("");
+    setAdminOpen(false);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("alwaysdraw_admin_passcode");
+    }
+  }, []);
   const [locale, setLocale] = useState<Locale>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("alwaysdraw_locale") as Locale | null;
@@ -1444,6 +1472,28 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
+          {adminPasscode && (
+            <div className="flex items-center gap-1.5 rounded-sm border border-rust bg-rust/20 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-yellow shadow-sm">
+              <button
+                type="button"
+                onClick={() => setAdminOpen((prev) => !prev)}
+                className="flex items-center gap-1 hover:underline"
+                title="Click to toggle Admin Control Center"
+              >
+                <span className="h-2 w-2 rounded-full bg-accent-crimson animate-ping shrink-0" />
+                <span>🛡️ ADMIN MODE</span>
+              </button>
+              <span className="text-chrome-border">|</span>
+              <button
+                type="button"
+                onClick={handleLogoutAdmin}
+                className="text-ink-dim hover:text-accent-crimson transition-colors"
+                title="Log out of Admin Mode"
+              >
+                EXIT 🚪
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
@@ -1722,7 +1772,14 @@ export function GlobalCanvas() {
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
         />
-        <AdminPanelModal isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+        <AdminPanelModal
+          isOpen={adminOpen}
+          onClose={() => setAdminOpen(false)}
+          authenticated={Boolean(adminPasscode)}
+          passcode={adminPasscode}
+          onAuthenticate={handleAuthenticateAdmin}
+          onLogout={handleLogoutAdmin}
+        />
       </nav>
     </div>
   );

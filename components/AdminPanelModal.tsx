@@ -8,11 +8,21 @@ import { ChromeRivet } from "./ChromeRivet";
 export interface AdminPanelModalProps {
   isOpen: boolean;
   onClose: () => void;
+  authenticated: boolean;
+  passcode: string;
+  onAuthenticate: (passcode: string) => Promise<boolean>;
+  onLogout: () => void;
 }
 
-export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
-  const [passcode, setPasscode] = useState("");
-  const [authenticated, setAuthenticated] = useState(false);
+export function AdminPanelModal({
+  isOpen,
+  onClose,
+  authenticated,
+  passcode: activePasscode,
+  onAuthenticate,
+  onLogout,
+}: AdminPanelModalProps) {
+  const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"moderation" | "broadcast" | "telemetry">("moderation");
 
@@ -30,7 +40,6 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Mutations & Queries
-  const verifyPasscode = useMutation(api.admin.verifyPasscode);
   const wipeArea = useMutation(api.admin.wipeArea);
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
@@ -38,7 +47,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
 
   const telemetry = useQuery(
     api.admin.getTelemetry,
-    authenticated ? { passcode } : "skip",
+    authenticated ? { passcode: activePasscode } : "skip",
   );
 
   useEffect(() => {
@@ -52,20 +61,18 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const handleAuthenticate = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passcode.trim()) return;
+    if (!inputPasscode.trim()) return;
     try {
-      const isValid = await verifyPasscode({ passcode });
-      if (isValid) {
-        setAuthenticated(true);
+      const success = await onAuthenticate(inputPasscode);
+      if (success) {
         setAuthError(null);
+        setInputPasscode("");
       } else {
-        setAuthenticated(false);
         setAuthError("Invalid admin passcode. Access denied.");
       }
     } catch {
-      setAuthenticated(false);
       setAuthError("Failed to verify passcode.");
     }
   };
@@ -74,7 +81,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
     try {
       setActionStatus("Wiping canvas area...");
       const res = await wipeArea({
-        passcode,
+        passcode: activePasscode,
         minX: Number(wipeMinX),
         minY: Number(wipeMinY),
         maxX: Number(wipeMaxX),
@@ -91,7 +98,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
     try {
       setActionStatus(`Rolling back Client ID: ${targetClientId}...`);
       const res = await rollbackClient({
-        passcode,
+        passcode: activePasscode,
         targetClientId,
       });
       setActionStatus(`Success! Purged ${res.deletedCount} strokes drawn by ${targetClientId}.`);
@@ -105,7 +112,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
     try {
       setActionStatus("Publishing broadcast announcement...");
       await publishBroadcast({
-        passcode,
+        passcode: activePasscode,
         message: broadcastMessage,
       });
       setActionStatus("Success! Live broadcast sent to all active painters.");
@@ -118,7 +125,7 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
   const handleClearBroadcast = async () => {
     try {
       setActionStatus("Clearing broadcast banner...");
-      await clearBroadcast({ passcode });
+      await clearBroadcast({ passcode: activePasscode });
       setActionStatus("Success! Broadcast cleared.");
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Clear failed"}`);
@@ -137,19 +144,30 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
       <ChromeRivet className="top-2 left-2" />
       <ChromeRivet className="top-2 right-2" />
 
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-chrome-border/60 pb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🛡️</span>
-            <div>
-              <h2 className="font-mono text-sm font-bold uppercase text-accent-crimson">
-                Admin Control Center
-              </h2>
-              <p className="font-mono text-[10px] text-ink-dim">
-                Canvas moderation, operations &amp; live telemetry
-              </p>
-            </div>
+      {/* Modal Header */}
+      <div className="flex items-center justify-between border-b border-chrome-border/60 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🛡️</span>
+          <div>
+            <h2 className="font-mono text-sm font-bold uppercase text-accent-crimson">
+              Admin Control Center
+            </h2>
+            <p className="font-mono text-[10px] text-ink-dim">
+              Canvas moderation, operations &amp; live telemetry
+            </p>
           </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {authenticated && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded border border-rust bg-rust/20 px-2 py-0.5 font-mono text-[10px] font-bold text-accent-yellow hover:bg-rust hover:text-on-accent transition-all"
+              title="Log out of Admin mode"
+            >
+              EXIT 🚪
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -158,217 +176,218 @@ export function AdminPanelModal({ isOpen, onClose }: AdminPanelModalProps) {
             ✕
           </button>
         </div>
+      </div>
 
-        {/* Auth Gate */}
-        {!authenticated ? (
-          <form onSubmit={handleAuthenticate} className="flex flex-col gap-3 py-4">
-            <div className="flex flex-col gap-1.5 text-left font-mono">
-              <label htmlFor="admin-passcode" className="text-xs font-bold text-ink">
-                Enter Admin Passcode:
-              </label>
-              <input
-                id="admin-passcode"
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Default: alwaysdraw-admin-2026"
-                className="rounded border border-chrome-border bg-chrome-bg-raised px-3 py-2 text-xs font-mono text-ink focus:border-rust focus:outline-none"
-              />
-              <span className="text-[10px] text-ink-dim">
-                Default local key: <code className="text-accent-yellow">alwaysdraw-admin-2026</code>
-              </span>
-            </div>
-            {authError && <span className="font-mono text-xs text-accent-crimson">{authError}</span>}
-            <button
-              type="submit"
-              className="rounded border-2 border-rust bg-rust px-4 py-2 font-mono text-xs font-bold text-on-accent transition hover:brightness-110"
-            >
-              UNLOCK ADMIN CONTROLS
-            </button>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {/* Navigation Tabs */}
-            <div className="flex border-b border-chrome-border/60 font-mono text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab("moderation")}
-                className={`flex-1 py-1.5 font-bold transition-colors ${
-                  activeTab === "moderation"
-                    ? "border-b-2 border-rust text-accent-yellow"
-                    : "text-ink-dim hover:text-ink"
-                }`}
-              >
-                🛡️ MODERATION
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("broadcast")}
-                className={`flex-1 py-1.5 font-bold transition-colors ${
-                  activeTab === "broadcast"
-                    ? "border-b-2 border-rust text-accent-yellow"
-                    : "text-ink-dim hover:text-ink"
-                }`}
-              >
-                📢 BROADCAST
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("telemetry")}
-                className={`flex-1 py-1.5 font-bold transition-colors ${
-                  activeTab === "telemetry"
-                    ? "border-b-2 border-rust text-accent-yellow"
-                    : "text-ink-dim hover:text-ink"
-                }`}
-              >
-                📊 TELEMETRY
-              </button>
-            </div>
-
-            {/* Status Alert Banner */}
-            {actionStatus && (
-              <div className="rounded border border-rust/60 bg-rust/20 p-2 font-mono text-xs font-bold text-accent-yellow">
-                {actionStatus}
-              </div>
-            )}
-
-            {/* TAB 1: Moderation */}
-            {activeTab === "moderation" && (
-              <div className="flex flex-col gap-4 text-left font-mono text-xs">
-                {/* Area Wipe */}
-                <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
-                  <span className="font-bold text-accent-crimson uppercase">🧹 Area Wipe (Bounding Box)</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-ink-dim">Min X</label>
-                      <input
-                        type="number"
-                        value={wipeMinX}
-                        onChange={(e) => setWipeMinX(Number(e.target.value))}
-                        className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-ink-dim">Min Y</label>
-                      <input
-                        type="number"
-                        value={wipeMinY}
-                        onChange={(e) => setWipeMinY(Number(e.target.value))}
-                        className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-ink-dim">Max X</label>
-                      <input
-                        type="number"
-                        value={wipeMaxX}
-                        onChange={(e) => setWipeMaxX(Number(e.target.value))}
-                        className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-ink-dim">Max Y</label>
-                      <input
-                        type="number"
-                        value={wipeMaxY}
-                        onChange={(e) => setWipeMaxY(Number(e.target.value))}
-                        className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleWipeArea}
-                    className="mt-1 rounded bg-accent-crimson px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
-                  >
-                    PURGE AREA STROKES
-                  </button>
-                </div>
-
-                {/* Rollback Client */}
-                <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
-                  <span className="font-bold text-accent-yellow uppercase">🚫 Rollback Client ID</span>
-                  <input
-                    type="text"
-                    value={targetClientId}
-                    onChange={(e) => setTargetClientId(e.target.value)}
-                    placeholder="Enter target clientId string..."
-                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRollbackClient}
-                    className="rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
-                  >
-                    PURGE ALL CLIENT MARKS
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: Broadcast */}
-            {activeTab === "broadcast" && (
-              <div className="flex flex-col gap-3 text-left font-mono text-xs">
-                <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
-                  <span className="font-bold text-accent-yellow uppercase">📢 Live Announcement Ticker</span>
-                  <textarea
-                    rows={3}
-                    value={broadcastMessage}
-                    onChange={(e) => setBroadcastMessage(e.target.value)}
-                    placeholder="Type an announcement to broadcast to all online painters worldwide..."
-                    className="w-full rounded border border-chrome-border bg-chrome-bg p-2 text-xs text-ink focus:border-rust focus:outline-none"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePublishBroadcast}
-                      className="flex-1 rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
-                    >
-                      PUBLISH BROADCAST
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearBroadcast}
-                      className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink hover:text-accent-crimson"
-                    >
-                      CLEAR BANNER
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: Telemetry */}
-            {activeTab === "telemetry" && (
-              <div className="grid grid-cols-2 gap-2 text-left font-mono text-xs">
-                <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
-                  <span className="block text-[10px] text-ink-dim">TOTAL STROKES</span>
-                  <span className="text-sm font-bold text-accent-yellow">
-                    {telemetry?.strokeCount ?? "..."}
-                  </span>
-                </div>
-                <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
-                  <span className="block text-[10px] text-ink-dim">ACTIVE PRESENCE</span>
-                  <span className="text-sm font-bold text-accent-green">
-                    {telemetry?.activePresenceCount ?? "..."} Online
-                  </span>
-                </div>
-                <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
-                  <span className="block text-[10px] text-ink-dim">SNAPSHOT COUNT</span>
-                  <span className="text-sm font-bold text-ink">
-                    {telemetry?.snapshotCount ?? "..."}
-                  </span>
-                </div>
-                <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
-                  <span className="block text-[10px] text-ink-dim">CURRENT SEQUENCE</span>
-                  <span className="text-sm font-bold text-accent-blue">
-                    #{telemetry?.currentSequence ?? "..."}
-                  </span>
-                </div>
-              </div>
-            )}
+      {/* Auth Gate */}
+      {!authenticated ? (
+        <form onSubmit={handleAuthSubmit} className="flex flex-col gap-3 py-4">
+          <div className="flex flex-col gap-1.5 text-left font-mono">
+            <label htmlFor="admin-passcode" className="text-xs font-bold text-ink">
+              Enter Admin Passcode:
+            </label>
+            <input
+              id="admin-passcode"
+              type="password"
+              value={inputPasscode}
+              onChange={(e) => setInputPasscode(e.target.value)}
+              placeholder="Default: alwaysdraw-admin-2026"
+              className="rounded border border-chrome-border bg-chrome-bg-raised px-3 py-2 text-xs font-mono text-ink focus:border-rust focus:outline-none"
+            />
+            <span className="text-[10px] text-ink-dim">
+              Default local key: <code className="text-accent-yellow">alwaysdraw-admin-2026</code>
+            </span>
           </div>
-        )}
+          {authError && <span className="font-mono text-xs text-accent-crimson">{authError}</span>}
+          <button
+            type="submit"
+            className="rounded border-2 border-rust bg-rust px-4 py-2 font-mono text-xs font-bold text-on-accent transition hover:brightness-110"
+          >
+            UNLOCK ADMIN CONTROLS
+          </button>
+        </form>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-chrome-border/60 font-mono text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("moderation")}
+              className={`flex-1 py-1.5 font-bold transition-colors ${
+                activeTab === "moderation"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              🛡️ MODERATION
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("broadcast")}
+              className={`flex-1 py-1.5 font-bold transition-colors ${
+                activeTab === "broadcast"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              📢 BROADCAST
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("telemetry")}
+              className={`flex-1 py-1.5 font-bold transition-colors ${
+                activeTab === "telemetry"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              📊 TELEMETRY
+            </button>
+          </div>
+
+          {/* Status Alert Banner */}
+          {actionStatus && (
+            <div className="rounded border border-rust/60 bg-rust/20 p-2 font-mono text-xs font-bold text-accent-yellow">
+              {actionStatus}
+            </div>
+          )}
+
+          {/* TAB 1: Moderation */}
+          {activeTab === "moderation" && (
+            <div className="flex flex-col gap-4 text-left font-mono text-xs">
+              {/* Area Wipe */}
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-crimson uppercase">🧹 Area Wipe (Bounding Box)</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Min X</label>
+                    <input
+                      type="number"
+                      value={wipeMinX}
+                      onChange={(e) => setWipeMinX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Min Y</label>
+                    <input
+                      type="number"
+                      value={wipeMinY}
+                      onChange={(e) => setWipeMinY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Max X</label>
+                    <input
+                      type="number"
+                      value={wipeMaxX}
+                      onChange={(e) => setWipeMaxX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim">Max Y</label>
+                    <input
+                      type="number"
+                      value={wipeMaxY}
+                      onChange={(e) => setWipeMaxY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleWipeArea}
+                  className="mt-1 rounded bg-accent-crimson px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
+                >
+                  PURGE AREA STROKES
+                </button>
+              </div>
+
+              {/* Rollback Client */}
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🚫 Rollback Client ID</span>
+                <input
+                  type="text"
+                  value={targetClientId}
+                  onChange={(e) => setTargetClientId(e.target.value)}
+                  placeholder="Enter target clientId string..."
+                  className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleRollbackClient}
+                  className="rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
+                >
+                  PURGE ALL CLIENT MARKS
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: Broadcast */}
+          {activeTab === "broadcast" && (
+            <div className="flex flex-col gap-3 text-left font-mono text-xs">
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">📢 Live Announcement Ticker</span>
+                <textarea
+                  rows={3}
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="Type an announcement to broadcast to all online painters worldwide..."
+                  className="w-full rounded border border-chrome-border bg-chrome-bg p-2 text-xs text-ink focus:border-rust focus:outline-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePublishBroadcast}
+                    className="flex-1 rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
+                  >
+                    PUBLISH BROADCAST
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearBroadcast}
+                    className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink hover:text-accent-crimson"
+                  >
+                    CLEAR BANNER
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Telemetry */}
+          {activeTab === "telemetry" && (
+            <div className="grid grid-cols-2 gap-2 text-left font-mono text-xs">
+              <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
+                <span className="block text-[10px] text-ink-dim">TOTAL STROKES</span>
+                <span className="text-sm font-bold text-accent-yellow">
+                  {telemetry?.strokeCount ?? "..."}
+                </span>
+              </div>
+              <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
+                <span className="block text-[10px] text-ink-dim">ACTIVE PRESENCE</span>
+                <span className="text-sm font-bold text-accent-green">
+                  {telemetry?.activePresenceCount ?? "..."} Online
+                </span>
+              </div>
+              <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
+                <span className="block text-[10px] text-ink-dim">SNAPSHOT COUNT</span>
+                <span className="text-sm font-bold text-ink">
+                  {telemetry?.snapshotCount ?? "..."}
+                </span>
+              </div>
+              <div className="rounded border border-chrome-border bg-chrome-bg-raised p-2.5">
+                <span className="block text-[10px] text-ink-dim">CURRENT SEQUENCE</span>
+                <span className="text-sm font-bold text-accent-blue">
+                  #{telemetry?.currentSequence ?? "..."}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
