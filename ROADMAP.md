@@ -76,10 +76,10 @@ Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
 
 Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex, no Durable Objects yet.
 
-- [x] **Snapshot system** — rendered snapshot + "strokes since snapshot," removing the full-replay cost as history grows (the #1 scaling wall right now)
+- [x] **Snapshot system** — rendered snapshot + "strokes since snapshot," removing the full-replay cost as history grows (the #1 scaling wall right now). Audited and hardened: `snapshots.submit` now goes through the same `assertWritesEnabled`/rate-limit/format-validation guards every other public mutation has (it had none — a real gap), and the client now actually loads and paints `snapshot.imageData` as the base layer on load, with a safe fallback to full replay if the image fails to load (previously the sequence number was used to skip strokes but the image itself was never rendered — would have silently shown an incomplete wall the moment this ever got used)
 - [x] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
 - [x] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button
-- [x] **Historical replay & Time Travel** — floating scrubber UI with play/pause, step backward/forward, speed options (1x, 5x, 20x, 100x), and live return
+- [x] **Historical replay & Time Travel** — floating scrubber UI with play/pause, step backward/forward, speed options (1x, 5x, 20x, 100x), and live return. Audited and fixed: drawing tools are now blocked while in replay mode (previously undrawable strokes could still be silently committed to the live wall while scrubbed into history), exiting replay now explicitly redraws back to the live view instead of relying on an incidental side effect, and the scrubber's minimum is clamped to the loaded snapshot's sequence so it can't be dragged below the point where local data actually exists
 - [x] **Heatmap of drawing activity** — toggleable translucent overlay, built client-side from strokes already loaded (no separate backend aggregation) bucketed into a 32x32 world grid
 - [x] **Mini-map overview** — fixed-size corner panel showing the whole wall, a rectangle marking the current viewport, click/drag to jump the camera there
 - [x] **Spatial location discovery & teleportation** — "EXPLORE" menu with Busiest Hotspot, Latest Activity, and Random Art Spot camera teleportation
