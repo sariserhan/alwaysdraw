@@ -1,6 +1,6 @@
 import type { MutationCtx } from "./_generated/server";
 import { internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { RATE_LIMIT_WINDOW_MS } from "./constants";
 
 export function assertBoundedIdentifier(
@@ -42,7 +42,10 @@ export async function consumeRateLimit(
   }
 
   if (existing.count >= limit) {
-    throw new Error("write rate limit exceeded — slow down and try again");
+    // ConvexError (not a plain Error) so the client can reliably tell "you got
+    // rate limited" apart from other failures even in production, where plain
+    // Error messages get redacted before reaching the client.
+    throw new ConvexError("write rate limit exceeded — slow down and try again");
   }
 
   await ctx.db.patch(existing._id, { count: existing.count + 1 });

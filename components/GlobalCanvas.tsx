@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConvex, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import {
@@ -805,10 +806,15 @@ export function GlobalCanvas() {
       pendingRef.current.set(chunk.clientStrokeId, chunk);
       submitStroke(chunk).catch((err) => {
         console.error("stroke submit rejected", err);
-        rateLimitTracker.recordRateLimitError();
+        const isRateLimited = err instanceof ConvexError;
+        if (isRateLimited) {
+          rateLimitTracker.recordRateLimitError();
+        }
         captureOperationalError(err, "stroke_submit", { mode: chunk.mode });
         pendingRef.current.delete(chunk.clientStrokeId);
-        setSubmitError("a mark didn't stick — try again");
+        setSubmitError(
+          isRateLimited ? "drawing too fast — pace yourself a sec" : "a mark didn't stick — try again",
+        );
         scheduleRedraw({ strokes: true });
       });
     },
