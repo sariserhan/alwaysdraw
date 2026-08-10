@@ -2063,14 +2063,27 @@ export function GlobalCanvas() {
             <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
             <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
             
-            <div className="grid grid-cols-3 gap-1.5 w-full pt-0.5">
+            {/* Line 1: -, 10%, + */}
+            <div className="w-full pt-1">
               <ZoomPill
                 zoomPercent={zoomPercent}
                 onZoomIn={() => zoomButton(1.2)}
                 onZoomOut={() => zoomButton(1 / 1.2)}
-                onResetView={resetView}
-                locale={locale}
               />
+            </div>
+
+            {/* Line 2: reset, heatmap, share */}
+            <div className="grid grid-cols-3 gap-1.5 w-full">
+              <button
+                type="button"
+                onClick={resetView}
+                aria-label="reset view"
+                title={t(locale, "reset_view")}
+                className="flex h-[28px] w-full items-center justify-center gap-1 min-w-0 truncate rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-1 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm transition-colors hover:border-rust hover:text-accent-yellow"
+              >
+                <span>↺</span>
+                <span className="truncate">{t(locale, "reset_view").toUpperCase()}</span>
+              </button>
               <HeatmapToggle showHeatmap={showHeatmap} onToggle={handleToggleHeatmap} locale={locale} />
               <ShareButton onShare={handleShare} locale={locale} />
             </div>
