@@ -400,16 +400,49 @@ export function GlobalCanvas() {
       return;
     }
     const line = el.querySelector<SVGLineElement>("[data-ruler-line]");
-    const label = el.querySelector<HTMLSpanElement>("[data-ruler-label]");
-    if (!line || !label) return;
+    const startNode = el.querySelector<SVGCircleElement>("[data-ruler-start-node]");
+    const endNode = el.querySelector<SVGCircleElement>("[data-ruler-end-node]");
+    const card = el.querySelector<HTMLDivElement>("[data-ruler-card]");
+    if (!line || !card) return;
+
     line.setAttribute("x1", String(drag.startScreen.x));
     line.setAttribute("y1", String(drag.startScreen.y));
     line.setAttribute("x2", String(drag.currentScreen.x));
     line.setAttribute("y2", String(drag.currentScreen.y));
-    const dist = Math.round(distance(drag.startWorld, drag.currentWorld));
-    label.textContent = `${dist} px`;
-    label.style.left = `${(drag.startScreen.x + drag.currentScreen.x) / 2}px`;
-    label.style.top = `${(drag.startScreen.y + drag.currentScreen.y) / 2}px`;
+
+    if (startNode) {
+      startNode.setAttribute("cx", String(drag.startScreen.x));
+      startNode.setAttribute("cy", String(drag.startScreen.y));
+    }
+    if (endNode) {
+      endNode.setAttribute("cx", String(drag.currentScreen.x));
+      endNode.setAttribute("cy", String(drag.currentScreen.y));
+    }
+
+    const distPx = Math.round(distance(drag.startWorld, drag.currentWorld));
+    const distMeters = (distPx / 38).toFixed(1);
+    const dx = Math.round(drag.currentWorld.x - drag.startWorld.x);
+    const dy = Math.round(drag.currentWorld.y - drag.startWorld.y);
+    let angleDeg = Math.round((Math.atan2(dy, dx) * 180) / Math.PI);
+    if (angleDeg < 0) angleDeg += 360;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between border-b border-chrome-border/60 pb-1 font-bold text-accent-yellow">
+        <span>📏 ${distPx} px</span>
+        <span class="text-ink-dim">${distMeters} m</span>
+      </div>
+      <div class="flex items-center justify-between text-[10px] text-ink-dim">
+        <span>Inclination Angle:</span>
+        <span class="font-bold text-ink">${angleDeg}°</span>
+      </div>
+      <div class="flex items-center justify-between text-[10px] text-ink-dim">
+        <span>Offset Vector:</span>
+        <span class="font-bold text-ink">Δx:${dx > 0 ? `+${dx}` : dx} Δy:${dy > 0 ? `+${dy}` : dy}</span>
+      </div>
+    `;
+
+    card.style.left = `${(drag.startScreen.x + drag.currentScreen.x) / 2}px`;
+    card.style.top = `${(drag.startScreen.y + drag.currentScreen.y) / 2}px`;
     el.style.display = "block";
   }, []);
 

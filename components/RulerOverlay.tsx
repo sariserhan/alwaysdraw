@@ -4,20 +4,19 @@ import { forwardRef } from "react";
 
 /**
  * Distance-measurement overlay: a dashed line between drag start/end plus a
- * label showing the distance in world px. Purely an inspection aid — never
- * submitted as a stroke. Line endpoints and label are set imperatively by the
- * parent on every pointer move (data-ruler-* attributes), same reasoning as
- * BrushCursor/MagnifierLoupe: too high-frequency for React state.
+ * rich industrial HUD card showing distance (px/m), angle (°), and delta coordinates.
  */
 export const RulerOverlay = forwardRef<HTMLDivElement>(function RulerOverlay(_props, ref) {
   return (
     <div ref={ref} aria-hidden className="pointer-events-none absolute inset-0 z-30 hidden">
       <svg className="absolute inset-0 h-full w-full">
-        <line data-ruler-line stroke="var(--accent-yellow)" strokeWidth="1.5" strokeDasharray="5 4" />
+        <line data-ruler-line stroke="var(--accent-yellow)" strokeWidth="2" strokeDasharray="6 4" />
+        <circle data-ruler-start-node r="4" fill="var(--accent-yellow)" />
+        <circle data-ruler-end-node r="4" fill="var(--accent-crimson)" />
       </svg>
-      <span
-        data-ruler-label
-        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-sm border border-chrome-border bg-chrome-bg-raised px-1.5 py-0.5 font-mono text-[11px] whitespace-nowrap text-ink shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+      <div
+        data-ruler-card
+        className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col gap-1 rounded-sm border-2 border-rust bg-chrome-bg/95 p-2 font-mono text-xs shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md whitespace-nowrap text-ink min-w-[160px]"
       />
     </div>
   );
