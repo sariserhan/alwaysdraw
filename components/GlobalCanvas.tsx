@@ -46,7 +46,7 @@ import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX } from "./MiniMap";
-import { ReplayBar, TimeTravelButton } from "./ReplayBar";
+import { TimeTravelMenu } from "./ReplayBar";
 import { SpatialDiscoveryMenu } from "./SpatialDiscoveryMenu";
 import { HelpModal } from "./HelpModal";
 
@@ -1044,13 +1044,25 @@ export function GlobalCanvas() {
             getRandomActivePoint={getRandomActivePoint}
             getLatestActivityPoint={getLatestActivityPoint}
           />
-          <TimeTravelButton
+          <TimeTravelMenu
+            isReplayMode={isReplayMode}
+            isPlaying={isPlayingReplay}
+            currentSequence={replaySequenceIndex}
+            maxSequence={maxSequence}
+            playbackSpeed={playbackSpeed}
+            onTogglePlay={() => setIsPlayingReplay((v) => !v)}
+            onSeek={(seq) => setReplaySequenceIndex(seq)}
+            onStep={(delta) => setReplaySequenceIndex((prev) => Math.max(0, Math.min(maxSequence, prev + delta)))}
+            onSpeedChange={setPlaybackSpeed}
+            onExitReplay={() => {
+              setIsReplayMode(false);
+              setIsPlayingReplay(false);
+            }}
             onEnterReplay={() => {
               setIsReplayMode(true);
               setReplaySequenceIndex(0);
               setIsPlayingReplay(true);
             }}
-            isReplayMode={isReplayMode}
           />
           <HelpModal />
           <ThemeToggle />
@@ -1067,30 +1079,6 @@ export function GlobalCanvas() {
           </div>
         </div>
       )}
-
-      {/* Replay Bar Floating Overlay */}
-      <div className="pointer-events-none absolute bottom-24 left-4 z-40">
-        <ReplayBar
-          isReplayMode={isReplayMode}
-          isPlaying={isPlayingReplay}
-          currentSequence={replaySequenceIndex}
-          maxSequence={maxSequence}
-          playbackSpeed={playbackSpeed}
-          onTogglePlay={() => setIsPlayingReplay((v) => !v)}
-          onSeek={(seq) => setReplaySequenceIndex(seq)}
-          onStep={(delta) => setReplaySequenceIndex((prev) => Math.max(0, Math.min(maxSequence, prev + delta)))}
-          onSpeedChange={setPlaybackSpeed}
-          onExitReplay={() => {
-            setIsReplayMode(false);
-            setIsPlayingReplay(false);
-          }}
-          onEnterReplay={() => {
-            setIsReplayMode(true);
-            setReplaySequenceIndex(0);
-            setIsPlayingReplay(true);
-          }}
-        />
-      </div>
 
       <nav id="drawing-toolbar-nav" aria-label="Drawing Tools Toolbar">
         <DrawingToolbar
