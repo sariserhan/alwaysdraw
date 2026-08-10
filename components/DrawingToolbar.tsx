@@ -553,9 +553,9 @@ export function DrawingToolbar({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-2 sm:px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-2 pb-2 sm:px-4 max-w-full">
       <div
-        className="pointer-events-auto relative flex flex-wrap items-center justify-center gap-3 rounded-sm border-2 border-chrome-border px-3 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25"
+        className="pointer-events-auto relative flex max-w-full items-center justify-start sm:justify-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 whitespace-nowrap"
         style={{
           backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
         }}
@@ -565,7 +565,7 @@ export function DrawingToolbar({
         <HideHandle onClick={() => setHidden(true)} />
         {!collapsed && <DripEdge />}
 
-        <div className="relative flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
+        <div className="relative flex shrink-0 items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
           <button
             type="button"
             onClick={() => {
@@ -706,7 +706,7 @@ export function DrawingToolbar({
 
         {!collapsed && (
         <>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {activePalette.colors.map((sw) => (
             <button
               key={sw}
@@ -765,7 +765,7 @@ export function DrawingToolbar({
           />
         </div>
 
-        <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <RulerIcon />
             <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Size</span>
@@ -782,7 +782,7 @@ export function DrawingToolbar({
           <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
         </div>
 
-        <div className="flex items-center gap-2 border-l border-chrome-border pl-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <DropletIcon />
             <span className="font-mono text-[11px] font-bold tracking-wide uppercase">Opacity</span>
@@ -801,7 +801,7 @@ export function DrawingToolbar({
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
           <button
             type="button"
             onClick={onZoomOut}
