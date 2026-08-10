@@ -52,7 +52,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors } from "./RemoteCursors";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChromeRivet } from "./ChromeRivet";
-import { HeaderSeam, MobileGroupLabel } from "./HeaderSeam";
+import { MobileGroupLabel } from "./HeaderSeam";
 import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
@@ -64,7 +64,6 @@ import { CommunityGalleryModal } from "./CommunityGalleryModal";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
-import { MoreMenu } from "./MoreMenu";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
@@ -72,6 +71,7 @@ import { ProtectedZonesOverlay } from "./ProtectedZonesOverlay";
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
+import { HideCommentsToggle } from "./HideCommentsToggle";
 import { UsernameControl } from "./UsernameControl";
 import { SpatialCompass } from "./SpatialCompass";
 import { FpsHud } from "./FpsHud";
@@ -298,6 +298,10 @@ export function GlobalCanvas() {
       return next;
     });
   }, []);
+  // Desktop sidebar sticks directly under the mini-map, which itself sticks
+  // under the header — chained offsets so both stay aligned as the header's
+  // height changes (it wraps to 1-3 rows depending on viewport width).
+  const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
@@ -2135,128 +2139,6 @@ export function GlobalCanvas() {
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
         </div>
 
-        {/* Desktop Controls (>= lg) — 4 Labeled Clusters */}
-        {/* No overflow-x-auto here: dropdown panels render `absolute top-full`
-            beneath their trigger inside this row, and per the CSS overflow
-            spec, giving overflow-x anything but visible silently forces
-            overflow-y to auto too — clipping every dropdown and breaking its
-            click hit-testing. shrink-0 below already stops pills from being
-            squashed into wrapping; letting the row itself overflow visually
-            in extreme cases is the safer tradeoff. */}
-        <div className="hidden min-[1360px]:flex items-center gap-3 pr-4">
-          {/* Cluster 1: View & Display */}
-          <div className="flex shrink-0 items-center gap-2" title="View & Display Settings">
-            <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
-            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
-            <button
-              type="button"
-              onClick={toggleShowComments}
-              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
-                showComments
-                  ? "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
-                  : "border-rust bg-rust text-on-accent font-bold"
-              }`}
-              title={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
-              aria-label={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
-              aria-pressed={!showComments}
-            >
-              <span>{showComments ? "💬" : "🚫"}</span>
-              <span>{(showComments ? t(locale, "hide_comments") : t(locale, "show_comments")).toUpperCase()}</span>
-            </button>
-          </div>
-
-          <HeaderSeam />
-
-          {/* Cluster 2: Spatial Navigation */}
-          <div className="flex shrink-0 items-center gap-2" title="Spatial Navigation & Teleportation">
-            <SpatialCompass camera={cameraSnapshot} onTeleport={handleJumpToPoint} locale={locale} />
-            <ExploreMenu
-              onJumpToPoint={handleJumpToPoint}
-              getBusiestPoint={getBusiestPoint}
-              getRandomActivePoint={getRandomActivePoint}
-              getLatestActivityPoint={getLatestActivityPoint}
-              onlineCount={onlineCount ?? 1}
-              locale={locale}
-            />
-            <BookmarkMenu
-              currentCamera={cameraSnapshot}
-              clientId={clientId}
-              onTeleport={handleBookmarkTeleport}
-              locale={locale}
-            />
-            <CommunityGalleryModal
-              clientId={clientId}
-              username={username}
-              onTeleport={handleBookmarkTeleport}
-              locale={locale}
-            />
-          </div>
-
-          <HeaderSeam />
-
-          {/* Cluster 3: Timeline & Export */}
-          <div className="flex shrink-0 items-center gap-2" title="Timeline & Export Tools">
-            <TimeTravelMenu
-              isReplayMode={isReplayMode}
-              isPlaying={isPlayingReplay}
-              currentSequence={replaySequenceIndex}
-              minSequence={minSequence}
-              maxSequence={maxSequence}
-              playbackSpeed={playbackSpeed}
-              onTogglePlay={() => setIsPlayingReplay((v) => !v)}
-              onSeek={(seq) => setReplaySequenceIndex(seq)}
-              onStep={(delta) =>
-                setReplaySequenceIndex((prev) =>
-                  Math.max(minSequence, Math.min(maxSequence, prev + delta)),
-                )
-              }
-              onSpeedChange={setPlaybackSpeed}
-              onExitReplay={() => {
-                setIsReplayMode(false);
-                setIsPlayingReplay(false);
-                scheduleRedraw({ world: true, strokes: true });
-              }}
-              onEnterReplay={handleEnterReplay}
-              region={replayRegion}
-              onSelectRegion={handleSelectRegion}
-              onClearRegion={handleClearRegion}
-              locale={locale}
-            />
-            <ExportModal
-              getCanvasLayers={() => [worldCanvasRef.current, canvasRef.current, heatmapCanvasRef.current]}
-              getCommittedStrokes={() => committedRef.current}
-              currentCamera={cameraSnapshot}
-              viewportWidth={viewportSize.width}
-              viewportHeight={viewportSize.height}
-              worldWidth={WORLD_WIDTH}
-              worldHeight={WORLD_HEIGHT}
-              region={replayRegion}
-              locale={locale}
-            />
-          </div>
-
-          <HeaderSeam />
-
-          {/* Overflow: language, theme, hotkeys, help, connection status —
-              lower-frequency controls that don't need to stay always
-              visible. The mobile drawer keeps showing these in their own
-              labeled sections regardless, since it never had the row's
-              fixed-width overflow problem to begin with. */}
-          <MoreMenu locale={locale}>
-            <LanguagePicker
-              currentLocale={locale}
-              onLocaleChange={(loc) => {
-                setLocale(loc);
-                localStorage.setItem("alwaysdraw_locale", loc);
-              }}
-            />
-            <ThemeToggle />
-            <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
-            <HelpModal />
-            <ConnectionStatus locale={locale} />
-          </MoreMenu>
-        </div>
-
         {/* Mobile Hamburger Button Controls (< 1360px — matched to the
             desktop row's actual measured content width, not a stock
             Tailwind breakpoint; see the row's own comment above) */}
@@ -2303,21 +2185,7 @@ export function GlobalCanvas() {
               <ThemeToggle />
               <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
               <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
-              <button
-                type="button"
-                onClick={toggleShowComments}
-                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2.5 py-1 font-mono text-xs font-semibold shadow-sm transition-colors ${
-                  showComments
-                    ? "border-chrome-border bg-chrome-bg-raised/90 text-ink hover:border-rust hover:text-accent-yellow"
-                    : "border-rust bg-rust text-on-accent font-bold"
-                }`}
-                title={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
-                aria-label={showComments ? t(locale, "hide_comments") : t(locale, "show_comments")}
-                aria-pressed={!showComments}
-              >
-                <span>{showComments ? "💬" : "🚫"}</span>
-                <span>{(showComments ? t(locale, "hide_comments") : t(locale, "show_comments")).toUpperCase()}</span>
-              </button>
+              <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
             </div>
 
             <MobileGroupLabel>🧭 {t(locale, "group_spatial_nav")}</MobileGroupLabel>

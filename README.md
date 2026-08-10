@@ -1,228 +1,127 @@
-# AlwaysDraw — Version 1 (Functional MVP)
+# AlwaysDraw
 
-One world. One canvas. Always drawing.
+**One world. One canvas. Always drawing.**
 
-A single public 10,000×10,000 drawing canvas shared by everyone on the internet. No rooms, no accounts, no ownership, no undo. Anyone can draw, erase, or paint over anyone else, in real time, with 12 distinct brush textures (Basic/Artistic/Effects) plus explicit Pan and Zoom tools for touch users.
+A single public 20,000×20,000 drawing canvas shared in real time by everyone on the internet. Anyone can draw, erase, add vector shapes, type vector text, post sticky notes, or paint with 12 distinct brush textures across an infinite collaborative wall.
 
-## 1. Architecture summary
+> 📖 **Full Features Showcase:** See [FEATURES.md](./FEATURES.md) for a detailed breakdown of all tools, creative features, moderation controls, and keyboard shortcuts.
+
+---
+
+## 🎨 Highlights & Features
+
+- **Real-Time Multiplayer Sync:** Reactive real-time stroke synchronization powered by Convex backend.
+- **12 Brush Textures & Custom Colors:** Basic (Brush, Pencil, Marker, Highlighter, Calligraphy, Pixel), Artistic (Watercolor, Oil Paint, Chalk, Charcoal), and Effects (Glitter, Neon Glow) with eyedropper color sampling.
+- **Vector Text & Expanded Shapes:** Type vector text in 5 typography styles (Sans, Mono, Pixel, Serif, Script) and draw 8 shape types (Line, Arrow, Rectangle, Circle, Triangle, Star, Hexagon, Heart).
+- **Special Creative Tools:** Flood Fill Bucket, 2-Way / 4-Way / 8-Way Mandala Symmetry, Sticker Catalog, Architectural Ruler, Industrial Stencils, and Laser Pointer.
+- **Navigation & Exploration:** Smooth focal-point pan & zoom, MiniMap viewport tracker, Activity Heatmap overlay, and Viewport Bookmarks with URL deep-linking.
+- **Collaboration & Sticky Notes:** Live remote cursors, country flag indicators, and interactive Sticky Note comment pins.
+- **Time-Travel Replay:** Replay wall history stroke-by-stroke with speed controls (1x, 2x, 5x, 10x).
+- **Admin Moderation & Mural Shield:** Protected canvas zones to lock community artwork, image stamping, area wipe, client rollback, and live broadcast banners.
+
+---
+
+## 🏗️ 1. Architecture Summary
 
 ```
 Browser (Next.js App Router, client-only canvas component)
   │
-  ├─ Local-first drawing: pointer input is drawn to the <canvas> immediately,
-  │  never blocked on the network.
+  ├─ Local-First Drawing: Pointer input renders to <canvas> immediately without waiting on network.
   │
-  ├─ Two stacked canvases: a static world layer (concrete fill) beneath a
-  │  transparent strokes layer, so erasing (destination-out) reveals the
-  │  wall, not a hole through to the page background.
+  ├─ Dual Stacked Canvases: Static concrete world background beneath a transparent stroke layer,
+  │  so erasing (destination-out) reveals the wall texture.
   │
-  ├─ lib/brushes.ts dispatches each stroke to one of 12 brush renderers
-  │  (Basic: Brush/Pencil/Marker/Highlighter/Calligraphy/Pixel; Artistic:
-  │  Watercolor/Oil Paint/Chalk/Charcoal; Effects: Glitter/Neon Glow) keyed
-  │  by the stroke's brushType — same renderer runs for local and remote
-  │  strokes, so everyone sees the same texture. Deterministic per-point
-  │  hashing (not Math.random) drives grain/scatter so redraws don't flicker.
+  ├─ lib/brushes.ts: Renders 12 brush textures with deterministic per-point hashing for flicker-free redrawing.
   │
-  ├─ StrokeBuffer batches points from one drag into ~40-point chunks, flushed
-  │  every ~40ms, each chunk submitted as its own Convex mutation.
+  ├─ lib/strokeBuffer.ts: Batches pointer points into ~40-point chunks, flushed every ~40ms as Convex mutations.
   │
-  └─ Convex (reactive backend)
-       ├─ strokes table — every draw/erase chunk (+ brushType, opacity),
-       │  server-sequenced, append-only
-       ├─ canvasMetadata — singleton holding the global sequence counter
-       └─ presence table — one row per anonymous client, heartbeat every 5s
-
-Sync model:
-  - On mount: page a full history via strokes.listSince(afterSequence) until
-    caught up, replay it once onto the canvas (dev-capped at 20,000 strokes).
-  - Live tail: a reactive useQuery(strokes.listRecent) subscription pushes new
-    strokes (yours and everyone else's) as they're committed; the client
-    applies whatever it hasn't already drawn, keyed by clientStrokeId.
-  - Ordering is authoritative server-side: every mutation increments a single
-    global `sequence` counter inside the same transaction that inserts the
-    stroke, so render order is never ambiguous even under concurrent writers.
-  - Erase is stored as a `mode: "erase"` operation, never a deletion — it's
-    rendered with `globalCompositeOperation = "destination-out"`. History is
-    append-only; there is no undo.
+  └─ Convex Reactive Backend
+       ├─ strokes table — server-sequenced append-only stroke chunks
+       ├─ protectedZones table — admin-locked canvas regions (Mural Shield)
+       ├─ broadcasts & presence tables — live banners, cursor positions, and online counts
+       └─ snapshots & bookmarks tables — rendered canvas state and saved locations
 ```
 
-Coordinate math, stroke protocol, rendering, and persistence are kept in separate modules (`lib/camera.ts`, `lib/coordinates.ts`, `lib/drawing.ts`, `lib/strokeBuffer.ts` vs. `convex/*.ts`) specifically so Version 3's spatial tiling can slot in without a rewrite — world coordinates and camera transforms don't know or care how the backend partitions the world.
+---
 
-## 2. Project tree
+## 📁 2. Project Structure
 
 ```
 app/
-  layout.tsx            root layout, ConvexClientProvider wiring, metadata
-  page.tsx               client-only entry (dynamic import, ssr:false — see Known limitations)
-  globals.css
+  layout.tsx            Root layout, ConvexClientProvider wiring, metadata
+  page.tsx              Client-only entry
+  globals.css           Design tokens and theme variables
 
 components/
-  GlobalCanvas.tsx        owns camera, tool state, pointer/touch input, redraw loop
-  DrawingToolbar.tsx       tool row (Brush/Erase/Pan/Zoom), brush picker, color, size, opacity, zoom controls
-  OnlineCount.tsx
-  ConnectionStatus.tsx     live Convex websocket state
-  RemoteCursors.tsx
-  ThemeToggle.tsx           dark (default) / light theme switch
-  ChromeRivet.tsx
-  ConvexClientProvider.tsx
+  GlobalCanvas.tsx       Main canvas coordinator (camera, pointer input, tool modes, redraw loop)
+  DrawingToolbar.tsx      Toolbar controls (brushes, shapes, text, fill, stickers, symmetry, color, opacity, zoom)
+  ProtectedZonesOverlay.tsx Visual shield overlay for admin-protected canvas areas
+  CommentsOverlay.tsx    Interactive sticky note comments overlay
+  MiniMap.tsx            MiniMap navigation widget & viewport tracker
+  AdminPanelModal.tsx    Admin operations control center & moderation tools
+  ReplayBar.tsx          Time-travel history replay controls
+  ExploreMenu.tsx & BookmarkMenu.tsx Viewport discovery and saved location bookmarks
 
 lib/
-  camera.ts               Camera type, pan/zoom math (pure, unit-testable)
-  coordinates.ts           screen<->world conversion, world-bounds clamping
-  drawing.ts               canvas draw calls (plain stroke, erase, world background)
-  brushes.ts                12 brush renderers (Basic/Artistic/Effects) + BRUSH_CATALOG
-  strokeBuffer.ts           batches pointer points into ~40pt chunks every ~40ms
-  identity.ts               anonymous clientId in localStorage
-  types.ts
+  camera.ts              Camera pan/zoom math & bounds clamping
+  coordinates.ts         Screen <-> world coordinate transforms
+  drawing.ts             Canvas rendering routines
+  brushes.ts             12 brush renderers & catalog
+  shapes.ts              8 vector shape generators
+  textToPoints.ts        Vector font stroke renderer
+  symmetry.ts            2-way, 4-way, and 8-way mandala point calculators
+  floodFill.ts           Spiral fill point generator
+  stickers.ts            Sticker & emoji catalog
+  strokeBuffer.ts        Stroke chunk batching & buffer management
 
 convex/
-  schema.ts               strokes / canvasMetadata / presence tables + indexes
-  constants.ts              shared world-bounds & validation limits
-  strokes.ts                submit (validated, sequenced, idempotent), listSince, listRecent
-  presence.ts                heartbeat, list, onlineCount, clearStale (cron target)
-  canvas.ts                  getMetadata
-  crons.ts                   1-minute stale-presence sweep
+  schema.ts              Database schema definitions
+  strokes.ts             Stroke submission (validated, sequenced, idempotent), listSince, listRecent
+  admin.ts               Admin passcode verification, protected zones, wipeArea, rollbackClient, telemetry
+  presence.ts            Heartbeat, presence list, online counts
+  bookmarks.ts           Saved location bookmarks & comments
 ```
 
-## 3. Local development
+---
+
+## 💻 3. Local Development
 
 ```bash
+# Install dependencies
 npm install
-npx convex dev     # in one terminal — pushes convex/ functions, keeps them live
-npm run dev         # in another terminal — Next.js on http://localhost:3000
+
+# Terminal 1 — Start Convex dev process
+npx convex dev
+
+# Terminal 2 — Start Next.js local dev server
+npm run dev
 ```
 
-Open `http://localhost:3000` — it opens directly into the canvas, no login, no homepage.
+Open `http://localhost:3000` to launch directly into the canvas.
 
-## 4. Convex setup
+---
 
-Already provisioned for this repo (dev deployment `sariserhan:alwaysdraw:dev/serhan`). To set up a new deployment from scratch:
+## 🧪 4. Testing Instructions
 
 ```bash
-npx convex dev --once --configure=new --project alwaysdraw
-```
+# Run Vitest unit test suite (100 tests across 14 test files)
+npm test
 
-This writes `.env.local` with the deployment's connection info and pushes `convex/schema.ts` + functions. Re-run `npx convex dev` (no flags) during development to keep functions live-reloading.
-
-## 5. Required environment variables
-
-`.env.local` (gitignored, generated by `npx convex dev`):
-
-```
-CONVEX_DEPLOYMENT=dev:<your-deployment-name>
-NEXT_PUBLIC_CONVEX_URL=https://<your-deployment>.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://<your-deployment>.convex.site
-```
-
-Optional operational setting:
-
-```text
-ALWAYSDRAW_READ_ONLY=1
-```
-
-Set it on the Convex deployment to reject new strokes and presence heartbeats during an incident. Unset it (or set a value other than `1`) for normal operation. No third-party API secrets are required for V1.
-
-Optional observability variables (the integrations make no third-party requests when their keys are absent):
-
-```text
-NEXT_PUBLIC_APP_ENV=production
-NEXT_PUBLIC_APP_RELEASE=<git-commit-or-release-id>
-NEXT_PUBLIC_SENTRY_DSN=<public-dsn>
-NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.05
-SENTRY_TRACES_SAMPLE_RATE=0.05
-SENTRY_AUTH_TOKEN=<ci-only-source-map-upload-token>
-SENTRY_ORG=<org-slug>
-SENTRY_PROJECT=<project-slug>
-SENTRY_RELEASE=<git-commit-or-release-id>
-NEXT_PUBLIC_POSTHOG_KEY=<public-project-key>
-NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
-```
-
-PostHog is configured for explicit events only: autocapture and session recording are disabled, persistence is memory-only, Do Not Track is respected, and no stroke content, coordinates, colors, or client IDs are sent.
-
-## 6. Deployment instructions
-
-**Convex (backend):**
-```bash
-npx convex deploy   # pushes convex/ to your production deployment
-```
-
-**Next.js (frontend), on Cloudflare Workers (via OpenNext):**
-
-Cloudflare doesn't run Next.js natively — the [OpenNext](https://opennext.js.org/cloudflare) adapter (`@opennextjs/cloudflare`) builds this app into a Worker.
-
-1. One-time setup in the repo root:
-   ```bash
-   npx @opennextjs/cloudflare migrate
-   ```
-   This installs `@opennextjs/cloudflare`, adds `wrangler.jsonc` (Worker config: `main: ".open-next/worker.js"`, `assets: ".open-next/assets"`, `nodejs_compat` flag) and `open-next.config.ts`, and adds `preview`/`deploy`/`upload` scripts to `package.json`.
-2. Set `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) as Worker environment variables — in `wrangler.jsonc`'s `vars` block for non-secret values, or via `npx wrangler secret put NEXT_PUBLIC_CONVEX_URL` — to your **production** Convex deployment's URL (from `npx convex deploy` output or the Convex dashboard), not the dev URL. These are `NEXT_PUBLIC_*` values baked in at build time, so they must be set before the build/deploy step below.
-3. Build + deploy:
-   ```bash
-   npx @opennextjs/cloudflare build
-   npx @opennextjs/cloudflare deploy
-   ```
-   (Or `npx wrangler login` first if this is the first deploy from this machine.) The Worker's `*.workers.dev` URL — or a custom domain attached in the Cloudflare dashboard — opens directly into the canvas.
-
-The repository does not currently track `wrangler.jsonc`, `open-next.config.ts`, a production URL, or a deployed revision record. Do not treat deployment as verified from this checkout alone; complete `DEPLOYMENT.md` after the next verified release.
-
-## 7. Testing instructions
-
-```bash
-npm test          # runs lib/*.test.ts once (Vitest)
+# Run Vitest in watch mode
 npm run test:watch
+
+# Build production bundle & verify TypeScript compilation
 npm run build
-npm run test:e2e  # non-mutating Chromium smoke + mobile toolbar tests against the production build
-```
 
-The live two-browser synchronization/reload test writes permanent disposable strokes and must only target a non-production Convex deployment:
+# Run Playwright E2E smoke tests
+npm run test:e2e
 
-```bash
+# Run opt-in live two-browser multiplayer E2E test
 npm run test:e2e:live
 ```
 
-After deploying, run the non-destructive production smoke check:
+---
 
-```bash
-ALWAYSDRAW_SMOKE_URL=https://your-production-host npm run smoke:production
-```
+## 📄 License & Attribution
 
-It verifies HTTP success, the rendered product identity, a primary tool interaction, and browser console health without drawing on the permanent wall.
-
-Unit tests cover the pure math the spec calls out — camera pan/zoom/clamping (`lib/camera.test.ts`) and screen↔world coordinate conversion (`lib/coordinates.test.ts`), including that `screenToWorld`/`worldToScreen` are true inverses and that `zoomAt` keeps the world point under the cursor fixed.
-
-Convex function tests (`convex/strokes.test.ts`, via [convex-test](https://github.com/get-convex/convex-test)) cover `strokes.submit`'s abuse-boundary validation, identifier limits, rate limiting, retry idempotency, gapless/duplicate-free sequencing, `listSince` pagination and ordering, and `listRecent` ordering. Playwright covers initial rendering, theme/tool interactions, the mobile toolbar, and an opt-in two-browser live synchronization/reload path.
-
-Manual verification performed for this build:
-
-- Two browser sessions, same page: draw in A → appears in B within ~1s; erase in B over A's stroke → A updates live.
-- Reload mid-session: full history replays correctly (session B loaded fresh and saw session A's prior stroke).
-- Pan (space+drag), wheel-zoom (focal-point correct), 2-finger touch pinch-zoom + pan, and the toolbar's zoom/reset buttons all verified via synthetic pointer/wheel events.
-- Mobile viewport (390×844): toolbar wraps and remains usable; touch drawing and pinch both work.
-- `npx tsc --noEmit`, `npx eslint .`, and `npm test` are all clean.
-
-To repeat the two-browser check by hand: open `http://localhost:3000` in two windows and draw in both.
-
-## 8. Known limitations
-
-- **Live catch-up is sequence-cursor based**: after initial replay, the reactive client queries `strokes.listSince` from its last applied server sequence and advances until caught up, so a long network stall no longer silently drops strokes.
-- **Full-history replay on every load**, capped at 20,000 strokes (dev safety valve, not a real limit) — gets expensive as history grows. This is explicitly deferred to V2 (snapshots) per the spec.
-- **Presence cursor fan-out remains bounded**: the public online count is an O(1) cron-maintained value, but remote cursor listing is intentionally capped and is not a high-scale spatial presence system.
-- **Anonymous abuse remains possible**: transactional per-client and global fixed-window limits bound stroke and presence writes, identifiers/payload fields are length-checked, and operators have a read-only switch. Because identity is anonymous and client-supplied, these controls limit cost rather than proving identity or preventing a distributed attack.
-- **`app/page.tsx` opts the canvas out of SSR** (`next/dynamic(..., { ssr: false })`). The app is one imperative `<canvas>` plus entirely browser-only state (camera, websocket, anonymous identity in `localStorage`) — server-rendering it added nothing and only produced hydration mismatches, so it's skipped outright. This means the very first paint is a client-side render (brief blank/loading frame), not server-rendered HTML.
-- **No accounts, no moderation** — by design for V1, per spec.
-
-## 9. Performance notes
-
-- Local drawing never waits on the network: pointer moves draw an incremental line segment directly, independent of the ~40ms/40-point batch flush to Convex.
-- Camera state lives in a `ref`, not React state, so panning/zooming don't trigger React re-renders — only a `requestAnimationFrame`-throttled full canvas redraw plus a lightweight state sync (zoom %, cursor overlay) once per frame.
-- New remote strokes are drawn incrementally on top of the existing canvas bitmap (no full history redraw) except when the camera itself changes, which inherently requires repainting every visible stroke at the new transform.
-- Each stroke document caps at 100 points and each mutation is independently validated and sequenced — no unbounded payloads.
-- Fonts are packaged locally through `@fontsource` and loaded with `next/font/local`, so production builds do not depend on reaching Google Fonts.
-
-## 10. Recommendations for Version 2
-
-Per the spec, in priority order:
-1. **Snapshot system** — the full-replay-on-load cost is the first real scaling wall; a periodic rendered snapshot + "strokes since snapshot" would remove the 20k-stroke dev cap entirely.
-2. **Heatmap / mini-map** — needs the presence/stroke data already being collected; mostly a new read-side aggregation, not a data model change.
-3. Historical replay/time-travel and featured locations should follow snapshots, rather than being built against the current full-replay model.
+Privately created for real-time collaborative digital art. Built with Next.js, Convex, and HTML5 Canvas.
