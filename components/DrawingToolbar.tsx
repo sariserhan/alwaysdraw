@@ -272,16 +272,6 @@ function FlameIcon() {
   );
 }
 
-function TargetIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 const CATEGORIES: Array<"Basic" | "Artistic" | "Effects"> = ["Basic", "Artistic", "Effects"];
 
 function BrushPicker({
@@ -449,6 +439,7 @@ export function DrawingToolbar({
   onShapeTypeChange,
   selectedStencil = "biohazard",
   onStencilSelect = () => {},
+  onJumpToBusiest = () => {},
   color,
   onColorChange,
   width,
@@ -462,7 +453,6 @@ export function DrawingToolbar({
   onShare,
   showHeatmap,
   onToggleHeatmap,
-  onJumpToBusiest,
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
@@ -485,7 +475,7 @@ export function DrawingToolbar({
   onShare: () => void | Promise<void>;
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
-  onJumpToBusiest: () => void;
+  onJumpToBusiest?: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
@@ -799,15 +789,6 @@ export function DrawingToolbar({
             }`}
           >
             <FlameIcon />
-          </button>
-          <button
-            type="button"
-            onClick={onJumpToBusiest}
-            aria-label="jump to busiest area"
-            title="Jump to busiest area"
-            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
-          >
-            <TargetIcon />
           </button>
         </div>
         </>

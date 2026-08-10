@@ -14,7 +14,7 @@ import {
   MAX_ZOOM,
   distance,
 } from "@/lib/camera";
-import { screenToWorld, clampToWorld, isWithinWorld } from "@/lib/coordinates";
+import { screenToWorld, worldToScreen, clampToWorld, isWithinWorld } from "@/lib/coordinates";
 import {
   clearCanvas,
   drawWorldBackground,
@@ -54,6 +54,7 @@ import { BookmarkMenu } from "./BookmarkMenu";
 import { ExportModal } from "./ExportModal";
 import { SoundToggle } from "./SoundToggle";
 import { HighlightsModal } from "./HighlightsModal";
+import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
 import { playBrushSound } from "@/lib/audio";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
@@ -66,6 +67,15 @@ const MAGNIFIER_OFFSET_PX = 24;
 const MIN_SHAPE_DRAG = 2;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("failed to load snapshot image"));
+    img.src = src;
+  });
+}
 
 export function GlobalCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +101,12 @@ export function GlobalCanvas() {
     currentWorld: Point;
     currentScreen: Point;
   } | null>(null);
+  // Snapshot base image: loaded once if a snapshot exists, painted as the
+  // base layer under delta strokes on every redraw. snapshotSequenceRef is
+  // the earliest sequence actually available locally (0 if no snapshot was
+  // used, since then every stroke was replayed individually).
+  const snapshotImageRef = useRef<HTMLImageElement | null>(null);
+  const snapshotSequenceRef = useRef(0);
 
   const [clientId] = useState(() => getClientId());
   const initialCamera =
@@ -112,6 +128,7 @@ export function GlobalCanvas() {
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
   const [replaySequenceIndex, setReplaySequenceIndex] = useState(0);
+  const [minSequence, setMinSequence] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const [tool, setTool] = useState<Tool>("brush");
@@ -198,6 +215,21 @@ export function GlobalCanvas() {
     if (!ctx) return;
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
+
+    // Snapshot base layer, if one was loaded — drawn under delta strokes so
+    // later erases (destination-out) still punch through it correctly, same
+    // as they punch through individually-replayed strokes.
+    if (snapshotImageRef.current) {
+      const topLeft = worldToScreen(0, 0, cameraRef.current, width, height);
+      const bottomRight = worldToScreen(WORLD_WIDTH, WORLD_HEIGHT, cameraRef.current, width, height);
+      ctx.drawImage(
+        snapshotImageRef.current,
+        topLeft.x,
+        topLeft.y,
+        bottomRight.x - topLeft.x,
+        bottomRight.y - topLeft.y,
+      );
+    }
 
     const maxSeqFilter = isReplayMode ? replaySequenceIndex : Infinity;
 
@@ -508,10 +540,22 @@ export function GlobalCanvas() {
       let after = 0;
       let total = 0;
       try {
-        // Step 1: Check for latest snapshot to seed initial sequence
+        // Step 1: Check for latest snapshot to seed initial sequence. Only
+        // skip replaying strokes up to the snapshot if its image actually
+        // loads — otherwise we'd silently render a wall missing everything
+        // before that point, with no error. Falls back to full replay.
         const latestSnapshot = await convex.query(api.snapshots.getLatest);
         if (latestSnapshot && latestSnapshot.sequence > 0) {
-          after = latestSnapshot.sequence;
+          try {
+            snapshotImageRef.current = await loadImage(latestSnapshot.imageData);
+            snapshotSequenceRef.current = latestSnapshot.sequence;
+            setMinSequence(latestSnapshot.sequence);
+            after = latestSnapshot.sequence;
+          } catch (imageError) {
+            captureOperationalError(imageError, "snapshot_image_load", {
+              sequence: latestSnapshot.sequence,
+            });
+          }
         }
 
         // Step 2: Fetch remaining delta strokes since snapshot
@@ -549,7 +593,7 @@ export function GlobalCanvas() {
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
             ),
             stroke_chunks: total,
-            snapshot_used: !!latestSnapshot,
+            snapshot_used: snapshotImageRef.current !== null,
           });
           scheduleRedraw();
         }
@@ -696,9 +740,59 @@ export function GlobalCanvas() {
   const lastPanScreenRef = useRef<Point | null>(null);
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
 
+  const resetView = useCallback(() => {
+    cameraRef.current = defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
+    scheduleRedraw({ world: true, strokes: true });
+    captureEvent("camera_reset");
+  }, [scheduleRedraw]);
+
+  const zoomButton = useCallback(
+    (factor: number) => {
+      const { width, height } = viewportRef.current;
+      cameraRef.current = zoomAt(cameraRef.current, factor, width / 2, height / 2, width, height);
+      scheduleRedraw({ world: true, strokes: true });
+      captureEvent("zoom_button", { factor });
+    },
+    [scheduleRedraw],
+  );
+
+  const [hotkeysOpen, setHotkeysOpen] = useState(false);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") isSpaceDownRef.current = true;
+
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === "b" || key === "1") {
+        setTool("brush");
+      } else if (key === "e" || key === "2") {
+        setTool("eraser");
+      } else if (key === "h" || key === "3") {
+        setTool("pan");
+      } else if (key === "m" || key === "4") {
+        setTool("magnifier");
+      } else if (key === "s" || key === "5") {
+        setTool("shape");
+      } else if (key === "t" || key === "6") {
+        setTool("stencil");
+      } else if (key === "r" || key === "7") {
+        setTool("ruler");
+      } else if (key === "f") {
+        setShowHeatmap((v) => !v);
+      } else if (key === "+" || key === "=") {
+        zoomButton(1.25);
+      } else if (key === "-" || key === "_") {
+        zoomButton(0.8);
+      } else if (key === "0" || key === "z") {
+        if (!e.metaKey && !e.ctrlKey) resetView();
+      } else if (key === "?" || key === "k") {
+        setHotkeysOpen((prev) => !prev);
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") isSpaceDownRef.current = false;
@@ -709,7 +803,7 @@ export function GlobalCanvas() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, []);
+  }, [resetView, zoomButton]);
 
   const getScreenPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = containerRef.current!.getBoundingClientRect();
@@ -756,6 +850,12 @@ export function GlobalCanvas() {
       }
 
       if (e.pointerType === "mouse" && e.button !== 0) return;
+
+      // Time Travel is meant to be read-only: allow inspection tools
+      // (pan/magnifier/ruler) but block anything that commits a mark.
+      // An allowlist, not a denylist, so a newly added drawing tool is
+      // blocked by default rather than silently slipping through.
+      if (isReplayMode && tool !== "pan" && tool !== "magnifier" && tool !== "ruler") return;
 
       if (tool === "pan") {
         isPanningRef.current = true;
@@ -831,6 +931,7 @@ export function GlobalCanvas() {
       endDraw,
       getPointerWorld,
       getScreenPoint,
+      isReplayMode,
       opacity,
       scheduleRedraw,
       selectedStencil,
@@ -979,21 +1080,7 @@ export function GlobalCanvas() {
     [handlePointerUp, hideCursorOverlay],
   );
 
-  const resetView = useCallback(() => {
-    cameraRef.current = defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
-    scheduleRedraw({ world: true, strokes: true });
-    captureEvent("camera_reset");
-  }, [scheduleRedraw]);
 
-  const zoomButton = useCallback(
-    (factor: number) => {
-      const { width, height } = viewportRef.current;
-      cameraRef.current = zoomAt(cameraRef.current, factor, width / 2, height / 2, width, height);
-      scheduleRedraw({ world: true, strokes: true });
-      captureEvent("zoom_button", { factor });
-    },
-    [scheduleRedraw],
-  );
 
   const handleShare = useCallback(() => {
     const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
@@ -1021,14 +1108,6 @@ export function GlobalCanvas() {
       return !v;
     });
   }, []);
-
-  const handleJumpToBusiest = useCallback(() => {
-    const cell = findBusiestCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
-    if (!cell) return;
-    cameraRef.current = { ...cameraRef.current, x: cell.x, y: cell.y };
-    scheduleRedraw({ world: true, strokes: true });
-    captureEvent("jumped_to_busiest");
-  }, [scheduleRedraw]);
 
   // Spatial Teleportation Handlers
   const handleJumpToPoint = useCallback((pt: Point, label: string) => {
@@ -1177,22 +1256,31 @@ export function GlobalCanvas() {
             isReplayMode={isReplayMode}
             isPlaying={isPlayingReplay}
             currentSequence={replaySequenceIndex}
+            minSequence={minSequence}
             maxSequence={maxSequence}
             playbackSpeed={playbackSpeed}
             onTogglePlay={() => setIsPlayingReplay((v) => !v)}
             onSeek={(seq) => setReplaySequenceIndex(seq)}
-            onStep={(delta) => setReplaySequenceIndex((prev) => Math.max(0, Math.min(maxSequence, prev + delta)))}
+            onStep={(delta) =>
+              setReplaySequenceIndex((prev) =>
+                Math.max(minSequence, Math.min(maxSequence, prev + delta)),
+              )
+            }
             onSpeedChange={setPlaybackSpeed}
             onExitReplay={() => {
               setIsReplayMode(false);
               setIsPlayingReplay(false);
+              // The sync effect only redraws while isReplayMode is true, so
+              // exiting needs its own explicit redraw back to the live view.
+              scheduleRedraw({ world: true, strokes: true });
             }}
             onEnterReplay={() => {
               setIsReplayMode(true);
-              setReplaySequenceIndex(0);
+              setReplaySequenceIndex(snapshotSequenceRef.current);
               setIsPlayingReplay(true);
             }}
           />
+          <HotkeysModal externalOpen={hotkeysOpen} onCloseExternal={() => setHotkeysOpen(false)} />
           <HelpModal />
           <ThemeToggle />
           <ConnectionStatus />
@@ -1232,7 +1320,6 @@ export function GlobalCanvas() {
           onShare={handleShare}
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
-          onJumpToBusiest={handleJumpToBusiest}
         />
       </nav>
     </div>

@@ -7,6 +7,7 @@ export interface TimeTravelMenuProps {
   isReplayMode: boolean;
   isPlaying: boolean;
   currentSequence: number;
+  minSequence: number;
   maxSequence: number;
   playbackSpeed: number;
   onTogglePlay: () => void;
@@ -23,6 +24,7 @@ export function TimeTravelMenu({
   isReplayMode,
   isPlaying,
   currentSequence,
+  minSequence,
   maxSequence,
   playbackSpeed,
   onTogglePlay,
@@ -35,19 +37,22 @@ export function TimeTravelMenu({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Closing the panel (clicking elsewhere, Escape) only hides the controls —
+  // it does NOT exit replay mode. Panning or drawing-tool clicks land on the
+  // canvas, which is "outside" this panel; exiting replay on every such
+  // click would make it impossible to look around history without it
+  // snapping back to live. Only the explicit LIVE button exits replay.
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: Event) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onExitReplay();
         setIsOpen(false);
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onExitReplay();
         setIsOpen(false);
       }
     };
@@ -58,7 +63,7 @@ export function TimeTravelMenu({
       document.removeEventListener("pointerdown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onExitReplay]);
+  }, [isOpen]);
 
   const handleToggle = () => {
     if (!isOpen) {
@@ -132,11 +137,11 @@ export function TimeTravelMenu({
 
           {/* Scrubber slider */}
           <div className="flex items-center gap-3 px-1">
-            <span className="font-mono text-[10px] text-ink-dim">#0</span>
+            <span className="font-mono text-[10px] text-ink-dim">#{minSequence}</span>
             <input
               type="range"
-              min={0}
-              max={Math.max(1, maxSequence)}
+              min={minSequence}
+              max={Math.max(minSequence + 1, maxSequence)}
               value={currentSequence}
               onChange={(e) => onSeek(Number(e.target.value))}
               className="h-2 flex-1 cursor-pointer appearance-none rounded-sm bg-chrome-bg-raised accent-rust hover:accent-accent-yellow"
