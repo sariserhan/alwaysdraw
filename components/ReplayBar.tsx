@@ -124,7 +124,7 @@ export function TimeTravelMenu({
         <div
           role="region"
           aria-label={t(locale, "history_replay")}
-          className="absolute right-0 top-full mt-2 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md w-[320px] sm:w-[440px] fixed! right-3! sm:right-4! top-20! max-w-[calc(100vw-1.5rem)]! max-h-[calc(100vh-6rem)]! overflow-y-auto!"
+          className="fixed right-3 sm:right-4 min-[1360px]:right-[228px] top-20 z-50 flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[320px] sm:w-[440px] max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-6rem)] overflow-y-auto"
         >
           <ChromeRivet className="top-2 left-2" />
           <ChromeRivet className="top-2 right-2" />
