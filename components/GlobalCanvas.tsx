@@ -58,9 +58,12 @@ import { HotkeysModal } from "./HotkeysModal";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
 import { SpatialCompass } from "./SpatialCompass";
+import { FpsHud } from "./FpsHud";
 import { RateLimitToast } from "./RateLimitToast";
 import { playBrushSound } from "@/lib/audio";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
+import { fpsTracker } from "@/lib/fpsTracker";
+import { calculateShapeMetrics } from "@/lib/shapeMetrics";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
 import { drawGridOverlay, snapPointToGrid, type GridConfig } from "@/lib/grid";
@@ -142,6 +145,8 @@ export function GlobalCanvas() {
     cellSize: 50,
     snapEnabled: false,
   });
+  const [fpsHudOpen, setFpsHudOpen] = useState(false);
+  const [shapeMetricsLabel, setShapeMetricsLabel] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const [tool, setTool] = useState<Tool>("brush");
@@ -437,6 +442,7 @@ export function GlobalCanvas() {
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null;
+        fpsTracker.tick(visibleTileCount, 10000, committedRef.current.length);
         if (dirtyRef.current.world) {
           redrawWorld();
           redrawHeatmap();
@@ -461,7 +467,7 @@ export function GlobalCanvas() {
         updateMagnifier();
       });
     },
-    [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect],
+    [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
   );
 
   useEffect(() => {
@@ -849,6 +855,8 @@ export function GlobalCanvas() {
           ...prev,
           mode: prev.mode === "none" ? "square" : prev.mode === "square" ? "isometric" : "none",
         }));
+      } else if (key === "p") {
+        setFpsHudOpen((v) => !v);
       } else if (key === "f") {
         setShowHeatmap((v) => !v);
       } else if (key === "+" || key === "=") {
@@ -1087,6 +1095,8 @@ export function GlobalCanvas() {
         const drag = shapeDragRef.current;
         if (!drag) return;
         drag.current = worldPt;
+        const metrics = calculateShapeMetrics(shapeType, drag.start, drag.current);
+        setShapeMetricsLabel(metrics.label);
         const pts = buildShapePoints(shapeType, drag.start, drag.current);
         shapePreviewRef.current =
           pts.length >= 2
@@ -1129,6 +1139,7 @@ export function GlobalCanvas() {
       }
 
       if (tool === "shape") {
+        setShapeMetricsLabel(null);
         const drag = shapeDragRef.current;
         shapeDragRef.current = null;
         shapePreviewRef.current = null;
@@ -1396,6 +1407,13 @@ export function GlobalCanvas() {
         </div>
       )}
 
+      {shapeMetricsLabel && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border border-rust bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-yellow shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          📐 {shapeMetricsLabel}
+        </div>
+      )}
+
+      <FpsHud isOpen={fpsHudOpen} />
       <RateLimitToast />
 
       <nav id="drawing-toolbar-nav" aria-label="Drawing Tools Toolbar">

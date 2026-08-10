@@ -18,6 +18,7 @@ export const HOTKEY_MAP: HotkeyAction[] = [
   { key: "R", label: "Ruler Tool", description: "Measure distance between canvas points", tool: "ruler" },
   { key: "L", label: "Laser Pointer", description: "Temporary glowing laser trail fading after 2s", tool: "laser" },
   { key: "G", label: "Toggle Grid", description: "Toggle architectural grid overlay", action: "toggleHeatmap" },
+  { key: "P", label: "FPS Profiler HUD", description: "Toggle real-time 60 FPS & VRAM memory profiler HUD", action: "toggleHeatmap" },
   { key: "F", label: "Toggle Heatmap", description: "Show/hide activity density heatmap", action: "toggleHeatmap" },
   { key: "+", label: "Zoom In", description: "Zoom camera closer into artwork", action: "zoomIn" },
   { key: "-", label: "Zoom Out", description: "Zoom camera out to see wider wall", action: "zoomOut" },
