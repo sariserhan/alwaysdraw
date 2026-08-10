@@ -7,7 +7,6 @@ import { BRUSH_CATALOG } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
 import { PALETTE_PRESETS, type Palette } from "@/lib/palettes";
-import { STICKER_CATALOG } from "@/lib/stickers";
 import { ChromeRivet } from "./ChromeRivet";
 
 
@@ -191,19 +190,6 @@ function CommentIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function StickerIcon({ selectedSticker }: { selectedSticker?: string }) {
-  const item = STICKER_CATALOG.find((s) => s.id === selectedSticker);
-  if (item) {
-    return <span className="text-sm leading-none">{item.emoji}</span>;
-  }
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M12 15a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -417,48 +403,6 @@ function StencilPicker({
   );
 }
 
-function StickerPicker({
-  selectedSticker,
-  onSelect,
-  onClose,
-}: {
-  selectedSticker: string;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div className="fixed inset-0 z-10" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-20 mb-3 w-52 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)]">
-        <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
-          Sticker Drawer
-        </div>
-        <div className="grid grid-cols-4 gap-1">
-          {STICKER_CATALOG.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                onSelect(s.id);
-                onClose();
-              }}
-              aria-pressed={selectedSticker === s.id}
-              title={s.name}
-              className={`flex items-center justify-center rounded-sm py-2 text-lg transition ${
-                selectedSticker === s.id
-                  ? "bg-accent-crimson-deep"
-                  : "hover:bg-chrome-bg"
-              }`}
-            >
-              {s.emoji}
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
-
 function ShapeIcon({ type }: { type: ShapeType }) {
   switch (type) {
     case "line":
@@ -623,8 +567,6 @@ export function DrawingToolbar({
   onShapeTypeChange,
   selectedStencil = "biohazard",
   onStencilSelect = () => {},
-  selectedSticker = STICKER_CATALOG[0].id,
-  onStickerSelect = () => {},
   color,
   onColorChange,
   width,
@@ -648,8 +590,6 @@ export function DrawingToolbar({
   onShapeTypeChange: (s: ShapeType) => void;
   selectedStencil?: StencilType;
   onStencilSelect?: (st: StencilType) => void;
-  selectedSticker?: string;
-  onStickerSelect?: (id: string) => void;
   color: string;
   onColorChange: (c: string) => void;
   width: number;
@@ -668,7 +608,6 @@ export function DrawingToolbar({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
   const [stencilPickerOpen, setStencilPickerOpen] = useState(false);
-  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [activePalette, setActivePalette] = useState<Palette>(PALETTE_PRESETS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -870,32 +809,6 @@ export function DrawingToolbar({
                 onToolChange("stencil");
               }}
               onClose={() => setStencilPickerOpen(false)}
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              onToolChange("sticker");
-              setStickerPickerOpen((v) => !v);
-            }}
-            aria-pressed={tool === "sticker"}
-            aria-haspopup="true"
-            aria-expanded={stickerPickerOpen}
-            title="Sticker Stamp"
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "sticker" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <StickerIcon selectedSticker={selectedSticker} />
-          </button>
-          {stickerPickerOpen && (
-            <StickerPicker
-              selectedSticker={selectedSticker}
-              onSelect={(id) => {
-                onStickerSelect(id);
-                onToolChange("sticker");
-              }}
-              onClose={() => setStickerPickerOpen(false)}
             />
           )}
           <button

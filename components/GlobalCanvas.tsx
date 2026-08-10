@@ -40,7 +40,6 @@ import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
 import { floodFillMask } from "@/lib/floodFill";
-import { STICKER_CATALOG } from "@/lib/stickers";
 import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
@@ -210,7 +209,6 @@ export function GlobalCanvas() {
   const [brushType, setBrushType] = useState<BrushType>("brush");
   const [shapeType, setShapeType] = useState<ShapeType>("line");
   const [selectedStencil, setSelectedStencil] = useState<StencilType>("biohazard");
-  const [selectedSticker, setSelectedSticker] = useState<string>(STICKER_CATALOG[0].id);
   const [color, setColor] = useState("#17181a");
   const [brushWidth, setBrushWidth] = useState(8);
   const [opacity, setOpacity] = useState(1);
@@ -1382,48 +1380,6 @@ export function GlobalCanvas() {
     [color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
   );
 
-  const handleStampStickerAt = useCallback(
-    (worldPt: Point) => {
-      const sticker = STICKER_CATALOG.find((s) => s.id === selectedSticker) ?? STICKER_CATALOG[0];
-
-      // Convert sticker label into crisp vector stroke paths
-      const fontSize = Math.max(28, brushWidth * 3.5);
-      const textLabel = sticker.name.toUpperCase();
-      const originX = worldPt.x - (textLabel.length * fontSize * 0.32);
-      const originY = worldPt.y - (fontSize / 2);
-
-      const paths = convertTextToStrokePaths(
-        textLabel,
-        { x: originX, y: originY },
-        fontSize,
-        "pixel"
-      );
-
-      if (paths.length === 0) return;
-
-      for (const path of paths) {
-        if (path.length < 2) continue;
-        const buffer = new StrokeBuffer(
-          clientId,
-          "draw",
-          "pixel",
-          color,
-          Math.max(3, Math.round(brushWidth * 0.6)),
-          opacity,
-          username,
-          countryCode,
-          commitOwnChunk,
-        );
-        for (const pt of path) {
-          buffer.addPoint(pt);
-        }
-        buffer.finish();
-      }
-
-      scheduleRedraw({ strokes: true });
-    },
-    [selectedSticker, brushWidth, color, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw],
-  );
 
   const handleSubmitComment = useCallback(
     (e: React.FormEvent) => {
@@ -1579,11 +1535,6 @@ export function GlobalCanvas() {
         return;
       }
 
-      if (tool === "sticker") {
-        handleStampStickerAt(worldPt);
-        return;
-      }
-
       if (tool === "comment") {
         const screenPt = getScreenPoint(e.clientX, e.clientY);
         setCommentInputPos({ world: worldPt, screen: screenPt });
@@ -1639,7 +1590,6 @@ export function GlobalCanvas() {
       getPointerWorld,
       getScreenPoint,
       handleFloodFillAt,
-      handleStampStickerAt,
       isReplayMode,
       scheduleRedraw,
       stampStencilAt,
@@ -1975,7 +1925,7 @@ export function GlobalCanvas() {
                   ? "cursor-default"
                   : tool === "text"
                     ? "cursor-text"
-                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "fill" || tool === "comment" || tool === "sticker"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "fill" || tool === "comment"
                       ? "cursor-crosshair"
                       : "cursor-none"
             }`}
@@ -2481,8 +2431,6 @@ export function GlobalCanvas() {
           onShapeTypeChange={setShapeType}
           selectedStencil={selectedStencil}
           onStencilSelect={setSelectedStencil}
-          selectedSticker={selectedSticker}
-          onStickerSelect={setSelectedSticker}
           color={color}
           onColorChange={setColor}
           width={brushWidth}

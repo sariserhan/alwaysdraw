@@ -34,7 +34,6 @@
 ## 🪄 3. Special Creative Tools
 
 - **Flood Fill Bucket (`F`):** Tap any area to generate dense spiral fill strokes in your active color.
-- **Sticker & Emoji Stamp Library:** Stamp retro sprites, badges, emojis, skulls, fire, rockets, and stars directly onto the canvas wall.
 - **Architectural Ruler (`R`):** Measure distance (in canvas world units) between any two points with dynamic screen-space guides.
 - **Industrial Stencil Sprayer (`T`):** Spray industrial stencil art (Biohazard, Crown, Skull) onto the canvas.
 - **Laser Pointer (`L`):** Temporary glowing laser trail that fades away after 2 seconds.

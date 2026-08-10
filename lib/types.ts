@@ -48,5 +48,4 @@ export type Tool =
   | "text"
   | "fill"
   | "comment"
-  | "sticker"
   | "region";
