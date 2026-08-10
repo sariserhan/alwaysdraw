@@ -694,7 +694,7 @@ export function DrawingToolbar({
         <HideHandle onClick={() => setHidden(true)} />
         {!collapsed && <DripEdge />}
 
-        <div className="relative flex shrink-0 items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
+        <div className="relative flex flex-wrap shrink-0 items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
           <button
             type="button"
             onClick={() => {
@@ -948,7 +948,7 @@ export function DrawingToolbar({
 
         {!collapsed && (
         <>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap shrink-0 items-center gap-1.5 sm:gap-2">
           {activePalette.colors.map((sw) => (
             <button
               key={sw}
@@ -1014,7 +1014,7 @@ export function DrawingToolbar({
           />
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
+        <div className="flex flex-wrap shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <RulerIcon />
             <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "size")}</span>
@@ -1031,7 +1031,7 @@ export function DrawingToolbar({
           <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
+        <div className="flex flex-wrap shrink-0 items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
           <span className="flex items-center gap-1 text-ink-dim">
             <DropletIcon />
             <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "opacity")}</span>
@@ -1050,7 +1050,7 @@ export function DrawingToolbar({
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
+        <div className="flex flex-wrap shrink-0 items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
           <button
             type="button"
             onClick={onZoomOut}
