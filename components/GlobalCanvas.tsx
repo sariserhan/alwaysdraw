@@ -13,7 +13,15 @@ import {
   distance,
 } from "@/lib/camera";
 import { screenToWorld, clampToWorld, isWithinWorld } from "@/lib/coordinates";
-import { clearCanvas, drawWorldBackground, drawStroke, fillMiniMapBackground, paintMiniMapStrokes } from "@/lib/drawing";
+import {
+  clearCanvas,
+  drawWorldBackground,
+  drawStroke,
+  fillMiniMapBackground,
+  paintMiniMapStrokes,
+  drawHeatmapOverlay,
+} from "@/lib/drawing";
+import { createHeatmapGrid, addStrokesToHeatmap, maxHeatmapCount, findBusiestCell } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import { getClientId } from "@/lib/identity";
@@ -43,6 +51,7 @@ const SHAPE_BRUSH_TYPE: BrushType = "brush";
 const REPLAY_PAGE_SIZE = 1000;
 // Dev-only safety cap on full-history replay; V2 replaces this with snapshots.
 const REPLAY_HARD_CAP = 20000;
+const HEATMAP_GRID_SIZE = 32;
 
 export function GlobalCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,6 +64,12 @@ export function GlobalCanvas() {
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  // Topmost layer: a toggleable heat overlay of where interaction is
+  // concentrated, built client-side from strokes already loaded for
+  // replay/the mini-map rather than a separate backend aggregation.
+  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
+  const heatmapCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const heatmapGridRef = useRef(createHeatmapGrid(HEATMAP_GRID_SIZE));
   const cursorElRef = useRef<HTMLDivElement>(null);
   const magnifierElRef = useRef<HTMLCanvasElement>(null);
   const rulerElRef = useRef<HTMLDivElement>(null);
@@ -103,6 +118,7 @@ export function GlobalCanvas() {
   const [brushWidth, setBrushWidth] = useState(8);
   const [opacity, setOpacity] = useState(1);
   const [zoomPercent, setZoomPercent] = useState(() => Math.round(initialCamera.zoom * 100));
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // Snapshots of ref-held values, synced (in effects/callbacks, never during
   // render) only when something that must re-render RemoteCursors happens.
@@ -130,6 +146,29 @@ export function GlobalCanvas() {
     clearCanvas(ctx, width, height);
     drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
   }, []);
+
+  const redrawHeatmap = useCallback(() => {
+    const ctx = heatmapCtxRef.current;
+    if (!ctx) return;
+    const { width, height } = viewportRef.current;
+    clearCanvas(ctx, width, height);
+    if (!showHeatmap) return;
+    const grid = heatmapGridRef.current;
+    drawHeatmapOverlay(
+      ctx,
+      grid,
+      maxHeatmapCount(grid),
+      cameraRef.current,
+      width,
+      height,
+      WORLD_WIDTH,
+      WORLD_HEIGHT,
+    );
+  }, [showHeatmap]);
+
+  useEffect(() => {
+    redrawHeatmap();
+  }, [redrawHeatmap]);
 
   const paintOneStroke = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, s: LocalStroke) => {
     if (s.mode === "erase") {
@@ -310,6 +349,7 @@ export function GlobalCanvas() {
         rafRef.current = null;
         if (dirtyRef.current.world) {
           redrawWorld();
+          redrawHeatmap();
           dirtyRef.current.world = false;
           updateMiniMapViewportRect();
           // Debounced so a pan/zoom gesture doesn't hammer the History API —
@@ -333,7 +373,7 @@ export function GlobalCanvas() {
         updateMagnifier();
       });
     },
-    [redrawWorld, redrawStrokes, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect],
+    [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect],
   );
 
   const hideCursorOverlay = useCallback(() => {
@@ -350,15 +390,16 @@ export function GlobalCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     const worldCanvas = worldCanvasRef.current;
+    const heatmapCanvas = heatmapCanvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !worldCanvas || !container) return;
+    if (!canvas || !worldCanvas || !heatmapCanvas || !container) return;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
       viewportRef.current = { width: rect.width, height: rect.height };
       setViewportSize({ width: rect.width, height: rect.height });
-      for (const c of [canvas, worldCanvas]) {
+      for (const c of [canvas, worldCanvas, heatmapCanvas]) {
         c.width = Math.round(rect.width * dpr);
         c.height = Math.round(rect.height * dpr);
         c.style.width = `${rect.width}px`;
@@ -374,8 +415,14 @@ export function GlobalCanvas() {
         worldCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         worldCtxRef.current = worldCtx;
       }
+      const heatmapCtx = heatmapCanvas.getContext("2d");
+      if (heatmapCtx) {
+        heatmapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        heatmapCtxRef.current = heatmapCtx;
+      }
       redrawWorld();
       redrawStrokes();
+      redrawHeatmap();
 
       // Fixed CSS size regardless of viewport — only needs resizing if dpr
       // itself changes (moved to a different-density monitor mid-session).
@@ -400,7 +447,7 @@ export function GlobalCanvas() {
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     return () => ro.disconnect();
-  }, [redrawWorld, redrawStrokes, updateMiniMapViewportRect]);
+  }, [redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
 
   // Non-passive wheel listener so we can preventDefault (stop page/browser zoom).
   useEffect(() => {
@@ -456,6 +503,8 @@ export function GlobalCanvas() {
               WORLD_HEIGHT,
             );
           }
+          addStrokesToHeatmap(heatmapGridRef.current, committedRef.current, WORLD_WIDTH, WORLD_HEIGHT);
+          redrawHeatmap();
           captureEvent("wall_loaded", {
             duration_ms: Math.round(
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
@@ -509,6 +558,8 @@ export function GlobalCanvas() {
             WORLD_HEIGHT,
           );
         }
+        addStrokesToHeatmap(heatmapGridRef.current, newlyApplied, WORLD_WIDTH, WORLD_HEIGHT);
+        redrawHeatmap();
       }
       // Advance regardless of whether anything was newly applied — listSince's
       // afterSequence bound means everything here is new-to-the-cursor even if
@@ -516,7 +567,7 @@ export function GlobalCanvas() {
       // stroke), so re-querying the same range forever would just waste bandwidth.
       setLiveTailCursor(liveTail[liveTail.length - 1].sequence);
     });
-  }, [liveTail, replayDone, scheduleRedraw]);
+  }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap]);
 
   // ---------------------------------------------------------------------
   // Presence heartbeat
@@ -910,61 +961,85 @@ export function GlobalCanvas() {
     [scheduleRedraw],
   );
 
+  const handleToggleHeatmap = useCallback(() => {
+    setShowHeatmap((v) => {
+      captureEvent("heatmap_toggled", { shown: !v });
+      return !v;
+    });
+  }, []);
+
+  const handleJumpToBusiest = useCallback(() => {
+    const cell = findBusiestCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
+    if (!cell) return;
+    cameraRef.current = { ...cameraRef.current, x: cell.x, y: cell.y };
+    scheduleRedraw({ world: true, strokes: true });
+    captureEvent("jumped_to_busiest");
+  }, [scheduleRedraw]);
+
   return (
     <div className="relative h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
-      <div ref={containerRef} className="absolute inset-0">
-        <canvas ref={worldCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
-        <canvas
-          ref={canvasRef}
-          className={`absolute inset-0 h-full w-full touch-none ${
-            tool === "pan"
-              ? "cursor-grab active:cursor-grabbing"
-              : tool === "magnifier"
-                ? "cursor-default"
-                : tool === "shape" || tool === "ruler"
-                  ? "cursor-crosshair"
-                  : "cursor-none"
-          }`}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onPointerLeave={handlePointerLeave}
-        />
-        <BrushCursor ref={cursorElRef} tool={tool} brushType={brushType} color={color} />
-        <MagnifierLoupe ref={magnifierElRef} />
-        <RulerOverlay ref={rulerElRef} />
-      </div>
-
-      <RemoteCursors
-        entries={presenceList ?? []}
-        selfClientId={clientId}
-        camera={cameraSnapshot}
-        viewportWidth={viewportSize.width}
-        viewportHeight={viewportSize.height}
-      />
-
-      <MiniMap
-        canvasRef={miniMapCanvasRef}
-        viewportRectRef={miniMapViewportRectRef}
-        onJump={handleMiniMapJump}
-      />
-
-      {!replayDone && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-chrome-bg/80">
-          <span className="font-mono text-sm tracking-wide text-ink-dim">
-            {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
-            {!replayError && <span className="animate-pulse text-accent-green">…</span>}
-          </span>
+      <main id="canvas-main" className="absolute inset-0" aria-label="Shared 10,000x10,000 Drawing Canvas">
+        <div ref={containerRef} className="absolute inset-0">
+          <canvas ref={worldCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+          <canvas
+            ref={canvasRef}
+            className={`absolute inset-0 h-full w-full touch-none ${
+              tool === "pan"
+                ? "cursor-grab active:cursor-grabbing"
+                : tool === "magnifier"
+                  ? "cursor-default"
+                  : tool === "shape" || tool === "ruler"
+                    ? "cursor-crosshair"
+                    : "cursor-none"
+            }`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+          />
+          <canvas ref={heatmapCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+          <BrushCursor ref={cursorElRef} tool={tool} brushType={brushType} color={color} />
+          <MagnifierLoupe ref={magnifierElRef} />
+          <RulerOverlay ref={rulerElRef} />
         </div>
-      )}
 
-      <div className="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+        <RemoteCursors
+          entries={presenceList ?? []}
+          selfClientId={clientId}
+          camera={cameraSnapshot}
+          viewportWidth={viewportSize.width}
+          viewportHeight={viewportSize.height}
+        />
+
+        <aside id="minimap-panel" aria-label="Canvas Minimap Overview">
+          <MiniMap
+            canvasRef={miniMapCanvasRef}
+            viewportRectRef={miniMapViewportRectRef}
+            onJump={handleMiniMapJump}
+          />
+        </aside>
+
+        {!replayDone && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-chrome-bg/80">
+            <span className="font-mono text-sm tracking-wide text-ink-dim">
+              {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
+              {!replayError && <span className="animate-pulse text-accent-green">…</span>}
+            </span>
+          </div>
+        )}
+      </main>
+
+      <header
+        id="header-bar"
+        role="banner"
+        className="pointer-events-auto absolute inset-x-0 top-0 flex items-center justify-between border-b-2 border-rust/70 bg-chrome-bg/95 px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm"
+      >
         <ChromeRivet className="top-1/2 left-2 -translate-y-1/2" />
         <div className="flex items-center gap-2 pl-4">
-          <span className="stencil-cut font-display text-sm font-bold tracking-[0.22em] text-ink uppercase">
+          <h1 id="app-heading" className="stencil-cut font-display text-sm font-bold tracking-[0.22em] text-ink uppercase">
             AlwaysDraw
-          </span>
+          </h1>
         </div>
         <div className="flex items-center gap-2 pr-4">
           <ThemeToggle />
@@ -972,7 +1047,7 @@ export function GlobalCanvas() {
           <OnlineCount count={onlineCount ?? 0} />
         </div>
         <ChromeRivet className="top-1/2 right-2 -translate-y-1/2" />
-      </div>
+      </header>
 
       {submitError && (
         <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2">
@@ -982,25 +1057,30 @@ export function GlobalCanvas() {
         </div>
       )}
 
-      <DrawingToolbar
-        tool={tool}
-        onToolChange={handleToolChange}
-        brushType={brushType}
-        onBrushTypeChange={setBrushType}
-        shapeType={shapeType}
-        onShapeTypeChange={setShapeType}
-        color={color}
-        onColorChange={setColor}
-        width={brushWidth}
-        onWidthChange={setBrushWidth}
-        opacity={opacity}
-        onOpacityChange={setOpacity}
-        zoomPercent={zoomPercent}
-        onZoomIn={() => zoomButton(1.2)}
-        onZoomOut={() => zoomButton(1 / 1.2)}
-        onResetView={resetView}
-        onShare={handleShare}
-      />
+      <nav id="drawing-toolbar-nav" aria-label="Drawing Tools Toolbar">
+        <DrawingToolbar
+          tool={tool}
+          onToolChange={handleToolChange}
+          brushType={brushType}
+          onBrushTypeChange={setBrushType}
+          shapeType={shapeType}
+          onShapeTypeChange={setShapeType}
+          color={color}
+          onColorChange={setColor}
+          width={brushWidth}
+          onWidthChange={setBrushWidth}
+          opacity={opacity}
+          onOpacityChange={setOpacity}
+          zoomPercent={zoomPercent}
+          onZoomIn={() => zoomButton(1.2)}
+          onZoomOut={() => zoomButton(1 / 1.2)}
+          onResetView={resetView}
+          onShare={handleShare}
+          showHeatmap={showHeatmap}
+          onToggleHeatmap={handleToggleHeatmap}
+          onJumpToBusiest={handleJumpToBusiest}
+        />
+      </nav>
     </div>
   );
 }

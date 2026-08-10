@@ -80,9 +80,9 @@ Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex,
 - [x] **Cursor-based live catch-up** replacing the fixed-window live tail, so reconnects after a longer gap don't need a full reload
 - [x] **Viewport URLs** (`?x=&y=&z=`) — deep links + a share button
 - [ ] Historical replay (play/pause/scrub/speed) and read-only time travel
-- [ ] Heatmap of drawing activity by region
+- [x] **Heatmap of drawing activity** — toggleable translucent overlay, built client-side from strokes already loaded (no separate backend aggregation) bucketed into a 32x32 world grid
 - [x] **Mini-map overview** — fixed-size corner panel showing the whole wall, a rectangle marking the current viewport, click/drag to jump the camera there
-- [ ] Featured/active-location discovery (never protected — still fully editable)
+- [x] **Featured/active-location discovery** — "jump to busiest area" button, reuses the heatmap's grid to find and center the camera on the single busiest cell
 - [ ] Performance: canvas state stays out of React re-renders, incremental drawing (already true for V1's architecture — this just extends it as data volume grows)
 
 ## V3 — Spatially Tiled Canvas ⏳ not started

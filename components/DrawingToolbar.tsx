@@ -253,6 +253,29 @@ function CheckIcon() {
   );
 }
 
+function FlameIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1.5 1 2 2.8 2 4.2A5.2 5.2 0 0 1 6.8 14.2C6.8 9 12 7 12 2Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TargetIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const CATEGORIES: Array<"Basic" | "Artistic" | "Effects"> = ["Basic", "Artistic", "Effects"];
 
 function BrushPicker({
@@ -387,6 +410,9 @@ export function DrawingToolbar({
   onZoomOut,
   onResetView,
   onShare,
+  showHeatmap,
+  onToggleHeatmap,
+  onJumpToBusiest,
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
@@ -405,6 +431,9 @@ export function DrawingToolbar({
   onZoomOut: () => void;
   onResetView: () => void;
   onShare: () => Promise<void>;
+  showHeatmap: boolean;
+  onToggleHeatmap: () => void;
+  onJumpToBusiest: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
@@ -674,6 +703,29 @@ export function DrawingToolbar({
             className="ml-0.5 rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
           >
             {copied ? <CheckIcon /> : <ShareIcon />}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleHeatmap}
+            aria-pressed={showHeatmap}
+            aria-label={showHeatmap ? "hide activity heatmap" : "show activity heatmap"}
+            title={showHeatmap ? "Hide heatmap" : "Show heatmap"}
+            className={`ml-0.5 rounded-sm px-2 py-1.5 transition ${
+              showHeatmap
+                ? "bg-accent-crimson-deep text-on-accent"
+                : "hover:bg-chrome-bg-raised hover:text-ink"
+            }`}
+          >
+            <FlameIcon />
+          </button>
+          <button
+            type="button"
+            onClick={onJumpToBusiest}
+            aria-label="jump to busiest area"
+            title="Jump to busiest area"
+            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
+          >
+            <TargetIcon />
           </button>
         </div>
         </>

@@ -1,0 +1,66 @@
+import type { Point } from "./types";
+
+/**
+ * Coarse grid of "how much interaction happened here" — counts every point
+ * of every stroke (draw and erase both count; erasing is still someone
+ * interacting with that spot) into fixed-size world-space cells. Built
+ * client-side from strokes already loaded for replay/the mini-map — no
+ * separate backend aggregation needed.
+ */
+export type HeatmapGrid = {
+  counts: Float64Array;
+  gridSize: number;
+};
+
+export function createHeatmapGrid(gridSize: number): HeatmapGrid {
+  return { counts: new Float64Array(gridSize * gridSize), gridSize };
+}
+
+export function addStrokesToHeatmap(
+  grid: HeatmapGrid,
+  strokes: Array<{ points: Point[] }>,
+  worldWidth: number,
+  worldHeight: number,
+) {
+  const { counts, gridSize } = grid;
+  const cellW = worldWidth / gridSize;
+  const cellH = worldHeight / gridSize;
+  for (const s of strokes) {
+    for (const p of s.points) {
+      const cx = Math.min(gridSize - 1, Math.max(0, Math.floor(p.x / cellW)));
+      const cy = Math.min(gridSize - 1, Math.max(0, Math.floor(p.y / cellH)));
+      counts[cy * gridSize + cx] += 1;
+    }
+  }
+}
+
+export function maxHeatmapCount(grid: HeatmapGrid): number {
+  let max = 0;
+  for (let i = 0; i < grid.counts.length; i++) {
+    if (grid.counts[i] > max) max = grid.counts[i];
+  }
+  return max;
+}
+
+/** World-space center of the single busiest cell, or null if the grid is empty. */
+export function findBusiestCell(
+  grid: HeatmapGrid,
+  worldWidth: number,
+  worldHeight: number,
+): Point | null {
+  const { counts, gridSize } = grid;
+  let bestIdx = -1;
+  let bestVal = 0;
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i] > bestVal) {
+      bestVal = counts[i];
+      bestIdx = i;
+    }
+  }
+  if (bestIdx === -1) return null;
+  const cellW = worldWidth / gridSize;
+  const cellH = worldHeight / gridSize;
+  const cx = bestIdx % gridSize;
+  const cy = Math.floor(bestIdx / gridSize);
+  return { x: (cx + 0.5) * cellW, y: (cy + 0.5) * cellH };
+}

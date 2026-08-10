@@ -1,6 +1,7 @@
 import type { Camera } from "./camera";
 import { worldToScreen } from "./coordinates";
 import type { Point, StrokeMode } from "./types";
+import type { HeatmapGrid } from "./heatmap";
 
 export const CONCRETE_FILL = "#f0ebd9";
 
@@ -152,5 +153,46 @@ export function paintMiniMapStrokes(
       }
     }
     ctx.stroke();
+  }
+}
+
+const HEATMAP_COLOR_RGB = "224, 67, 43"; // accent-crimson
+
+/**
+ * Paints one filled, alpha-graded rect per non-empty grid cell, in screen
+ * space via the same camera transform as everything else — so it pans/zooms
+ * with the wall. Caller clears the canvas first (same convention as
+ * drawWorldBackground); this only paints.
+ */
+export function drawHeatmapOverlay(
+  ctx: CanvasRenderingContext2D,
+  grid: HeatmapGrid,
+  maxCount: number,
+  camera: Camera,
+  viewportWidth: number,
+  viewportHeight: number,
+  worldWidth: number,
+  worldHeight: number,
+) {
+  if (maxCount <= 0) return;
+  const { counts, gridSize } = grid;
+  const cellW = worldWidth / gridSize;
+  const cellH = worldHeight / gridSize;
+  for (let cy = 0; cy < gridSize; cy++) {
+    for (let cx = 0; cx < gridSize; cx++) {
+      const count = counts[cy * gridSize + cx];
+      if (count <= 0) continue;
+      const intensity = Math.min(1, count / maxCount);
+      const topLeft = worldToScreen(cx * cellW, cy * cellH, camera, viewportWidth, viewportHeight);
+      const bottomRight = worldToScreen(
+        (cx + 1) * cellW,
+        (cy + 1) * cellH,
+        camera,
+        viewportWidth,
+        viewportHeight,
+      );
+      ctx.fillStyle = `rgba(${HEATMAP_COLOR_RGB}, ${(0.12 + intensity * 0.58).toFixed(3)})`;
+      ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+    }
   }
 }
