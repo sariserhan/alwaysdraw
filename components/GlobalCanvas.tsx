@@ -1780,7 +1780,6 @@ export function GlobalCanvas() {
           authenticated={Boolean(adminPasscode)}
           passcode={adminPasscode}
           onAuthenticate={handleAuthenticateAdmin}
-          onLogout={handleLogoutAdmin}
         />
       </nav>
     </div>

@@ -11,7 +11,6 @@ export interface AdminPanelModalProps {
   authenticated: boolean;
   passcode: string;
   onAuthenticate: (passcode: string) => Promise<boolean>;
-  onLogout: () => void;
 }
 
 export function AdminPanelModal({
@@ -20,7 +19,6 @@ export function AdminPanelModal({
   authenticated,
   passcode: activePasscode,
   onAuthenticate,
-  onLogout,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -157,25 +155,13 @@ export function AdminPanelModal({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          {authenticated && (
-            <button
-              type="button"
-              onClick={onLogout}
-              className="rounded border border-rust bg-rust/20 px-2 py-0.5 font-mono text-[10px] font-bold text-accent-yellow hover:bg-rust hover:text-on-accent transition-all"
-              title="Log out of Admin mode"
-            >
-              EXIT 🚪
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised font-mono text-xs font-bold text-ink transition hover:border-rust hover:text-accent-crimson"
-          >
-            ✕
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg-raised font-mono text-xs font-bold text-ink transition hover:border-rust hover:text-accent-crimson"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Auth Gate */}
