@@ -18,48 +18,32 @@ export function ZoomPill({
   locale,
 }: ZoomPillProps) {
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-sm border border-rust/70 bg-chrome-bg-raised/90 p-1 shadow-sm text-ink-dim">
+    <div className="flex w-full h-[28px] items-center justify-between gap-0.5 rounded-sm border border-rust/70 bg-chrome-bg-raised/90 px-1 py-0.5 shadow-sm text-ink-dim min-w-0">
       <button
         type="button"
         onClick={onZoomOut}
         aria-label="zoom out"
         title="Zoom Out"
-        className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow transition-colors"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow transition-colors"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
+        -
       </button>
-      <span className="w-11 text-center font-mono text-xs font-bold tabular-nums text-accent-yellow">
+      <button
+        type="button"
+        onClick={onResetView}
+        title={t(locale, "reset_view")}
+        className="truncate font-mono text-[10px] font-bold text-accent-yellow hover:underline"
+      >
         {zoomPercent}%
-      </span>
+      </button>
       <button
         type="button"
         onClick={onZoomIn}
         aria-label="zoom in"
         title="Zoom In"
-        className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow transition-colors"
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow transition-colors"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        onClick={onResetView}
-        aria-label="reset view"
-        title={t(locale, "reset_view")}
-        className="flex h-7 w-7 items-center justify-center rounded-sm border border-chrome-border bg-chrome-bg font-mono text-xs font-bold text-ink hover:border-rust hover:text-accent-yellow transition-colors ml-0.5"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M3 12a9 9 0 109-9 9.01 9.01 0 00-9 9zm0 0v-4m0 4h4"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        +
       </button>
     </div>
   );

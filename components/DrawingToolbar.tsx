@@ -939,40 +939,6 @@ export function DrawingToolbar({
           </span>
         </div>
 
-        <div className="flex max-w-full flex-wrap items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg p-1 text-ink-dim">
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await onShare();
-                setCopied(true);
-                if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-                copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
-              } catch {
-                // clipboard write failed (permissions/unsupported) — no feedback, button stays idle
-              }
-            }}
-            aria-label={copied ? "link copied" : "copy shareable link"}
-            title={copied ? "Copied!" : "Copy shareable link"}
-            className="rounded-sm px-2 py-1.5 hover:bg-chrome-bg-raised hover:text-ink"
-          >
-            {copied ? <CheckIcon /> : <ShareIcon />}
-          </button>
-          <button
-            type="button"
-            onClick={onToggleHeatmap}
-            aria-pressed={showHeatmap}
-            aria-label={showHeatmap ? "hide activity heatmap" : "show activity heatmap"}
-            title={showHeatmap ? "Hide heatmap" : "Show heatmap"}
-            className={`ml-0.5 rounded-sm px-2 py-1.5 transition ${
-              showHeatmap
-                ? "bg-accent-crimson-deep text-on-accent"
-                : "hover:bg-chrome-bg-raised hover:text-ink"
-            }`}
-          >
-            <FlameIcon />
-          </button>
-        </div>
         </>
         )}
       </div>

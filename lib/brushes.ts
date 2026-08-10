@@ -180,9 +180,24 @@ const pixel: BrushRenderer = ({ ctx, camera, viewportWidth, viewportHeight, poin
     stampWorld(points[0]);
     return;
   }
+  // Consecutive points are normally adjacent pointer samples from a real
+  // drag, so connecting them with interpolated stamps is what makes a fast
+  // stroke look continuous instead of dotted. Flood fill reuses this same
+  // brush type but submits scattered fill points in traversal order, not
+  // drag order — two consecutive points there can be on opposite sides of
+  // the filled region. Interpolating across a gap that large draws a
+  // spurious line, so treat any jump wider than a real drag frame ever
+  // produces as a break: stamp the far point on its own instead.
+  const MAX_JUMP_SCREEN_PX = 64;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
+    const sa = worldToScreen(a.x, a.y, camera, viewportWidth, viewportHeight);
+    const sb = worldToScreen(b.x, b.y, camera, viewportWidth, viewportHeight);
+    if (Math.hypot(sb.x - sa.x, sb.y - sa.y) > MAX_JUMP_SCREEN_PX) {
+      stampWorld(b);
+      continue;
+    }
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     const steps = Math.max(1, Math.ceil(len / Math.max(1, width)));
     for (let s = 0; s <= steps; s++) {
