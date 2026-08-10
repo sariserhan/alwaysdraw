@@ -11,7 +11,7 @@ export interface HotkeyAction {
 export const HOTKEY_MAP: HotkeyAction[] = [
   { key: "B", label: "Brush Tool", description: "Switch to Brush / Texture draw mode", tool: "brush" },
   { key: "E", label: "Eraser Tool", description: "Switch to Eraser mode", tool: "eraser" },
-  { key: "H", label: "Pan / Hand", description: "Pan across the 50,000x50,000 wall", tool: "pan" },
+  { key: "H", label: "Pan / Hand", description: "Pan across the 10,000x10,000 wall", tool: "pan" },
   { key: "M", label: "Magnifier", description: "Hover circular loupe to inspect artwork", tool: "magnifier" },
   { key: "S", label: "Shape Tool", description: "Draw rectangle, circle, line, or triangle", tool: "shape" },
   { key: "T", label: "Stencil Tool", description: "Spray industrial stencils (Biohazard, Crown, Skull)", tool: "stencil" },
