@@ -100,6 +100,28 @@ const MIN_REGION_DRAG = 20;
 const HOVER_SCREEN_RADIUS_PX = 8;
 const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
+// No server-side canvas renderer exists (Convex functions can't draw), so a
+// snapshot can only ever be produced by a real browser that already has the
+// full stroke history loaded. Whichever client finishes replay with enough
+// new strokes since the last snapshot renders one and submits it in the
+// background — self-sustaining, no cron/admin action required. Harmless if
+// two clients race: snapshots.submit dedupes by exact sequence, and
+// SNAPSHOTS_GLOBAL_WINDOW bounds the worst case to a handful of redundant
+// writes, not an unbounded stampede.
+const SNAPSHOT_STROKE_THRESHOLD = 500;
+const SNAPSHOT_SIZE_PX = 2048;
+// Every open tab heartbeats forever regardless of activity, and each one is
+// a full presence-table write that reactively re-pushes to every other
+// connected client's cursor subscription — a cost floor that scales with
+// how many tabs are merely open, not how many people are actually doing
+// anything. Backing off once idle cuts that floor for the common case
+// (someone glancing at the wall, or a background tab) without touching
+// online-status accuracy: HEARTBEAT_IDLE_INTERVAL_MS still stays well under
+// PRESENCE_ONLINE_WINDOW_MS (30s), so nobody flips to "offline" just because
+// their mouse stopped moving.
+const HEARTBEAT_ACTIVE_INTERVAL_MS = 3000;
+const HEARTBEAT_IDLE_INTERVAL_MS = 15000;
+const HEARTBEAT_IDLE_THRESHOLD_MS = 10000;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -354,6 +376,7 @@ export function GlobalCanvas() {
   const removeComment = useMutation(api.comments.remove);
   const adminRemoveComment = useMutation(api.comments.adminRemove);
   const reportContent = useMutation(api.reports.create);
+  const submitSnapshot = useMutation(api.snapshots.submit);
 
   const onlineCount = useQuery(api.presence.onlineCount);
   const presenceList = useQuery(api.presence.list);
@@ -1117,6 +1140,28 @@ export function GlobalCanvas() {
             snapshot_used: snapshotImageRef.current !== null,
           });
           scheduleRedraw();
+
+          if (after - snapshotSequenceRef.current >= SNAPSHOT_STROKE_THRESHOLD) {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = SNAPSHOT_SIZE_PX;
+              canvas.height = SNAPSHOT_SIZE_PX;
+              const snapshotCtx = canvas.getContext("2d");
+              if (snapshotCtx) {
+                fillMiniMapBackground(snapshotCtx, SNAPSHOT_SIZE_PX);
+                paintMiniMapStrokes(snapshotCtx, committedRef.current, SNAPSHOT_SIZE_PX, WORLD_WIDTH, WORLD_HEIGHT);
+                await submitSnapshot({
+                  sequence: after,
+                  imageData: canvas.toDataURL("image/png"),
+                  strokeCount: committedRef.current.length,
+                });
+              }
+            } catch (snapshotError) {
+              // Non-critical background optimization — the next client past
+              // the threshold will just try again.
+              captureOperationalError(snapshotError, "snapshot_generate", { sequence: after });
+            }
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -1191,6 +1236,7 @@ export function GlobalCanvas() {
   }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap]);
 
   const lastCursorWorldRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
+  const lastActivityAtRef = useRef(Date.now());
   useEffect(() => {
     if (!presenceList) return;
     const now = Date.now();
@@ -1216,6 +1262,7 @@ export function GlobalCanvas() {
   }, [presenceList, clientId, scheduleRedraw]);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
     const send = () => {
       const myTrail = laserTrailsRef.current.find((t) => !t.id.startsWith("remote-"));
       heartbeat({
@@ -1225,10 +1272,13 @@ export function GlobalCanvas() {
         cursorY: lastCursorWorldRef.current.y,
         laserTrail: myTrail ? myTrail.points : undefined,
       }).catch(() => {});
+      const idleFor = Date.now() - lastActivityAtRef.current;
+      const nextDelay =
+        idleFor > HEARTBEAT_IDLE_THRESHOLD_MS ? HEARTBEAT_IDLE_INTERVAL_MS : HEARTBEAT_ACTIVE_INTERVAL_MS;
+      timeoutId = setTimeout(send, nextDelay);
     };
     send();
-    const id = setInterval(send, 3000);
-    return () => clearInterval(id);
+    return () => clearTimeout(timeoutId);
   }, [heartbeat, clientId, username]);
 
   const commitOwnChunk = useCallback(
@@ -1785,6 +1835,7 @@ export function GlobalCanvas() {
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
+      lastActivityAtRef.current = Date.now();
 
       if (tool === "text") {
         const screenPt = getScreenPoint(e.clientX, e.clientY);
@@ -1921,6 +1972,7 @@ export function GlobalCanvas() {
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
+      lastActivityAtRef.current = Date.now();
       // No dirty flags — just runs the per-frame overlay position sync (see
       // scheduleRedraw) so the protected-zone hover badge tracks the cursor
       // even on a plain idle hover, which none of the tool branches below

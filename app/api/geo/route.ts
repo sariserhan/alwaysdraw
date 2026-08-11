@@ -1,5 +1,3 @@
-export const runtime = "edge";
-
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 // Cloudflare/some proxies use these as "no country resolved" sentinels.
 const UNKNOWN_COUNTRY_CODES = new Set(["XX", "T1"]);

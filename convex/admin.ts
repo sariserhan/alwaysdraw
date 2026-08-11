@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { consumeRateLimit } from "./abuse";
-import { ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
+import { ADMIN_VERIFY_GLOBAL_WINDOW, MAX_PROTECTED_ZONES, RATE_LIMIT_WINDOW_MS } from "./constants";
 import { claimNextSequence } from "./canvasMetadata";
 
 // Convex caps reads at 4096 per function execution. Scanning the whole
@@ -220,6 +220,13 @@ export const createProtectedZone = mutation({
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
 
+    const existingZones = await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES);
+    if (existingZones.length >= MAX_PROTECTED_ZONES) {
+      throw new ConvexError(
+        `Cannot create more than ${MAX_PROTECTED_ZONES} protected zones — every stroke checks all of them, so this cap keeps that check cheap. Delete an unused zone first.`,
+      );
+    }
+
     const zoneId = await ctx.db.insert("protectedZones", {
       name: args.name,
       minX: Math.min(args.minX, args.maxX),
@@ -260,7 +267,7 @@ export const deleteProtectedZone = mutation({
 export const getProtectedZones = query({
   args: { passcode: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const zones = await ctx.db.query("protectedZones").collect();
+    const zones = await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES);
     const isAdmin = args.passcode !== undefined && isPasscodeValid(args.passcode);
     return zones.map((zone) => ({
       ...zone,
@@ -281,15 +288,23 @@ export const getTelemetry = query({
       return null;
     }
 
-    const strokeCount = (await ctx.db.query("strokes").collect()).length;
-    const presenceCount = (await ctx.db.query("presence").collect()).length;
-    const snapshotCount = (await ctx.db.query("snapshots").collect()).length;
-    const protectedZoneCount = (await ctx.db.query("protectedZones").collect()).length;
+    // strokeCount/activePresenceCount are approximate, not live row counts —
+    // collect()-ing the strokes/presence tables just to count them would read
+    // every row on every admin panel open, and only gets more expensive as
+    // the wall grows. currentSequence is already a cheap O(1) singleton read
+    // and a close proxy for stroke activity (every insert AND every
+    // soft-delete tombstone claims a fresh one, so it modestly overcounts
+    // live rows); presenceStats.onlineCount is the same cron-maintained
+    // counter presence.onlineCount itself serves, already paying this cost
+    // exactly once every 15s regardless of how many clients ask.
     const meta = await ctx.db.query("canvasMetadata").first();
+    const presenceStats = await ctx.db.query("presenceStats").first();
+    const snapshotCount = (await ctx.db.query("snapshots").take(1000)).length;
+    const protectedZoneCount = (await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES)).length;
 
     return {
-      strokeCount,
-      activePresenceCount: presenceCount,
+      strokeCount: meta?.currentSequence ?? 0,
+      activePresenceCount: presenceStats?.onlineCount ?? 0,
       snapshotCount,
       protectedZoneCount,
       currentSequence: meta?.currentSequence ?? 0,

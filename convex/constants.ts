@@ -63,6 +63,14 @@ export const MAX_REPORT_REASON_LENGTH = 280;
 export const REPORTS_PER_CLIENT_WINDOW = 5;
 export const REPORTS_GLOBAL_WINDOW = 50;
 
+// strokes.submit does an unindexed collect() over every zone on every single
+// stroke chunk (there's no spatial index to check "does this point fall in
+// any zone" against) — correct requires checking ALL of them, so the only
+// safe way to bound that cost is capping how many can ever exist, checked
+// once at creation (rare, admin-only) rather than truncating the hot-path
+// read (which would silently stop enforcing protection past the cap).
+export const MAX_PROTECTED_ZONES = 200;
+
 export const PRESENCE_ONLINE_WINDOW_MS = 30_000;
 export const PRESENCE_STALE_MS = 2 * 60_000;
 // A laser trail effect only ever needs a short recent tail of points.

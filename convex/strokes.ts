@@ -22,6 +22,7 @@ import {
   RATE_LIMIT_WINDOW_MS,
   STROKES_PER_CLIENT_WINDOW,
   STROKES_GLOBAL_WINDOW,
+  MAX_PROTECTED_ZONES,
 } from "./constants";
 import {
   assertBoundedIdentifier,
@@ -149,7 +150,7 @@ export const submit = mutation({
     // --- Protected Canvas Zones Validation ---
     const isVerifiedAdmin = args.adminPasscode !== undefined && isPasscodeValid(args.adminPasscode);
     if (!isVerifiedAdmin) {
-      const protectedZones = await ctx.db.query("protectedZones").collect();
+      const protectedZones = await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES);
       if (protectedZones.length > 0) {
         for (const zone of protectedZones) {
           if (zone.ownerClientId && zone.ownerClientId === args.clientId) continue;
