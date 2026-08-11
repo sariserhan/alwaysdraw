@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampZoom, defaultCamera, zoomAt, panBy, distance, MIN_ZOOM, MAX_ZOOM, type Camera } from "./camera";
+import { clampZoom, defaultCamera, zoomAt, panBy, distance, MIN_ZOOM, MAX_ZOOM, DEFAULT_ZOOM, type Camera } from "./camera";
 
 describe("clampZoom", () => {
   it("passes through values already in range", () => {
@@ -18,9 +18,13 @@ describe("clampZoom", () => {
 });
 
 describe("defaultCamera", () => {
-  it("centers on the world at zoom 1", () => {
-    expect(defaultCamera(5000, 5000)).toEqual({ x: 2500, y: 2500, zoom: 1 });
-    expect(defaultCamera(10000, 6000)).toEqual({ x: 5000, y: 3000, zoom: 1 });
+  it("centers on the world at the default zoom", () => {
+    expect(defaultCamera(5000, 5000)).toEqual({ x: 2500, y: 2500, zoom: DEFAULT_ZOOM });
+    expect(defaultCamera(10000, 6000)).toEqual({ x: 5000, y: 3000, zoom: DEFAULT_ZOOM });
+  });
+
+  it("defaults to 6% zoom", () => {
+    expect(DEFAULT_ZOOM).toBe(0.06);
   });
 });
 

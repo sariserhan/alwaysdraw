@@ -16,8 +16,12 @@ export function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
 }
 
+// A fresh visitor (no ?x=&y=&z= in the URL) lands here — zoomed out enough
+// to read as "one shared world," not a single stroke-sized crop of it.
+export const DEFAULT_ZOOM = 0.06;
+
 export function defaultCamera(worldWidth: number, worldHeight: number): Camera {
-  return { x: worldWidth / 2, y: worldHeight / 2, zoom: 1 };
+  return { x: worldWidth / 2, y: worldHeight / 2, zoom: DEFAULT_ZOOM };
 }
 
 /** Zoom by `factor` (relative), keeping the world point under (screenX, screenY) fixed. */
