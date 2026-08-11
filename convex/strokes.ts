@@ -195,6 +195,8 @@ export const submit = mutation({
     await ctx.db.insert("strokes", {
       clientStrokeId: args.clientStrokeId,
       clientId: args.clientId,
+      username: args.username,
+      countryCode: args.countryCode,
       mode: args.mode,
       brushType: args.mode === "draw" ? (args.brushType ?? "brush") : undefined,
       color: args.color,

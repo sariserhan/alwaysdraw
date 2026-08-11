@@ -1940,7 +1940,7 @@ export function GlobalCanvas() {
                   ? "cursor-default"
                   : tool === "text"
                     ? "cursor-text"
-                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment" || tool === "region" || tool === "reportRegion"
                       ? "cursor-crosshair"
                       : "cursor-none"
             }`}
