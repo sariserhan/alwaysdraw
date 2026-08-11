@@ -30,6 +30,7 @@ import {
 } from "./abuse";
 import { isPasscodeValid } from "./admin";
 import { containsProfanity } from "./profanity";
+import { claimNextSequence } from "./canvasMetadata";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
 const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
@@ -51,6 +52,7 @@ const strokeReturnFields = v.object({
   clientTimestamp: v.number(),
   sequence: v.number(),
   serverTimestamp: v.number(),
+  deleted: v.optional(v.boolean()),
 });
 
 export const submit = mutation({
@@ -176,18 +178,7 @@ export const submit = mutation({
     );
 
     // --- Sequencing: transactional read-increment-write on the singleton ---
-    let metadata = await ctx.db.query("canvasMetadata").first();
-    if (metadata === null) {
-      const id = await ctx.db.insert("canvasMetadata", {
-        currentSequence: 0,
-        width: WORLD_WIDTH,
-        height: WORLD_HEIGHT,
-      });
-      metadata = await ctx.db.get(id);
-      if (metadata === null) throw new Error("failed to create canvasMetadata");
-    }
-    const nextSequence = metadata.currentSequence + 1;
-    await ctx.db.patch(metadata._id, { currentSequence: nextSequence });
+    const nextSequence = await claimNextSequence(ctx);
 
     // Compute spatial tiles spanned by this stroke
     const tileKeys = getTileKeysForStroke(args.points, args.width, WORLD_WIDTH, WORLD_HEIGHT);

@@ -3,6 +3,14 @@ import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { consumeRateLimit } from "./abuse";
 import { ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
+import { claimNextSequence } from "./canvasMetadata";
+
+// Convex caps reads at 4096 per function execution. Scanning the whole
+// strokes table in one call (as this used to) blew past that once the
+// canvas had accumulated enough strokes — this keeps each call well under
+// the cap; the client pages through with afterSequence/done (see
+// components/AdminPanelModal.tsx's handleWipeArea).
+const PURGE_BATCH_SIZE = 500;
 
 export function isPasscodeValid(passcode: string): boolean {
   const secretKey = process.env.ADMIN_SECRET_KEY;
@@ -43,49 +51,86 @@ export const wipeArea = mutation({
     minY: v.number(),
     maxX: v.number(),
     maxY: v.number(),
+    // Paged: each call scans one batch starting after this stroke sequence
+    // number, well under Convex's 4096-reads-per-call cap. Omit on the
+    // first call; pass back nextAfterSequence from the previous response
+    // until done is true. See AdminPanelModal's handleWipeArea.
+    afterSequence: v.optional(v.number()),
   },
+  returns: v.object({
+    success: v.boolean(),
+    deletedCount: v.number(),
+    done: v.boolean(),
+    nextAfterSequence: v.number(),
+  }),
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
 
-    const allStrokes = await ctx.db.query("strokes").collect();
-    let deletedCount = 0;
+    const batch = await ctx.db
+      .query("strokes")
+      .withIndex("by_sequence", (q) => q.gt("sequence", args.afterSequence ?? 0))
+      .order("asc")
+      .take(PURGE_BATCH_SIZE);
 
-    for (const stroke of allStrokes) {
+    let deletedCount = 0;
+    for (const stroke of batch) {
+      if (stroke.deleted) continue;
       const isInside = stroke.points.some(
         (pt) => pt.x >= args.minX && pt.x <= args.maxX && pt.y >= args.minY && pt.y <= args.maxY,
       );
-
       if (isInside) {
-        await ctx.db.delete(stroke._id);
+        // Soft-delete with a freshly-claimed sequence number, not a real
+        // row delete — see the schema comment on strokes.deleted for why:
+        // this is what makes the deletion show up reactively for every
+        // connected client's incremental sync, not just the admin who did it.
+        const nextSequence = await claimNextSequence(ctx);
+        await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
         deletedCount++;
       }
     }
 
-    return { success: true, deletedCount };
+    const done = batch.length < PURGE_BATCH_SIZE;
+    const nextAfterSequence = batch.length > 0 ? batch[batch.length - 1].sequence : args.afterSequence ?? 0;
+
+    return { success: true, deletedCount, done, nextAfterSequence };
   },
 });
 
 /**
  * Moderation Action 2: Rollback all strokes drawn by a specific client ID.
+ * Paged the same way as wipeArea, for the same reason (a client with many
+ * strokes could otherwise exceed the per-call read cap) — the client loops
+ * on `done` (see components/AdminPanelModal.tsx's handleRollbackClient).
  */
 export const rollbackClient = mutation({
   args: {
     passcode: v.string(),
     targetClientId: v.string(),
+    cursor: v.optional(v.string()),
   },
+  returns: v.object({
+    success: v.boolean(),
+    deletedCount: v.number(),
+    done: v.boolean(),
+    nextCursor: v.union(v.string(), v.null()),
+  }),
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
 
-    const clientStrokes = await ctx.db
+    const result = await ctx.db
       .query("strokes")
       .withIndex("by_clientId", (q) => q.eq("clientId", args.targetClientId))
-      .collect();
+      .paginate({ numItems: PURGE_BATCH_SIZE, cursor: args.cursor ?? null });
 
-    for (const stroke of clientStrokes) {
-      await ctx.db.delete(stroke._id);
+    let deletedCount = 0;
+    for (const stroke of result.page) {
+      if (stroke.deleted) continue;
+      const nextSequence = await claimNextSequence(ctx);
+      await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
+      deletedCount++;
     }
 
-    return { success: true, deletedCount: clientStrokes.length };
+    return { success: true, deletedCount, done: result.isDone, nextCursor: result.continueCursor };
   },
 });
 

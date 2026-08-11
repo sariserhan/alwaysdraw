@@ -58,8 +58,8 @@ export function UsernameControl({ username, onUsernameChange, locale, iconOnly =
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       if (window.innerWidth >= 1360) {
-        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 240));
-        const right = window.innerWidth - rect.left + 12;
+        const top = Math.max(48, rect.bottom + 6);
+        const right = Math.max(12, window.innerWidth - rect.right);
         setCoords({ top, right });
       } else {
         setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
@@ -78,7 +78,7 @@ export function UsernameControl({ username, onUsernameChange, locale, iconOnly =
         className={`flex items-center justify-center rounded-sm border shadow-sm transition-colors ${
           iconOnly
             ? "h-7 w-7 text-sm"
-            : "h-[28px] w-full gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
+            : "h-[28px] max-w-[160px] gap-1.5 px-2.5 py-1 font-mono text-xs font-semibold whitespace-nowrap"
         } ${
           isOpen
             ? "border-rust bg-rust text-on-accent font-bold"
@@ -89,7 +89,7 @@ export function UsernameControl({ username, onUsernameChange, locale, iconOnly =
         aria-expanded={isOpen}
       >
         <span>👤</span>
-        {!iconOnly && <span>{username ?? t(locale, "anonymous").toUpperCase()}</span>}
+        {!iconOnly && <span className="truncate max-w-[120px]">{username ?? t(locale, "anonymous").toUpperCase()}</span>}
       </button>
 
       {isOpen && mounted && coords && createPortal(

@@ -23,6 +23,15 @@ export default defineSchema({
     clientTimestamp: v.number(),
     sequence: v.number(),
     serverTimestamp: v.number(),
+    // Soft-delete, not a real row delete: admin purges patch this to true
+    // AND bump `sequence` to a fresh value instead of calling ctx.db.delete.
+    // The client's incremental sync (listSince/live-tail, keyed off
+    // increasing sequence numbers) only ever learns about *new* sequence
+    // numbers — a hard delete has no new sequence number to announce
+    // itself with, so it would never reach already-connected clients. A
+    // patch does, making deletion reactive for everyone through the exact
+    // same sync path new strokes already use, not just the admin who acted.
+    deleted: v.optional(v.boolean()),
   })
     .index("by_sequence", ["sequence"])
     .index("by_clientStrokeId", ["clientStrokeId"])

@@ -156,6 +156,16 @@ function RulerIcon() {
   );
 }
 
+function CoordFinderIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" strokeDasharray="3 2" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 function DropletIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -655,7 +665,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange("eraser")}
+            onClick={() => onToolChange(tool === "eraser" ? "brush" : "eraser")}
             aria-pressed={tool === "eraser"}
             title="Eraser"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -669,12 +679,6 @@ export function DrawingToolbar({
             type="button"
             onClick={() => {
               if (typeof window !== "undefined" && "EyeDropper" in window) {
-                // Native EyeDropper API resolves { sRGBHex: string } — capital
-                // RGB. A wrong-cased manual type annotation here previously
-                // read `res.srgbHex` (always undefined) and fed that straight
-                // into setColor, silently corrupting the draw color until the
-                // next explicit color change — every subsequent stroke then
-                // failed server-side validation with no client-visible error.
                 const EyeDropperClass = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
                 const eyeDropper = new EyeDropperClass();
                 eyeDropper
@@ -697,7 +701,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange("pan")}
+            onClick={() => onToolChange(tool === "pan" ? "brush" : "pan")}
             aria-pressed={tool === "pan"}
             title={t(locale, "pan")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -708,7 +712,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange("magnifier")}
+            onClick={() => onToolChange(tool === "magnifier" ? "brush" : "magnifier")}
             aria-pressed={tool === "magnifier"}
             title={t(locale, "magnifier")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -720,8 +724,13 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              onToolChange("shape");
-              setShapePickerOpen((v) => !v);
+              if (tool === "shape") {
+                onToolChange("brush");
+                setShapePickerOpen(false);
+              } else {
+                onToolChange("shape");
+                setShapePickerOpen(true);
+              }
             }}
             aria-pressed={tool === "shape"}
             aria-haspopup="true"
@@ -745,7 +754,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange("text")}
+            onClick={() => onToolChange(tool === "text" ? "brush" : "text")}
             aria-pressed={tool === "text"}
             title="Text Tool (X)"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -756,7 +765,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange("comment")}
+            onClick={() => onToolChange(tool === "comment" ? "brush" : "comment")}
             aria-pressed={tool === "comment"}
             title="Post Sticky Note (C)"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -768,8 +777,13 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              onToolChange("stencil");
-              setStencilPickerOpen((v) => !v);
+              if (tool === "stencil") {
+                onToolChange("brush");
+                setStencilPickerOpen(false);
+              } else {
+                onToolChange("stencil");
+                setStencilPickerOpen(true);
+              }
             }}
             aria-pressed={tool === "stencil"}
             aria-haspopup="true"
@@ -793,7 +807,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange("laser")}
+            onClick={() => onToolChange(tool === "laser" ? "brush" : "laser")}
             aria-pressed={tool === "laser"}
             title={t(locale, "laser")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -804,7 +818,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange("ruler")}
+            onClick={() => onToolChange(tool === "ruler" ? "brush" : "ruler")}
             aria-pressed={tool === "ruler"}
             title={t(locale, "ruler")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -812,6 +826,17 @@ export function DrawingToolbar({
             }`}
           >
             <RulerIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onToolChange(tool === "coordFinder" ? "brush" : "coordFinder")}
+            aria-pressed={tool === "coordFinder"}
+            title={t(locale, "coord_finder")}
+            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              tool === "coordFinder" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <CoordFinderIcon />
           </button>
         </div>
 

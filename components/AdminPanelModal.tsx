@@ -17,6 +17,20 @@ export interface AdminPanelModalProps {
   onPurgeAllStampedImages: () => Promise<void>;
   onTeleport?: (x: number, y: number, zoom: number) => void;
   onTeleportToRegion?: (rect: WorldRect) => void;
+  /** Marked via drag-select on the canvas (see GlobalCanvas's
+   * adminWipeRegion tool) — set once the admin finishes dragging. */
+  pendingWipeRegion: WorldRect | null;
+  /** Closes this modal and switches the canvas into drag-to-mark mode. */
+  onStartWipeRegionSelect: () => void;
+  /** Called after a purge completes or the marked area is cleared. */
+  onWipeRegionConsumed: () => void;
+  /** Owned by GlobalCanvas (not this modal) so it can also drop the purged
+   * strokes from the local committed-strokes cache and redraw immediately —
+   * otherwise the admin who just purged an area wouldn't see it reflected
+   * until a hard refresh, since the canvas only syncs new strokes in, never
+   * deletions. Pages through the whole marked area internally; resolves
+   * with the total number of strokes deleted. */
+  onWipeArea: (rect: WorldRect) => Promise<number>;
 }
 
 export function AdminPanelModal({
@@ -29,16 +43,17 @@ export function AdminPanelModal({
   onPurgeAllStampedImages,
   onTeleport,
   onTeleportToRegion,
+  pendingWipeRegion,
+  onStartWipeRegionSelect,
+  onWipeRegionConsumed,
+  onWipeArea,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "reports" | "telemetry">("moderation");
 
   // Moderation state
-  const [wipeMinX, setWipeMinX] = useState(0);
-  const [wipeMinY, setWipeMinY] = useState(0);
-  const [wipeMaxX, setWipeMaxX] = useState(5000);
-  const [wipeMaxY, setWipeMaxY] = useState(5000);
+  const [isWiping, setIsWiping] = useState(false);
   const [targetClientId, setTargetClientId] = useState("");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
@@ -55,7 +70,6 @@ export function AdminPanelModal({
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Mutations & Queries
-  const wipeArea = useMutation(api.admin.wipeArea);
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const publishBroadcast = useMutation(api.admin.publishBroadcast);
   const clearBroadcast = useMutation(api.admin.clearBroadcast);
@@ -118,30 +132,38 @@ export function AdminPanelModal({
   };
 
   const handleWipeArea = async () => {
+    if (!pendingWipeRegion || isWiping) return;
     try {
-      setActionStatus("Wiping canvas area...");
-      const res = await wipeArea({
-        passcode: activePasscode,
-        minX: Number(wipeMinX),
-        minY: Number(wipeMinY),
-        maxX: Number(wipeMaxX),
-        maxY: Number(wipeMaxY),
-      });
-      setActionStatus(`Success! Purged ${res.deletedCount} strokes from area.`);
+      setIsWiping(true);
+      setActionStatus("Purging marked area...");
+      const totalDeleted = await onWipeArea(pendingWipeRegion);
+      setActionStatus(`Success! Purged ${totalDeleted} strokes from the marked area.`);
+      onWipeRegionConsumed();
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Wipe failed"}`);
+    } finally {
+      setIsWiping(false);
     }
   };
 
   const handleRollbackClient = async () => {
     if (!targetClientId.trim()) return;
     try {
-      setActionStatus(`Rolling back Client ID: ${targetClientId}...`);
-      const res = await rollbackClient({
-        passcode: activePasscode,
-        targetClientId,
-      });
-      setActionStatus(`Success! Purged ${res.deletedCount} strokes drawn by ${targetClientId}.`);
+      let totalDeleted = 0;
+      let cursor: string | null | undefined;
+      let done = false;
+      while (!done) {
+        setActionStatus(`Rolling back Client ID: ${targetClientId}... ${totalDeleted} strokes so far.`);
+        const res = await rollbackClient({
+          passcode: activePasscode,
+          targetClientId,
+          cursor: cursor ?? undefined,
+        });
+        totalDeleted += res.deletedCount;
+        cursor = res.nextCursor;
+        done = res.done;
+      }
+      setActionStatus(`Success! Purged ${totalDeleted} strokes drawn by ${targetClientId}.`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Rollback failed"}`);
     }
@@ -251,7 +273,7 @@ export function AdminPanelModal({
       ref={modalRef}
       role="dialog"
       aria-label="Admin Control Center"
-      className="pointer-events-auto fixed left-4 top-28 bottom-20 z-40 flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-sm border-2 border-rust bg-chrome-bg/95 p-4 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-md"
+      className="pointer-events-auto fixed left-4 top-28 bottom-20 z-40 flex w-96 sm:w-[440px] max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-sm border-2 border-rust bg-chrome-bg/95 p-4 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-md"
     >
       <ChromeRivet className="top-2 left-2" />
       <ChromeRivet className="top-2 right-2" />
@@ -290,87 +312,93 @@ export function AdminPanelModal({
               type="password"
               value={inputPasscode}
               onChange={(e) => setInputPasscode(e.target.value)}
-              placeholder="••••••••"
-              className="rounded border border-chrome-border bg-chrome-bg-raised px-3 py-2 text-xs font-mono text-ink focus:border-rust focus:outline-none"
+              placeholder="Passcode..."
+              className="rounded border border-chrome-border bg-chrome-bg-raised px-3 py-1.5 font-mono text-xs text-ink placeholder:text-ink-dim focus:border-rust focus:outline-none"
             />
           </div>
-          {authError && <span className="font-mono text-xs text-accent-crimson">{authError}</span>}
+          {authError && <p className="font-mono text-xs text-accent-crimson">{authError}</p>}
           <button
             type="submit"
-            className="rounded border-2 border-rust bg-rust px-4 py-2 font-mono text-xs font-bold text-on-accent transition hover:brightness-110"
+            className="rounded border border-rust bg-rust px-4 py-1.5 font-mono text-xs font-bold text-on-accent transition hover:brightness-110"
           >
-            UNLOCK ADMIN CONTROLS
+            Authenticate
           </button>
         </form>
       ) : (
-        <div className="flex flex-col gap-4">
+        <>
           {/* Navigation Tabs */}
-          <div className="flex border-b border-chrome-border/60 font-mono text-xs overflow-x-auto">
+          <div className="grid grid-cols-3 gap-1 border-b border-chrome-border/60 pb-2 font-mono text-[11px]">
             <button
               type="button"
               onClick={() => setActiveTab("moderation")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "moderation"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              🧹 MOD
+              <span>🧹</span>
+              <span>MOD</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("zones")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "zones"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              🛡️ ZONES
+              <span>🛡️</span>
+              <span>ZONES</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("image")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "image"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              🖼️ UPLOAD
+              <span>🖼️</span>
+              <span>UPLOAD</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("broadcast")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "broadcast"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              📢 BANNER
+              <span>📢</span>
+              <span>BANNER</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("reports")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "reports"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              🚩 REPORTS{openReports && openReports.length > 0 ? ` (${openReports.length})` : ""}
+              <span>🚩</span>
+              <span className="truncate">REPORTS{openReports && openReports.length > 0 ? ` (${openReports.length})` : ""}</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("telemetry")}
-              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
                 activeTab === "telemetry"
-                  ? "border-b-2 border-rust text-accent-yellow"
-                  : "text-ink-dim hover:text-ink"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
               }`}
             >
-              📊 STATS
+              <span>📊</span>
+              <span>STATS</span>
             </button>
           </div>
 
@@ -385,52 +413,40 @@ export function AdminPanelModal({
           {activeTab === "moderation" && (
             <div className="flex flex-col gap-4 text-left font-mono text-xs">
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
-                <span className="font-bold text-accent-crimson uppercase">🧹 Area Wipe (Bounding Box)</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] text-ink-dim">Min X</label>
-                    <input
-                      type="number"
-                      value={wipeMinX}
-                      onChange={(e) => setWipeMinX(Number(e.target.value))}
-                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-dim">Min Y</label>
-                    <input
-                      type="number"
-                      value={wipeMinY}
-                      onChange={(e) => setWipeMinY(Number(e.target.value))}
-                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-dim">Max X</label>
-                    <input
-                      type="number"
-                      value={wipeMaxX}
-                      onChange={(e) => setWipeMaxX(Number(e.target.value))}
-                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-ink-dim">Max Y</label>
-                    <input
-                      type="number"
-                      value={wipeMaxY}
-                      onChange={(e) => setWipeMaxY(Number(e.target.value))}
-                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleWipeArea}
-                  className="mt-1 rounded bg-accent-crimson px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
-                >
-                  PURGE AREA STROKES
-                </button>
+                <span className="font-bold text-accent-crimson uppercase">🧹 Area Wipe</span>
+                {pendingWipeRegion ? (
+                  <>
+                    <p className="rounded border border-accent-crimson/60 bg-accent-crimson/10 p-2 text-[11px] text-ink">
+                      ⚠️ Marked area: ({Math.round(pendingWipeRegion.minX)}, {Math.round(pendingWipeRegion.minY)}) → ({Math.round(pendingWipeRegion.maxX)}, {Math.round(pendingWipeRegion.maxY)})
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleWipeArea}
+                        disabled={isWiping}
+                        className="flex-1 rounded bg-accent-crimson px-3 py-1.5 font-bold text-on-accent hover:brightness-110 disabled:opacity-50"
+                      >
+                        {isWiping ? "PURGING..." : "⚠️ CONFIRM PURGE"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onWipeRegionConsumed}
+                        disabled={isWiping}
+                        className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink-dim hover:text-ink disabled:opacity-50"
+                      >
+                        CLEAR
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onStartWipeRegionSelect}
+                    className="rounded border border-accent-crimson bg-accent-crimson/20 px-3 py-1.5 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent"
+                  >
+                    ⬚ MARK AREA TO PURGE
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
@@ -730,7 +746,7 @@ export function AdminPanelModal({
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
     </aside>
   );

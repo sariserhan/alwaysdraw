@@ -54,6 +54,7 @@ import { MobileGroupLabel } from "./HeaderSeam";
 import { BrushCursor } from "./BrushCursor";
 import { MagnifierLoupe } from "./MagnifierLoupe";
 import { RulerOverlay } from "./RulerOverlay";
+import { CoordFinderOverlay } from "./CoordFinderOverlay";
 import { MiniMap, MINI_MAP_SIZE_PX, useHeaderBottomOffset } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { ExploreMenu } from "./ExploreMenu";
@@ -140,6 +141,11 @@ export function GlobalCanvas() {
   const reportRegionDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const [pendingReportRegion, setPendingReportRegion] = useState<WorldRect | null>(null);
   const [highlightedReportRegion, setHighlightedReportRegion] = useState<WorldRect | null>(null);
+  // Same drag-a-rectangle mechanism, for the admin "purge this area" flow —
+  // the admin panel closes itself while dragging (see the tool's pointer-up
+  // handler), then reopens once a rectangle is marked.
+  const adminWipeRegionDragRef = useRef<{ start: Point; current: Point } | null>(null);
+  const [pendingWipeRegion, setPendingWipeRegion] = useState<WorldRect | null>(null);
   const isStencilDraggingRef = useRef(false);
   const lastStencilWorldRef = useRef<Point | null>(null);
   const laserTrailsRef = useRef<LaserTrail[]>([]);
@@ -149,6 +155,15 @@ export function GlobalCanvas() {
     startScreen: Point;
     currentWorld: Point;
     currentScreen: Point;
+  } | null>(null);
+  const coordFinderElRef = useRef<HTMLDivElement>(null);
+  const coordFinderDragRef = useRef<{
+    startWorld: Point;
+    currentWorld: Point;
+  } | null>(null);
+  const lastCoordFinderPointerRef = useRef<{
+    world: Point;
+    screen: Point;
   } | null>(null);
   // Snapshot base image: loaded once if a snapshot exists, painted as the
   // base layer under delta strokes on every redraw. snapshotSequenceRef is
@@ -245,6 +260,7 @@ export function GlobalCanvas() {
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
   const rollbackClient = useMutation(api.admin.rollbackClient);
   const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
+  const wipeAreaMutation = useMutation(api.admin.wipeArea);
 
   const handleDeleteProtectedZone = useCallback(async (zoneId: string) => {
     if (!adminPasscode) return;
@@ -540,7 +556,26 @@ export function GlobalCanvas() {
       ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
       ctx.restore();
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion]);
+
+    // Admin "purge this area" rectangle — solid red fill so it reads as
+    // destructive, not just another selection outline.
+    const liveWipeRegionDrag = adminWipeRegionDragRef.current;
+    const wipeRegionToDraw = liveWipeRegionDrag
+      ? normalizeRect(liveWipeRegionDrag.start, liveWipeRegionDrag.current)
+      : pendingWipeRegion;
+    if (wipeRegionToDraw) {
+      const topLeft = worldToScreen(wipeRegionToDraw.minX, wipeRegionToDraw.minY, cameraRef.current, width, height);
+      const bottomRight = worldToScreen(wipeRegionToDraw.maxX, wipeRegionToDraw.maxY, cameraRef.current, width, height);
+      ctx.save();
+      ctx.fillStyle = "rgba(192, 57, 43, 0.2)";
+      ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.restore();
+    }
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion]);
 
   // Replay animation loop
   useEffect(() => {
@@ -702,10 +737,138 @@ export function GlobalCanvas() {
     el.style.display = "block";
   }, []);
 
+  const updateCoordFinder = useCallback(() => {
+    const el = coordFinderElRef.current;
+    if (!el) return;
+
+    if (tool !== "coordFinder") {
+      el.style.display = "none";
+      return;
+    }
+
+    el.style.display = "block";
+
+    const cursorBadge = el.querySelector<HTMLDivElement>("[data-coord-cursor-badge]");
+    const rectEl = el.querySelector<SVGRectElement>("[data-coord-rect]");
+    const nwNode = el.querySelector<SVGCircleElement>("[data-coord-nw-node]");
+    const neNode = el.querySelector<SVGCircleElement>("[data-coord-ne-node]");
+    const swNode = el.querySelector<SVGCircleElement>("[data-coord-sw-node]");
+    const seNode = el.querySelector<SVGCircleElement>("[data-coord-se-node]");
+
+    const nwBadge = el.querySelector<HTMLDivElement>("[data-coord-nw-badge]");
+    const neBadge = el.querySelector<HTMLDivElement>("[data-coord-ne-badge]");
+    const swBadge = el.querySelector<HTMLDivElement>("[data-coord-sw-badge]");
+    const seBadge = el.querySelector<HTMLDivElement>("[data-coord-se-badge]");
+    const centerCard = el.querySelector<HTMLDivElement>("[data-coord-center-card]");
+
+    const ptr = lastCoordFinderPointerRef.current;
+    if (ptr && cursorBadge) {
+      cursorBadge.style.display = "block";
+      cursorBadge.style.left = `${ptr.screen.x}px`;
+      cursorBadge.style.top = `${ptr.screen.y}px`;
+      cursorBadge.innerHTML = `🎯 X: ${Math.round(ptr.world.x)}, Y: ${Math.round(ptr.world.y)}`;
+    } else if (cursorBadge) {
+      cursorBadge.style.display = "none";
+    }
+
+    const drag = coordFinderDragRef.current;
+    if (!drag) {
+      if (rectEl) rectEl.setAttribute("width", "0");
+      if (nwNode) nwNode.setAttribute("r", "0");
+      if (neNode) neNode.setAttribute("r", "0");
+      if (swNode) swNode.setAttribute("r", "0");
+      if (seNode) seNode.setAttribute("r", "0");
+      if (nwBadge) nwBadge.style.display = "none";
+      if (neBadge) neBadge.style.display = "none";
+      if (swBadge) swBadge.style.display = "none";
+      if (seBadge) seBadge.style.display = "none";
+      if (centerCard) centerCard.style.display = "none";
+      return;
+    }
+
+    const { width, height } = viewportRef.current;
+    const camera = cameraRef.current;
+    const startScreen = worldToScreen(drag.startWorld.x, drag.startWorld.y, camera, width, height);
+    const currentScreen = worldToScreen(drag.currentWorld.x, drag.currentWorld.y, camera, width, height);
+
+    const screenMinX = Math.min(startScreen.x, currentScreen.x);
+    const screenMaxX = Math.max(startScreen.x, currentScreen.x);
+    const screenMinY = Math.min(startScreen.y, currentScreen.y);
+    const screenMaxY = Math.max(startScreen.y, currentScreen.y);
+    const screenW = screenMaxX - screenMinX;
+    const screenH = screenMaxY - screenMinY;
+
+    const minX = Math.round(Math.min(drag.startWorld.x, drag.currentWorld.x));
+    const maxX = Math.round(Math.max(drag.startWorld.x, drag.currentWorld.x));
+    const minY = Math.round(Math.min(drag.startWorld.y, drag.currentWorld.y));
+    const maxY = Math.round(Math.max(drag.startWorld.y, drag.currentWorld.y));
+    const widthFt = Math.max(0, maxX - minX);
+    const heightFt = Math.max(0, maxY - minY);
+    const areaSqFt = widthFt * heightFt;
+
+    if (rectEl) {
+      rectEl.setAttribute("x", String(screenMinX));
+      rectEl.setAttribute("y", String(screenMinY));
+      rectEl.setAttribute("width", String(screenW));
+      rectEl.setAttribute("height", String(screenH));
+    }
+
+    if (nwNode) { nwNode.setAttribute("cx", String(screenMinX)); nwNode.setAttribute("cy", String(screenMinY)); nwNode.setAttribute("r", "5"); }
+    if (neNode) { neNode.setAttribute("cx", String(screenMaxX)); neNode.setAttribute("cy", String(screenMinY)); neNode.setAttribute("r", "5"); }
+    if (swNode) { swNode.setAttribute("cx", String(screenMinX)); swNode.setAttribute("cy", String(screenMaxY)); swNode.setAttribute("r", "5"); }
+    if (seNode) { seNode.setAttribute("cx", String(screenMaxX)); seNode.setAttribute("cy", String(screenMaxY)); seNode.setAttribute("r", "5"); }
+
+    if (nwBadge) {
+      nwBadge.style.display = "block";
+      nwBadge.style.left = `${screenMinX}px`;
+      nwBadge.style.top = `${screenMinY}px`;
+      nwBadge.innerHTML = `📍 NW: (${minX}, ${minY})`;
+    }
+    if (neBadge) {
+      neBadge.style.display = "block";
+      neBadge.style.left = `${screenMaxX}px`;
+      neBadge.style.top = `${screenMinY}px`;
+      neBadge.innerHTML = `📍 NE: (${maxX}, ${minY})`;
+    }
+    if (swBadge) {
+      swBadge.style.display = "block";
+      swBadge.style.left = `${screenMinX}px`;
+      swBadge.style.top = `${screenMaxY}px`;
+      swBadge.innerHTML = `📍 SW: (${minX}, ${maxY})`;
+    }
+    if (seBadge) {
+      seBadge.style.display = "block";
+      seBadge.style.left = `${screenMaxX}px`;
+      seBadge.style.top = `${screenMaxY}px`;
+      seBadge.innerHTML = `📍 SE: (${maxX}, ${maxY})`;
+    }
+
+    if (centerCard) {
+      centerCard.style.display = "flex";
+      centerCard.style.left = `${(screenMinX + screenMaxX) / 2}px`;
+      centerCard.style.top = `${(screenMinY + screenMaxY) / 2}px`;
+      centerCard.innerHTML = `
+        <div class="flex items-center justify-between border-b border-chrome-border/60 pb-1 font-bold text-accent-yellow">
+          <span>📐 ${areaSqFt.toLocaleString()} sq ft</span>
+          <span class="text-ink-dim pl-2">${widthFt.toLocaleString()} ft × ${heightFt.toLocaleString()} ft</span>
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-ink-dim pt-0.5">
+          <span>Corner Bounds:</span>
+          <span class="font-bold text-ink pl-2">X:[${minX}..${maxX}] Y:[${minY}..${maxY}]</span>
+        </div>
+      `;
+    }
+  }, [tool]);
+
   useEffect(() => {
     if (tool !== "ruler") rulerDragRef.current = null;
+    if (tool !== "coordFinder") {
+      coordFinderDragRef.current = null;
+      lastCoordFinderPointerRef.current = null;
+    }
     updateRuler();
-  }, [tool, updateRuler]);
+    updateCoordFinder();
+  }, [tool, updateRuler, updateCoordFinder]);
 
   const updateMiniMapViewportRect = useCallback(() => {
     const el = miniMapViewportRectRef.current;
@@ -905,7 +1068,18 @@ export function GlobalCanvas() {
           });
           if (page.length === 0) break;
           for (const s of page) {
-            committedRef.current.push(s);
+            if (s.deleted) {
+              // The original stroke and its later tombstone can both land
+              // in this same delta range (created and deleted before this
+              // client's first load) — drop it rather than replay it. If
+              // the original predates the snapshot cutoff instead, it's
+              // baked into the snapshot image with nothing here to remove;
+              // that's a pre-existing snapshot limitation, not new here —
+              // it self-heals whenever the snapshot is next regenerated.
+              committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
+            } else {
+              committedRef.current.push(s);
+            }
             appliedIdsRef.current.add(s.clientStrokeId);
             after = Math.max(after, s.sequence);
           }
@@ -954,7 +1128,18 @@ export function GlobalCanvas() {
     if (!replayDone || !liveTail || liveTail.length === 0) return;
     queueMicrotask(() => {
       const newlyApplied: ServerStroke[] = [];
+      let anyRemoved = false;
       for (const s of liveTail) {
+        if (s.deleted) {
+          // A tombstone patch reuses its original clientStrokeId (it's the
+          // same row, not a new one) — so it must bypass the dedup check
+          // below rather than be skipped by it, unlike a genuinely new
+          // stroke sharing an id it's already seen.
+          const before = committedRef.current.length;
+          committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
+          if (committedRef.current.length !== before) anyRemoved = true;
+          continue;
+        }
         if (appliedIdsRef.current.has(s.clientStrokeId)) continue;
         appliedIdsRef.current.add(s.clientStrokeId);
         pendingRef.current.delete(s.clientStrokeId);
@@ -963,19 +1148,35 @@ export function GlobalCanvas() {
       }
       const lastSeq = liveTail[liveTail.length - 1].sequence;
       setMaxSequence(lastSeq);
-      if (newlyApplied.length > 0) {
+      if (newlyApplied.length > 0 || anyRemoved) {
         scheduleRedraw();
         if (miniMapCtxRef.current && miniMapCanvasRef.current) {
-          paintMiniMapStrokes(
-            miniMapCtxRef.current,
-            newlyApplied,
-            miniMapCanvasRef.current.width,
-            WORLD_WIDTH,
-            WORLD_HEIGHT,
-          );
+          if (anyRemoved) {
+            // A removal can't be un-painted from the mini-map's incremental
+            // draw, so repaint it from scratch off the (now-shrunk) full
+            // stroke list instead of just the newly-applied delta.
+            fillMiniMapBackground(miniMapCtxRef.current, miniMapCanvasRef.current.width);
+            paintMiniMapStrokes(
+              miniMapCtxRef.current,
+              committedRef.current,
+              miniMapCanvasRef.current.width,
+              WORLD_WIDTH,
+              WORLD_HEIGHT,
+            );
+          } else {
+            paintMiniMapStrokes(
+              miniMapCtxRef.current,
+              newlyApplied,
+              miniMapCanvasRef.current.width,
+              WORLD_WIDTH,
+              WORLD_HEIGHT,
+            );
+          }
         }
-        addStrokesToHeatmap(heatmapGridRef.current, newlyApplied, WORLD_WIDTH, WORLD_HEIGHT);
-        redrawHeatmap();
+        if (newlyApplied.length > 0) {
+          addStrokesToHeatmap(heatmapGridRef.current, newlyApplied, WORLD_WIDTH, WORLD_HEIGHT);
+          redrawHeatmap();
+        }
       }
       setLiveTailCursor(lastSeq);
     });
@@ -1161,14 +1362,49 @@ export function GlobalCanvas() {
     }
   }, [imagePlacement, submitStroke, scheduleRedraw]);
 
+  // Admin deletes are soft-deletes under the hood (see the schema comment
+  // on strokes.deleted) — the server patches a fresh sequence number onto
+  // the row instead of removing it, which flows through everyone's normal
+  // live-tail sync (including this admin's own client) as a tombstone to
+  // apply, same as any other new event. No manual local cache surgery
+  // needed here anymore; just page through the mutation until done.
   const handlePurgeAllStampedImages = useCallback(async () => {
-    await rollbackClient({
-      passcode: adminPasscode,
-      targetClientId: "ADMIN_IMAGE_STAMPER",
-    });
+    let cursor: string | null | undefined;
+    let done = false;
+    while (!done) {
+      const res = await rollbackClient({
+        passcode: adminPasscode,
+        targetClientId: "ADMIN_IMAGE_STAMPER",
+        cursor: cursor ?? undefined,
+      });
+      cursor = res.nextCursor;
+      done = res.done;
+    }
     setImagePlacement(null);
-    scheduleRedraw({ world: true, strokes: true });
-  }, [rollbackClient, adminPasscode, scheduleRedraw]);
+  }, [rollbackClient, adminPasscode]);
+
+  const handleWipeArea = useCallback(
+    async (rect: WorldRect) => {
+      let totalDeleted = 0;
+      let afterSequence: number | undefined;
+      let done = false;
+      while (!done) {
+        const res = await wipeAreaMutation({
+          passcode: adminPasscode,
+          minX: rect.minX,
+          minY: rect.minY,
+          maxX: rect.maxX,
+          maxY: rect.maxY,
+          afterSequence,
+        });
+        totalDeleted += res.deletedCount;
+        afterSequence = res.nextAfterSequence;
+        done = res.done;
+      }
+      return totalDeleted;
+    },
+    [wipeAreaMutation, adminPasscode],
+  );
 
   const handleCommitText = useCallback(() => {
     if (!textInputPos || !textInputText.trim()) {
@@ -1292,6 +1528,11 @@ export function GlobalCanvas() {
 
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setTool("brush");
         return;
       }
 
@@ -1489,7 +1730,7 @@ export function GlobalCanvas() {
       // selection commits nothing to the canvas either, and opening Time
       // Travel itself enters replay mode before "Select Region" is ever
       // clicked — without this, the drag silently no-ops.
-      if (isReplayMode && tool !== "pan" && tool !== "magnifier" && tool !== "ruler" && tool !== "region") return;
+      if (isReplayMode && tool !== "pan" && tool !== "magnifier" && tool !== "ruler" && tool !== "region" && tool !== "coordFinder") return;
 
       if (tool === "pan") {
         isPanningRef.current = true;
@@ -1549,6 +1790,11 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "adminWipeRegion") {
+        adminWipeRegionDragRef.current = { start: worldPt, current: worldPt };
+        return;
+      }
+
       if (tool === "stencil") {
         isStencilDraggingRef.current = true;
         lastStencilWorldRef.current = worldPt;
@@ -1576,6 +1822,15 @@ export function GlobalCanvas() {
           currentScreen: screenPt,
         };
         updateRuler();
+        return;
+      }
+
+      if (tool === "coordFinder") {
+        coordFinderDragRef.current = {
+          startWorld: worldPt,
+          currentWorld: worldPt,
+        };
+        updateCoordFinder();
         return;
       }
 
@@ -1723,6 +1978,14 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "adminWipeRegion") {
+        const drag = adminWipeRegionDragRef.current;
+        if (!drag) return;
+        drag.current = worldPt;
+        scheduleRedraw({ strokes: true });
+        return;
+      }
+
       if (tool === "stencil") {
         if (isStencilDraggingRef.current && lastStencilWorldRef.current) {
           const minSpacing = Math.max(30, brushWidth * 3);
@@ -1741,6 +2004,15 @@ export function GlobalCanvas() {
         drag.currentWorld = worldPt;
         drag.currentScreen = screenPt;
         updateRuler();
+        return;
+      }
+
+      if (tool === "coordFinder") {
+        lastCoordFinderPointerRef.current = { world: worldPt, screen: screenPt };
+        if (e.buttons === 1 && coordFinderDragRef.current) {
+          coordFinderDragRef.current.currentWorld = worldPt;
+        }
+        updateCoordFinder();
         return;
       }
 
@@ -1809,9 +2081,24 @@ export function GlobalCanvas() {
         scheduleRedraw({ strokes: true });
       }
 
+      if (tool === "adminWipeRegion") {
+        const drag = adminWipeRegionDragRef.current;
+        adminWipeRegionDragRef.current = null;
+        if (drag && distance(drag.start, drag.current) >= MIN_REGION_DRAG) {
+          setPendingWipeRegion(normalizeRect(drag.start, drag.current));
+          setAdminOpen(true);
+        }
+        setTool("brush");
+        scheduleRedraw({ strokes: true });
+      }
+
       if (tool === "ruler") {
         rulerDragRef.current = null;
         updateRuler();
+      }
+
+      if (tool === "coordFinder") {
+        updateCoordFinder();
       }
 
       if (activePointersRef.current.size === 0) {
@@ -1952,7 +2239,7 @@ export function GlobalCanvas() {
                   ? "cursor-default"
                   : tool === "text"
                     ? "cursor-text"
-                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment" || tool === "region" || tool === "reportRegion"
+                    : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment" || tool === "region" || tool === "reportRegion" || tool === "adminWipeRegion" || tool === "coordFinder"
                       ? "cursor-crosshair"
                       : "cursor-none"
             }`}
@@ -1966,6 +2253,7 @@ export function GlobalCanvas() {
           <BrushCursor ref={cursorElRef} tool={tool} brushType={brushType} color={color} />
           <MagnifierLoupe ref={magnifierElRef} />
           <RulerOverlay ref={rulerElRef} />
+          <CoordFinderOverlay ref={coordFinderElRef} />
         </div>
 
         <RemoteCursors
@@ -2530,6 +2818,12 @@ export function GlobalCanvas() {
         </div>
       )}
 
+      {tool === "adminWipeRegion" && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border-2 border-accent-crimson bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-crimson shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          ⚠️ Drag on the canvas to mark the area to purge
+        </div>
+      )}
+
       <CommentsOverlay
         ref={commentsOverlayRef}
         comments={showComments ? comments : []}
@@ -2625,6 +2919,13 @@ export function GlobalCanvas() {
           onPurgeAllStampedImages={handlePurgeAllStampedImages}
           onTeleport={(x, y, zoom) => handleBookmarkTeleport({ x, y }, zoom, "Reported Area")}
           onTeleportToRegion={handleTeleportToReportedRegion}
+          pendingWipeRegion={pendingWipeRegion}
+          onStartWipeRegionSelect={() => {
+            setAdminOpen(false);
+            setTool("adminWipeRegion");
+          }}
+          onWipeRegionConsumed={() => setPendingWipeRegion(null)}
+          onWipeArea={handleWipeArea}
         />
       </nav>
 

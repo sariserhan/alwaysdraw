@@ -48,4 +48,6 @@ export type Tool =
   | "text"
   | "comment"
   | "region"
-  | "reportRegion";
+  | "reportRegion"
+  | "adminWipeRegion"
+  | "coordFinder";
