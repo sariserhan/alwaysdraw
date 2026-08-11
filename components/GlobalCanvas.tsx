@@ -39,7 +39,7 @@ import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedC
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
-import { CommentsOverlay, type CanvasComment } from "./CommentsOverlay";
+import { CommentsOverlay, type CanvasComment, type CommentsOverlayHandle } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } from "@/lib/types";
@@ -47,7 +47,7 @@ import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/
 import { DrawingToolbar } from "./DrawingToolbar";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
-import { RemoteCursors } from "./RemoteCursors";
+import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
 import { ThemeToggle } from "./ThemeToggle";
 import { ChromeRivet } from "./ChromeRivet";
 import { MobileGroupLabel } from "./HeaderSeam";
@@ -124,6 +124,8 @@ export function GlobalCanvas() {
   const miniMapCanvasRef = useRef<HTMLCanvasElement>(null);
   const miniMapCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const miniMapViewportRectRef = useRef<HTMLDivElement>(null);
+  const commentsOverlayRef = useRef<CommentsOverlayHandle>(null);
+  const remoteCursorsRef = useRef<RemoteCursorsHandle>(null);
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const shapePreviewRef = useRef<LocalStroke | null>(null);
@@ -752,6 +754,16 @@ export function GlobalCanvas() {
         });
         updateCursorOverlay();
         updateMagnifier();
+        commentsOverlayRef.current?.syncPositions(
+          cameraRef.current,
+          viewportRef.current.width,
+          viewportRef.current.height,
+        );
+        remoteCursorsRef.current?.syncPositions(
+          cameraRef.current,
+          viewportRef.current.width,
+          viewportRef.current.height,
+        );
       });
     },
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
@@ -1957,6 +1969,7 @@ export function GlobalCanvas() {
         </div>
 
         <RemoteCursors
+          ref={remoteCursorsRef}
           entries={presenceList ?? []}
           selfClientId={clientId}
           camera={cameraSnapshot}
@@ -2518,6 +2531,7 @@ export function GlobalCanvas() {
       )}
 
       <CommentsOverlay
+        ref={commentsOverlayRef}
         comments={showComments ? comments : []}
         camera={cameraSnapshot}
         viewportWidth={viewportSize.width}
