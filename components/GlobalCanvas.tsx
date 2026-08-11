@@ -230,7 +230,7 @@ export function GlobalCanvas() {
   const [shapeMetricsLabel, setShapeMetricsLabel] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
-  const [tool, setTool] = useState<Tool>("brush");
+  const [tool, setTool] = useState<Tool>("laser");
   const [brushType, setBrushType] = useState<BrushType>("brush");
   const [shapeType, setShapeType] = useState<ShapeType>("line");
   const [selectedStencil, setSelectedStencil] = useState<StencilType>("biohazard");
@@ -1532,7 +1532,7 @@ export function GlobalCanvas() {
       }
 
       if (e.key === "Escape") {
-        setTool("brush");
+        setTool("laser");
         return;
       }
 
@@ -1756,7 +1756,7 @@ export function GlobalCanvas() {
             }
           }
         }
-        setTool("brush");
+        setTool("laser");
         return;
       }
 
@@ -2067,7 +2067,7 @@ export function GlobalCanvas() {
         if (drag && distance(drag.start, drag.current) >= MIN_REGION_DRAG) {
           setReplayRegion(normalizeRect(drag.start, drag.current));
         }
-        setTool("brush");
+        setTool("laser");
         scheduleRedraw({ strokes: true });
       }
 
@@ -2077,7 +2077,7 @@ export function GlobalCanvas() {
         if (drag && distance(drag.start, drag.current) >= MIN_REGION_DRAG) {
           setPendingReportRegion(normalizeRect(drag.start, drag.current));
         }
-        setTool("brush");
+        setTool("laser");
         scheduleRedraw({ strokes: true });
       }
 
@@ -2088,7 +2088,7 @@ export function GlobalCanvas() {
           setPendingWipeRegion(normalizeRect(drag.start, drag.current));
           setAdminOpen(true);
         }
-        setTool("brush");
+        setTool("laser");
         scheduleRedraw({ strokes: true });
       }
 
@@ -2241,7 +2241,9 @@ export function GlobalCanvas() {
                     ? "cursor-text"
                     : tool === "shape" || tool === "ruler" || tool === "laser" || tool === "stencil" || tool === "eyedropper" || tool === "comment" || tool === "region" || tool === "reportRegion" || tool === "adminWipeRegion" || tool === "coordFinder"
                       ? "cursor-crosshair"
-                      : "cursor-none"
+                      : tool === "brush" || tool === "eraser"
+                        ? "cursor-none"
+                        : "cursor-default"
             }`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}

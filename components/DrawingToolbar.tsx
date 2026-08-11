@@ -638,8 +638,13 @@ export function DrawingToolbar({
           <button
             type="button"
             onClick={() => {
-              onToolChange("brush");
-              setPickerOpen((v) => !v);
+              if (tool === "brush") {
+                onToolChange("laser");
+                setPickerOpen(false);
+              } else {
+                onToolChange("brush");
+                setPickerOpen((v) => !v);
+              }
             }}
             aria-pressed={tool === "brush"}
             aria-haspopup="true"
@@ -665,7 +670,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange(tool === "eraser" ? "brush" : "eraser")}
+            onClick={() => onToolChange(tool === "eraser" ? "laser" : "eraser")}
             aria-pressed={tool === "eraser"}
             title="Eraser"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -688,7 +693,7 @@ export function DrawingToolbar({
                   })
                   .catch(() => {});
               } else {
-                onToolChange(tool === "eyedropper" ? "brush" : "eyedropper");
+                onToolChange(tool === "eyedropper" ? "laser" : "eyedropper");
               }
             }}
             aria-pressed={tool === "eyedropper"}
@@ -701,7 +706,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange(tool === "pan" ? "brush" : "pan")}
+            onClick={() => onToolChange(tool === "pan" ? "laser" : "pan")}
             aria-pressed={tool === "pan"}
             title={t(locale, "pan")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -712,7 +717,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange(tool === "magnifier" ? "brush" : "magnifier")}
+            onClick={() => onToolChange(tool === "magnifier" ? "laser" : "magnifier")}
             aria-pressed={tool === "magnifier"}
             title={t(locale, "magnifier")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -725,7 +730,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => {
               if (tool === "shape") {
-                onToolChange("brush");
+                onToolChange("laser");
                 setShapePickerOpen(false);
               } else {
                 onToolChange("shape");
@@ -754,7 +759,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange(tool === "text" ? "brush" : "text")}
+            onClick={() => onToolChange(tool === "text" ? "laser" : "text")}
             aria-pressed={tool === "text"}
             title="Text Tool (X)"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -765,7 +770,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange(tool === "comment" ? "brush" : "comment")}
+            onClick={() => onToolChange(tool === "comment" ? "laser" : "comment")}
             aria-pressed={tool === "comment"}
             title="Post Sticky Note (C)"
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -778,7 +783,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => {
               if (tool === "stencil") {
-                onToolChange("brush");
+                onToolChange("laser");
                 setStencilPickerOpen(false);
               } else {
                 onToolChange("stencil");
@@ -807,7 +812,7 @@ export function DrawingToolbar({
           )}
           <button
             type="button"
-            onClick={() => onToolChange(tool === "laser" ? "brush" : "laser")}
+            onClick={() => onToolChange(tool === "laser" ? "laser" : "laser")}
             aria-pressed={tool === "laser"}
             title={t(locale, "laser")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -818,7 +823,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange(tool === "ruler" ? "brush" : "ruler")}
+            onClick={() => onToolChange(tool === "ruler" ? "laser" : "ruler")}
             aria-pressed={tool === "ruler"}
             title={t(locale, "ruler")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
@@ -829,7 +834,7 @@ export function DrawingToolbar({
           </button>
           <button
             type="button"
-            onClick={() => onToolChange(tool === "coordFinder" ? "brush" : "coordFinder")}
+            onClick={() => onToolChange(tool === "coordFinder" ? "laser" : "coordFinder")}
             aria-pressed={tool === "coordFinder"}
             title={t(locale, "coord_finder")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
