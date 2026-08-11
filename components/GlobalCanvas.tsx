@@ -122,6 +122,16 @@ const SNAPSHOT_SIZE_PX = 2048;
 const HEARTBEAT_ACTIVE_INTERVAL_MS = 3000;
 const HEARTBEAT_IDLE_INTERVAL_MS = 15000;
 const HEARTBEAT_IDLE_THRESHOLD_MS = 10000;
+// Remote cursors subscribe per-tile instead of globally (presence.listByTiles)
+// so a cursor move somewhere off-screen never re-pushes to a viewer who
+// can't see it. That only pays off when "visible tiles" is a small fraction
+// of the world — someone zoomed out far enough to see most/all of it would
+// just be subscribing to everything anyway, so past this many visible tiles
+// the query is skipped entirely and remote cursors simply don't render,
+// rather than firing hundreds of per-tile lookups or falling back to a
+// global read. The world's online count (header) is unaffected either way —
+// that's a separate, already-cheap query.
+const MAX_SCOPED_PRESENCE_TILES = 100;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -379,7 +389,14 @@ export function GlobalCanvas() {
   const submitSnapshot = useMutation(api.snapshots.submit);
 
   const onlineCount = useQuery(api.presence.onlineCount);
-  const presenceList = useQuery(api.presence.list);
+  const [subscribedTileKeys, setSubscribedTileKeys] = useState<string[]>([]);
+  const subscribedTileKeysRef = useRef<string[]>([]);
+  const presenceList = useQuery(
+    api.presence.listByTiles,
+    subscribedTileKeys.length > 0 && subscribedTileKeys.length <= MAX_SCOPED_PRESENCE_TILES
+      ? { tileKeys: subscribedTileKeys }
+      : "skip",
+  );
   const canvasCommentRows = useQuery(api.comments.list, {});
   const comments = useMemo<CanvasComment[]>(
     () =>
@@ -958,6 +975,28 @@ export function GlobalCanvas() {
           viewportRef.current.height,
           lastCursorWorldRef.current,
         );
+
+        // Drives the tile-scoped presence subscription (see
+        // MAX_SCOPED_PRESENCE_TILES) — only updates state, and so only
+        // triggers a requery, when the actual set of visible tiles changes
+        // (crossing a tile boundary), not on every pan pixel.
+        const visibleTileKeysNow = getVisibleTileKeys(
+          cameraRef.current,
+          viewportRef.current.width,
+          viewportRef.current.height,
+          WORLD_WIDTH,
+          WORLD_HEIGHT,
+          TILE_SIZE,
+          1,
+        );
+        const prevTileKeys = subscribedTileKeysRef.current;
+        const tileKeysChanged =
+          visibleTileKeysNow.length !== prevTileKeys.length ||
+          visibleTileKeysNow.some((k, i) => k !== prevTileKeys[i]);
+        if (tileKeysChanged) {
+          subscribedTileKeysRef.current = visibleTileKeysNow;
+          setSubscribedTileKeys(visibleTileKeysNow);
+        }
       });
     },
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],

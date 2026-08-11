@@ -11,12 +11,15 @@ import {
   RATE_LIMIT_WINDOW_MS,
   HEARTBEATS_PER_CLIENT_WINDOW,
   HEARTBEATS_GLOBAL_WINDOW,
+  MAX_TILES_PER_PRESENCE_QUERY,
+  MAX_PRESENCE_PER_TILE,
 } from "./constants";
 import {
   assertBoundedIdentifier,
   assertWritesEnabled,
   consumeRateLimit,
 } from "./abuse";
+import { getTileCoords, getTileId } from "../lib/tiling";
 
 // Cursor coordinates are just for rendering — clamp rather than reject.
 function clamp(value: number, max: number): number {
@@ -58,6 +61,8 @@ export const heartbeat = mutation({
     );
     const cursorX = clamp(args.cursorX, WORLD_WIDTH);
     const cursorY = clamp(args.cursorY, WORLD_HEIGHT);
+    const { tileX, tileY } = getTileCoords(cursorX, cursorY);
+    const tileKey = getTileId(tileX, tileY);
     // --- Abuse boundary: bound trail size like MAX_POINTS_PER_STROKE does for strokes ---
     if (
       args.laserTrail !== undefined &&
@@ -85,6 +90,7 @@ export const heartbeat = mutation({
         username: args.username,
         cursorX,
         cursorY,
+        tileKey,
         laserTrail,
         lastSeenAt: now,
       });
@@ -94,6 +100,7 @@ export const heartbeat = mutation({
         username: args.username,
         cursorX,
         cursorY,
+        tileKey,
         laserTrail,
         lastSeenAt: now,
       });
@@ -134,6 +141,58 @@ export const list = query({
       cursorY: r.cursorY,
       laserTrail: r.laserTrail,
     }));
+  },
+});
+
+// Tile-scoped alternative to `list`: reads each requested tile via its own
+// `by_tileKey` index lookup instead of one broad `by_lastSeenAt` range read
+// filtered down afterward — that distinction matters for reactivity, not
+// just payload size. A query's subscribers only get re-pushed when a write
+// touches something the query actually read; reading tile-by-tile means a
+// cursor move in a tile nobody asked about never recomputes/re-pushes to
+// anyone, where a "read broad, filter narrow" version still would.
+export const listByTiles = query({
+  args: { tileKeys: v.array(v.string()) },
+  returns: v.array(
+    v.object({
+      clientId: v.string(),
+      username: v.optional(v.string()),
+      cursorX: v.number(),
+      cursorY: v.number(),
+      laserTrail: v.optional(
+        v.array(
+          v.object({
+            x: v.number(),
+            y: v.number(),
+            timestamp: v.number(),
+          }),
+        ),
+      ),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const tileKeys = args.tileKeys.slice(0, MAX_TILES_PER_PRESENCE_QUERY);
+    if (tileKeys.length === 0) return [];
+    const cutoff = Date.now() - PRESENCE_ONLINE_WINDOW_MS;
+    const perTile = await Promise.all(
+      tileKeys.map((key) =>
+        ctx.db
+          .query("presence")
+          .withIndex("by_tileKey", (q) => q.eq("tileKey", key))
+          .take(MAX_PRESENCE_PER_TILE),
+      ),
+    );
+    return perTile
+      .flat()
+      .filter((r) => r.lastSeenAt >= cutoff)
+      .slice(0, MAX_PRESENCE_LIST)
+      .map((r) => ({
+        clientId: r.clientId,
+        username: r.username,
+        cursorX: r.cursorX,
+        cursorY: r.cursorY,
+        laserTrail: r.laserTrail,
+      }));
   },
 });
 

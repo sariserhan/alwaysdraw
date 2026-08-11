@@ -76,6 +76,20 @@ export const PRESENCE_STALE_MS = 2 * 60_000;
 // A laser trail effect only ever needs a short recent tail of points.
 export const MAX_LASER_TRAIL_POINTS = 50;
 
+// presence.listByTiles reads each requested tile via its own indexed lookup
+// (not one broad range read filtered afterward) so a subscriber's reactive
+// dependency is genuinely just the tiles they asked for — a cursor update in
+// some other tile never recomputes/re-pushes to them. That only pays off
+// when the tile count is small (someone actually zoomed into a
+// neighborhood); past this cap the client shows nothing rather than either
+// falling back to a global read or firing hundreds of per-tile lookups —
+// see GlobalCanvas.tsx's subscribedTileKeys effect. This is the server-side
+// mirror of that same cap, independent of whatever the client sends.
+export const MAX_TILES_PER_PRESENCE_QUERY = 150;
+// A single 500-unit tile realistically never has more than a handful of
+// concurrent cursors — this just bounds the pathological case.
+export const MAX_PRESENCE_PER_TILE = 50;
+
 export const DEFAULT_LIST_LIMIT = 500;
 export const MAX_LIST_LIMIT = 1000;
 export const MAX_PRESENCE_LIST = 50;

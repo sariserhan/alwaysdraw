@@ -57,6 +57,11 @@ export default defineSchema({
     lastSeenAt: v.number(),
     cursorX: v.number(),
     cursorY: v.number(),
+    // Which spatial tile (see lib/tiling.ts, same 500-unit grid strokes use)
+    // the cursor is currently in — lets a viewer subscribe to only the
+    // tiles they can actually see instead of every online cursor in the
+    // world, same idea as strokes' tile tagging.
+    tileKey: v.optional(v.string()),
     laserTrail: v.optional(
       v.array(
         v.object({
@@ -68,7 +73,8 @@ export default defineSchema({
     ),
   })
     .index("by_clientId", ["clientId"])
-    .index("by_lastSeenAt", ["lastSeenAt"]),
+    .index("by_lastSeenAt", ["lastSeenAt"])
+    .index("by_tileKey", ["tileKey"]),
 
   presenceStats: defineTable({
     onlineCount: v.number(),
