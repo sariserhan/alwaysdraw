@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { t, type Locale } from "@/lib/i18n";
 import type { BrushType, Tool } from "@/lib/types";
-import { BRUSH_CATALOG } from "@/lib/brushes";
+import { BRUSH_CATALOG, getBrushTypeTranslationKey, getBrushCategoryTranslationKey } from "@/lib/brushes";
 import { SHAPE_CATALOG, type ShapeType } from "@/lib/shapes";
 import { STENCIL_TYPES, type StencilType } from "@/lib/stencils";
 import { PALETTE_PRESETS, type Palette } from "@/lib/palettes";
@@ -321,10 +321,12 @@ function BrushPicker({
   brushType,
   onSelect,
   onClose,
+  locale = "en",
 }: {
   brushType: BrushType;
   onSelect: (t: BrushType) => void;
   onClose: () => void;
+  locale?: Locale;
 }) {
   return (
     <>
@@ -333,7 +335,7 @@ function BrushPicker({
         {CATEGORIES.map((category) => (
           <div key={category} className="mb-1.5 last:mb-0">
             <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
-              {category}
+              {t(locale, getBrushCategoryTranslationKey(category))}
             </div>
             <div className="grid grid-cols-2 gap-1">
               {BRUSH_CATALOG.filter((b) => b.category === category).map((b) => (
@@ -351,7 +353,7 @@ function BrushPicker({
                       : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
                   }`}
                 >
-                  {b.label}
+                  {t(locale, getBrushTypeTranslationKey(b.type))}
                 </button>
               ))}
             </div>
@@ -614,7 +616,7 @@ export function DrawingToolbar({
   const [hidden, setHidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeBrushLabel = BRUSH_CATALOG.find((b) => b.type === brushType)?.label ?? "Brush";
+  const activeBrushLabel = t(locale ?? "en", getBrushTypeTranslationKey(brushType));
   const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 
   if (hidden) {
@@ -666,13 +668,14 @@ export function DrawingToolbar({
                 onToolChange("brush");
               }}
               onClose={() => setPickerOpen(false)}
+              locale={locale}
             />
           )}
           <button
             type="button"
             onClick={() => onToolChange(tool === "eraser" ? "laser" : "eraser")}
             aria-pressed={tool === "eraser"}
-            title="Eraser"
+            title={t(locale ?? "en", "erase")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}
@@ -836,7 +839,7 @@ export function DrawingToolbar({
             type="button"
             onClick={() => onToolChange(tool === "coordFinder" ? "laser" : "coordFinder")}
             aria-pressed={tool === "coordFinder"}
-            title={t(locale, "coord_finder")}
+            title={t(locale ?? "en", "coord_finder")}
             className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
               tool === "coordFinder" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
             }`}

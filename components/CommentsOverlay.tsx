@@ -5,6 +5,8 @@ import type { Camera } from "@/lib/camera";
 import { worldToScreen } from "@/lib/coordinates";
 import type { Point } from "@/lib/types";
 
+import { t, type Locale } from "@/lib/i18n";
+
 export interface CanvasComment {
   id: string;
   author: string;
@@ -20,6 +22,7 @@ export interface CommentsOverlayProps {
   camera: Camera;
   viewportWidth: number;
   viewportHeight: number;
+  locale?: Locale;
   onDeleteComment?: (id: string) => void;
   onReportComment?: (id: string) => void;
   onAdminDeleteComment?: (id: string) => void;
@@ -42,7 +45,7 @@ export interface CommentsOverlayHandle {
 
 export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlayProps>(
   function CommentsOverlay(
-    { comments, camera, viewportWidth, viewportHeight, onDeleteComment, onReportComment, onAdminDeleteComment, isAdmin },
+    { comments, camera, viewportWidth, viewportHeight, locale, onDeleteComment, onReportComment, onAdminDeleteComment, isAdmin },
     ref,
   ) {
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -129,7 +132,7 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                     <div className="flex items-center gap-2">
                       {onReportComment && (
                         reportedIds.has(comment.id) ? (
-                          <span className="text-accent-green">Reported</span>
+                          <span className="text-accent-green">{t(locale ?? "en", "report_comment_submitted")}</span>
                         ) : (
                           <button
                             type="button"
@@ -139,7 +142,7 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                             }}
                             className="text-accent-yellow hover:underline"
                           >
-                            🚩 Report
+                            🚩 {t(locale ?? "en", "report_comment")}
                           </button>
                         )
                       )}

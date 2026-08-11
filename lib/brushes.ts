@@ -450,3 +450,47 @@ export const BRUSH_CATALOG: Array<{ type: BrushType; label: string; category: "B
   { type: "neonGlow", label: "Neon Glow", category: "Effects" },
   { type: "halftone", label: "Halftone", category: "Effects" },
 ];
+
+export function getBrushTypeTranslationKey(type: BrushType): string {
+  switch (type) {
+    case "brush":
+      return "brush_type_brush";
+    case "pencil":
+      return "brush_pencil";
+    case "marker":
+      return "brush_marker";
+    case "highlighter":
+      return "brush_highlighter";
+    case "calligraphy":
+      return "brush_calligraphy";
+    case "pixel":
+      return "brush_pixel";
+    case "watercolor":
+      return "brush_watercolor";
+    case "oilPaint":
+      return "brush_oil_paint";
+    case "chalk":
+      return "brush_chalk";
+    case "charcoal":
+      return "brush_charcoal";
+    case "glitter":
+      return "brush_glitter";
+    case "neonGlow":
+      return "brush_neon_glow";
+    case "halftone":
+      return "brush_halftone";
+    default:
+      return "brush";
+  }
+}
+
+export function getBrushCategoryTranslationKey(category: "Basic" | "Artistic" | "Effects"): string {
+  switch (category) {
+    case "Basic":
+      return "brush_basic";
+    case "Artistic":
+      return "brush_artistic";
+    case "Effects":
+      return "brush_effects";
+  }
+}

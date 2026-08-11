@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
+import { MAX_PROTECTED_ZONES, ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -133,6 +134,126 @@ describe("convex/admin — protected zones & moderation", () => {
           adminPasscode: PASSCODE,
         }),
       ).resolves.toBeDefined();
+    });
+
+    it("exempts a zone's assigned owner from that zone's draw block, but not other clients", async () => {
+      await t.mutation(api.admin.createProtectedZone, {
+        passcode: PASSCODE,
+        name: "Owned Mural",
+        minX: 700,
+        minY: 700,
+        maxX: 800,
+        maxY: 800,
+        ownerClientId: "artist-owner-1",
+      });
+
+      // The assigned owner can draw inside their own zone with no passcode.
+      await expect(
+        t.mutation(api.strokes.submit, {
+          clientStrokeId: "owner-stroke-ok",
+          clientId: "artist-owner-1",
+          mode: "draw",
+          color: "#000000",
+          width: 5,
+          points: [{ x: 750, y: 750 }],
+          clientTimestamp: Date.now(),
+        }),
+      ).resolves.toBeDefined();
+
+      // A different client is still blocked.
+      await expect(
+        t.mutation(api.strokes.submit, {
+          clientStrokeId: "non-owner-stroke-blocked",
+          clientId: "someone-else",
+          mode: "draw",
+          color: "#000000",
+          width: 5,
+          points: [{ x: 750, y: 750 }],
+          clientTimestamp: Date.now(),
+        }),
+      ).rejects.toThrow(/PROTECTED_ZONE/);
+    });
+
+    it("hides ownerClientId from non-admin callers but returns it for a verified admin", async () => {
+      await t.mutation(api.admin.createProtectedZone, {
+        passcode: PASSCODE,
+        name: "Owned Mural",
+        minX: 700,
+        minY: 700,
+        maxX: 800,
+        maxY: 800,
+        ownerClientId: "artist-owner-1",
+        ownerName: "PixelArtist",
+      });
+
+      const anonymousView = await t.query(api.admin.getProtectedZones, {});
+      expect(anonymousView).toHaveLength(1);
+      expect(anonymousView[0].ownerClientId).toBeUndefined();
+      expect(anonymousView[0].ownerName).toBe("PixelArtist");
+
+      const invalidPasscodeView = await t.query(api.admin.getProtectedZones, { passcode: "wrong" });
+      expect(invalidPasscodeView[0].ownerClientId).toBeUndefined();
+
+      const adminView = await t.query(api.admin.getProtectedZones, { passcode: PASSCODE });
+      expect(adminView[0].ownerClientId).toBe("artist-owner-1");
+    });
+
+    it("caps the number of protected zones at MAX_PROTECTED_ZONES", async () => {
+      // Each creation also spends the admin:verify:global rate-limit
+      // bucket (ADMIN_VERIFY_GLOBAL_WINDOW=20 per RATE_LIMIT_WINDOW_MS) —
+      // advance fake time past that window between calls so this test
+      // exercises the zone cap, not the passcode-verify rate limit.
+      vi.useFakeTimers();
+      try {
+        for (let i = 0; i < MAX_PROTECTED_ZONES; i++) {
+          await t.mutation(api.admin.createProtectedZone, {
+            passcode: PASSCODE,
+            name: `Zone ${i}`,
+            minX: i,
+            minY: i,
+            maxX: i + 1,
+            maxY: i + 1,
+          });
+          vi.advanceTimersByTime(RATE_LIMIT_WINDOW_MS + 1000);
+        }
+
+        await expect(
+          t.mutation(api.admin.createProtectedZone, {
+            passcode: PASSCODE,
+            name: "One Too Many",
+            minX: 9000,
+            minY: 9000,
+            maxX: 9001,
+            maxY: 9001,
+          }),
+        ).rejects.toThrow(/MAX_PROTECTED_ZONES|cannot create more/i);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("charges wrong admin-passcode guesses via strokes.submit against the same shared rate-limit bucket verifyPasscode uses", async () => {
+      // Exhaust the shared admin:verify:global bucket entirely through the
+      // dedicated endpoint...
+      for (let i = 0; i < ADMIN_VERIFY_GLOBAL_WINDOW; i++) {
+        await t.mutation(api.admin.verifyPasscode, { passcode: "wrong-guess" });
+      }
+
+      // ...then a passcode attempt through strokes.submit — a completely
+      // different mutation — must be rejected by that same exhausted
+      // bucket, proving the two paths aren't independently guessable.
+      await expect(
+        t.mutation(api.strokes.submit, {
+          clientStrokeId: "rate-limited-admin-guess",
+          clientId: "attacker",
+          mode: "draw",
+          color: "#000000",
+          width: 5,
+          points: [{ x: 1, y: 1 }],
+          clientTimestamp: Date.now(),
+          adminPasscode: "another-wrong-guess",
+        }),
+      ).rejects.toThrow(/rate limit/i);
     });
   });
 

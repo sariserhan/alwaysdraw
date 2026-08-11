@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, mutation, internalMutation } from "./_generated/server";
 import {
   WORLD_WIDTH,
@@ -8,6 +8,7 @@ import {
   MAX_PRESENCE_LIST,
   MAX_LASER_TRAIL_POINTS,
   MAX_CLIENT_ID_LENGTH,
+  MAX_USERNAME_LENGTH,
   RATE_LIMIT_WINDOW_MS,
   HEARTBEATS_PER_CLIENT_WINDOW,
   HEARTBEATS_GLOBAL_WINDOW,
@@ -19,6 +20,7 @@ import {
   assertWritesEnabled,
   consumeRateLimit,
 } from "./abuse";
+import { containsProfanity } from "./profanity";
 import { getTileCoords, getTileId } from "../lib/tiling";
 
 // Cursor coordinates are just for rendering — clamp rather than reject.
@@ -47,6 +49,12 @@ export const heartbeat = mutation({
   handler: async (ctx, args) => {
     assertWritesEnabled();
     assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
+    if (args.username !== undefined) {
+      assertBoundedIdentifier(args.username, "username", MAX_USERNAME_LENGTH);
+      if (containsProfanity(args.username)) {
+        throw new ConvexError("PROFANITY_BLOCKED: username contains a blocked word — please choose another");
+      }
+    }
     await consumeRateLimit(
       ctx,
       `presence:client:${args.clientId}`,

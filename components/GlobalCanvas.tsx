@@ -2952,6 +2952,7 @@ export function GlobalCanvas() {
         camera={cameraSnapshot}
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
+        locale={locale}
         onDeleteComment={handleDeleteComment}
         onReportComment={handleReportComment}
         onAdminDeleteComment={handleAdminDeleteComment}

@@ -23,6 +23,7 @@ import {
   STROKES_PER_CLIENT_WINDOW,
   STROKES_GLOBAL_WINDOW,
   MAX_PROTECTED_ZONES,
+  ADMIN_VERIFY_GLOBAL_WINDOW,
 } from "./constants";
 import {
   assertBoundedIdentifier,
@@ -147,8 +148,38 @@ export const submit = mutation({
       return { sequence: existing.sequence };
     }
 
+    // --- Rate limiting: before any expensive/rejectable check below, so a
+    // stroke repeatedly targeting a protected zone (fresh clientStrokeId
+    // each time, so idempotency above never short-circuits it) still costs
+    // against the normal per-client/global budget instead of getting an
+    // unlimited number of free rejections. ---
+    await consumeRateLimit(
+      ctx,
+      `strokes:client:${args.clientId}`,
+      STROKES_PER_CLIENT_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
+    await consumeRateLimit(
+      ctx,
+      "strokes:global",
+      STROKES_GLOBAL_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
+
+    // --- Admin verification: routes through the same admin:verify:global
+    // rate-limit bucket verifyAdminPasscode uses, so guessing the passcode
+    // through this path costs the same limited budget as guessing it
+    // through the dedicated verifyPasscode endpoint — an invalid guess here
+    // must not silently reject the stroke (a passcode is optional; a wrong
+    // one just means "not admin"), so this consumes the bucket without
+    // throwing, unlike verifyAdminPasscode itself. ---
+    let isVerifiedAdmin = false;
+    if (args.adminPasscode !== undefined) {
+      await consumeRateLimit(ctx, "admin:verify:global", ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS);
+      isVerifiedAdmin = isPasscodeValid(args.adminPasscode);
+    }
+
     // --- Protected Canvas Zones Validation ---
-    const isVerifiedAdmin = args.adminPasscode !== undefined && isPasscodeValid(args.adminPasscode);
     if (!isVerifiedAdmin) {
       const protectedZones = await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES);
       if (protectedZones.length > 0) {
@@ -165,19 +196,6 @@ export const submit = mutation({
         }
       }
     }
-
-    await consumeRateLimit(
-      ctx,
-      `strokes:client:${args.clientId}`,
-      STROKES_PER_CLIENT_WINDOW,
-      RATE_LIMIT_WINDOW_MS,
-    );
-    await consumeRateLimit(
-      ctx,
-      "strokes:global",
-      STROKES_GLOBAL_WINDOW,
-      RATE_LIMIT_WINDOW_MS,
-    );
 
     // --- Sequencing: transactional read-increment-write on the singleton ---
     const nextSequence = await claimNextSequence(ctx);

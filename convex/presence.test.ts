@@ -54,6 +54,70 @@ describe("presence.onlineCount — cached counter", () => {
   });
 });
 
+describe("presence.heartbeat — username validation", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("rejects a username over the length limit", async () => {
+    await expect(
+      t.mutation(api.presence.heartbeat, {
+        clientId: "a",
+        username: "x".repeat(200),
+        cursorX: 1,
+        cursorY: 1,
+      }),
+    ).rejects.toThrow(/username/);
+  });
+
+  it("rejects a username containing a blocked word", async () => {
+    await expect(
+      t.mutation(api.presence.heartbeat, {
+        clientId: "a",
+        username: "fuck",
+        cursorX: 1,
+        cursorY: 1,
+      }),
+    ).rejects.toThrow(/PROFANITY_BLOCKED/);
+  });
+
+  it("accepts a clean, in-bounds username", async () => {
+    await expect(
+      t.mutation(api.presence.heartbeat, {
+        clientId: "a",
+        username: "PixelWizard99",
+        cursorX: 1,
+        cursorY: 1,
+      }),
+    ).resolves.toBeNull();
+  });
+});
+
+describe("presence.listByTiles", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("returns only clients whose cursor tile matches a requested tile key", async () => {
+    // (10, 10) and (10200, 9700) are ~500 units apart in different tiles.
+    await t.mutation(api.presence.heartbeat, { clientId: "near", cursorX: 10, cursorY: 10 });
+    await t.mutation(api.presence.heartbeat, { clientId: "far", cursorX: 10200, cursorY: 9700 });
+
+    const nearTile = await t.query(api.presence.listByTiles, { tileKeys: ["tile_0_0"] });
+    expect(nearTile.map((r) => r.clientId)).toEqual(["near"]);
+
+    const emptyTile = await t.query(api.presence.listByTiles, { tileKeys: ["tile_5_5"] });
+    expect(emptyTile).toEqual([]);
+  });
+
+  it("returns an empty array for an empty tileKeys request", async () => {
+    await t.mutation(api.presence.heartbeat, { clientId: "a", cursorX: 10, cursorY: 10 });
+    expect(await t.query(api.presence.listByTiles, { tileKeys: [] })).toEqual([]);
+  });
+});
+
 describe("presence.onlineCount — staleness window", () => {
   let t: ReturnType<typeof convexTest>;
   beforeEach(() => {

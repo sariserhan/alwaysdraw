@@ -51,6 +51,16 @@ export const submit = mutation({
     if (!Number.isFinite(args.strokeCount) || args.strokeCount < 0) {
       throw new Error("strokeCount must be a non-negative number");
     }
+    // A snapshot claiming a sequence beyond what's actually happened would
+    // make every future client's replay resume from a point with no real
+    // strokes past it — silently and permanently hiding all real content
+    // for every new visitor, with no way to undo it from the UI. The only
+    // legitimate sequence values are ones the wall has actually reached.
+    const metadata = await ctx.db.query("canvasMetadata").first();
+    const currentSequence = metadata?.currentSequence ?? 0;
+    if (args.sequence > currentSequence) {
+      throw new Error("sequence cannot exceed the wall's current sequence");
+    }
 
     const existing = await ctx.db
       .query("snapshots")
