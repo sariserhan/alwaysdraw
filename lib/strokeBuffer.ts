@@ -1,6 +1,11 @@
 import type { BrushType, LocalStroke, Point, StrokeMode } from "./types";
 
-const FLUSH_INTERVAL_MS = 40;
+// Widened from 40ms: at 40ms, sustained fast drawing flushed up to ~25
+// chunks/sec, eating into the per-client stroke rate limit fast enough that
+// normal drawing (not abuse) could trip it. 60ms trades a little live-view
+// smoothness for other viewers watching an in-progress stroke for meaningful
+// headroom under the limit, plus fewer/chunkier writes overall.
+const FLUSH_INTERVAL_MS = 60;
 const MAX_POINTS_PER_CHUNK = 40;
 
 function generateChunkId(): string {
@@ -12,7 +17,7 @@ function generateChunkId(): string {
 
 /**
  * Buffers points for one continuous pointer-down-to-up drag and flushes them
- * as separate ~40-point stroke chunks every ~40ms, so no single Convex
+ * as separate ~40-point stroke chunks every ~60ms, so no single Convex
  * mutation ever carries an unbounded number of points. Consecutive chunks
  * share their boundary point so the rendered line has no gap between flushes.
  */

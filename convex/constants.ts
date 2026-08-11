@@ -30,7 +30,13 @@ export const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 // server-enforced cost boundary. Limits are generous enough for normal fast
 // drawing while making a single spoofed client or a global flood finite.
 export const RATE_LIMIT_WINDOW_MS = 10_000;
-export const STROKES_PER_CLIENT_WINDOW = 120;
+// A single continuous drag flushes a new stroke chunk every ~40ms (see
+// lib/strokeBuffer.ts's FLUSH_INTERVAL_MS) — up to ~25/sec. The old 120
+// (12/sec average) meant just drawing one long, fast stroke for a few
+// seconds — completely normal use, no abuse involved — could trip the
+// limit. This covers a full window of continuous drawing at that real
+// worst-case flush rate with headroom to spare.
+export const STROKES_PER_CLIENT_WINDOW = 300;
 export const STROKES_GLOBAL_WINDOW = 2_000;
 export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
 export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
