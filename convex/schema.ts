@@ -147,6 +147,11 @@ export default defineSchema({
     maxX: v.number(),
     maxY: v.number(),
     createdAt: v.number(),
+    // Stand-in for a real user account until login ships — clientId is the
+    // app's existing per-browser identifier (see rate limiting/rollback).
+    // The owning client is exempted from this zone's draw block.
+    ownerClientId: v.optional(v.string()),
+    ownerName: v.optional(v.string()),
   }).index("by_createdAt", ["createdAt"]),
 
   // User-facing "flag this" reports, reviewed by an admin. Two shapes share

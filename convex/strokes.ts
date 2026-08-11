@@ -152,6 +152,7 @@ export const submit = mutation({
       const protectedZones = await ctx.db.query("protectedZones").collect();
       if (protectedZones.length > 0) {
         for (const zone of protectedZones) {
+          if (zone.ownerClientId && zone.ownerClientId === args.clientId) continue;
           const hitsZone = args.points.some(
             (p) => p.x >= zone.minX && p.x <= zone.maxX && p.y >= zone.minY && p.y <= zone.maxY,
           );

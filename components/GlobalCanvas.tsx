@@ -67,7 +67,7 @@ import { HotkeysModal } from "./HotkeysModal";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
-import { ProtectedZonesOverlay } from "./ProtectedZonesOverlay";
+import { ProtectedZonesOverlay, type ProtectedZonesOverlayHandle } from "./ProtectedZonesOverlay";
 import { t, type Locale } from "@/lib/i18n";
 import { HelpModal } from "./HelpModal";
 import { GridToggle } from "./GridToggle";
@@ -126,6 +126,7 @@ export function GlobalCanvas() {
   const miniMapCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const miniMapViewportRectRef = useRef<HTMLDivElement>(null);
   const commentsOverlayRef = useRef<CommentsOverlayHandle>(null);
+  const protectedZonesOverlayRef = useRef<ProtectedZonesOverlayHandle>(null);
   const remoteCursorsRef = useRef<RemoteCursorsHandle>(null);
   const lastScreenPosRef = useRef<Point | null>(null);
   const shapeDragRef = useRef<{ start: Point; current: Point } | null>(null);
@@ -927,6 +928,12 @@ export function GlobalCanvas() {
           viewportRef.current.width,
           viewportRef.current.height,
         );
+        protectedZonesOverlayRef.current?.syncPositions(
+          cameraRef.current,
+          viewportRef.current.width,
+          viewportRef.current.height,
+          lastCursorWorldRef.current,
+        );
       });
     },
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
@@ -1232,14 +1239,20 @@ export function GlobalCanvas() {
       pendingRef.current.set(chunk.clientStrokeId, chunk);
       submitStroke(chunk).catch((err) => {
         console.error("stroke submit rejected", err);
-        const isRateLimited = err instanceof ConvexError;
+        const convexMessage = err instanceof ConvexError && typeof err.data === "string" ? err.data : "";
+        const isProtectedZone = convexMessage.startsWith("PROTECTED_ZONE:");
+        const isRateLimited = err instanceof ConvexError && !isProtectedZone;
         if (isRateLimited) {
           rateLimitTracker.recordRateLimitError();
         }
         captureOperationalError(err, "stroke_submit", { mode: chunk.mode });
         pendingRef.current.delete(chunk.clientStrokeId);
         setSubmitError(
-          isRateLimited ? "drawing too fast — pace yourself a sec" : "a mark didn't stick — try again",
+          isProtectedZone
+            ? convexMessage.replace(/^PROTECTED_ZONE:\s*/, "")
+            : isRateLimited
+              ? "drawing too fast — pace yourself a sec"
+              : "a mark didn't stick — try again",
         );
         scheduleRedraw({ strokes: true });
       });
@@ -1898,6 +1911,11 @@ export function GlobalCanvas() {
 
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
+      // No dirty flags — just runs the per-frame overlay position sync (see
+      // scheduleRedraw) so the protected-zone hover badge tracks the cursor
+      // even on a plain idle hover, which none of the tool branches below
+      // otherwise trigger a redraw for.
+      scheduleRedraw({});
 
       // Attribution tooltip: only while genuinely hovering (mouse, no button
       // held) — a stencil/shape/ruler drag or an active brush stroke has its
@@ -2541,6 +2559,7 @@ export function GlobalCanvas() {
         )}
 
         <ProtectedZonesOverlay
+          ref={protectedZonesOverlayRef}
           camera={cameraSnapshot}
           viewportWidth={viewportSize.width}
           viewportHeight={viewportSize.height}

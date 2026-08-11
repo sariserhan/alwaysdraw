@@ -117,6 +117,15 @@ Goal: an effectively infinite, persistent world.
 - [ ] Moderation for illegal content only — never region ownership or protection
 - [ ] Safety infrastructure: bot detection, abuse fingerprinting, rate limiting, emergency read-only mode
 
+## V6 — Accounts & Monetization ⏳ not started
+
+Goal: let people pay to protect their own space on the wall, and eventually monetize traffic once V1 has real usage to justify it.
+
+- [ ] Real user accounts / auth — replaces the current anonymous, self-reported `clientId`-only identity model. Prerequisite for the rest of this section: zone ownership is currently keyed on `clientId`, which is just a client-editable `localStorage` string with no server-side identity behind it (see `lib/identity.ts`) — fine for admin-assigned zones as a stopgap, not fine once money is involved
+- [ ] Self-service protected zones — a user picks their own area directly on the canvas (drag-to-select area picker, likely building on the existing Coordinate Finder tool) instead of an admin typing coordinates by hand
+- [ ] Stripe integration so a user can pay to rent/reserve a zone for themselves — replaces the current admin-only, free-form zone assignment (`admin.createProtectedZone`'s `ownerClientId`/`ownerName`)
+- [ ] Sponsor placements / ads — deliberately deferred until V1 has enough real traffic to make this worth doing, not before
+
 ---
 
 ## Backlog / TODO

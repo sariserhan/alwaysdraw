@@ -63,6 +63,8 @@ export function AdminPanelModal({
   const [zoneMinY, setZoneMinY] = useState(9000);
   const [zoneMaxX, setZoneMaxX] = useState(11000);
   const [zoneMaxY, setZoneMaxY] = useState(11000);
+  const [zoneOwnerClientId, setZoneOwnerClientId] = useState("");
+  const [zoneOwnerName, setZoneOwnerName] = useState("");
 
   // Broadcast state
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -78,7 +80,10 @@ export function AdminPanelModal({
   const updateReportStatus = useMutation(api.reports.updateStatus);
   const adminRemoveComment = useMutation(api.comments.adminRemove);
 
-  const protectedZones = useQuery(api.admin.getProtectedZones);
+  const protectedZones = useQuery(
+    api.admin.getProtectedZones,
+    authenticated ? { passcode: activePasscode } : "skip",
+  );
   const telemetry = useQuery(
     api.admin.getTelemetry,
     authenticated ? { passcode: activePasscode } : "skip",
@@ -180,6 +185,8 @@ export function AdminPanelModal({
         minY: Number(zoneMinY),
         maxX: Number(zoneMaxX),
         maxY: Number(zoneMaxY),
+        ownerClientId: zoneOwnerClientId.trim() || undefined,
+        ownerName: zoneOwnerName.trim() || undefined,
       });
       setActionStatus(`Success! Locked canvas zone "${zoneName}".`);
     } catch (err: unknown) {
@@ -525,6 +532,28 @@ export function AdminPanelModal({
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">
+                    Assign to Client ID (optional — future: user_id)
+                  </label>
+                  <input
+                    type="text"
+                    value={zoneOwnerClientId}
+                    onChange={(e) => setZoneOwnerClientId(e.target.value)}
+                    placeholder="clientId this zone belongs to — leave blank for admin-only"
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">Owner Display Name (optional)</label>
+                  <input
+                    type="text"
+                    value={zoneOwnerName}
+                    onChange={(e) => setZoneOwnerName(e.target.value)}
+                    placeholder="shown on hover, e.g. PixelWizard99"
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={handleCreateZone}
@@ -549,6 +578,11 @@ export function AdminPanelModal({
                           <span className="text-[9px] text-ink-dim">
                             ({Math.round(z.minX)}, {Math.round(z.minY)}) → ({Math.round(z.maxX)}, {Math.round(z.maxY)})
                           </span>
+                          {(z.ownerName || z.ownerClientId) && (
+                            <span className="text-[9px] text-accent-green">
+                              owned by {z.ownerName || z.ownerClientId}
+                            </span>
+                          )}
                         </div>
                         <button
                           type="button"

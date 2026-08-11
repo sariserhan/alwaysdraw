@@ -214,6 +214,8 @@ export const createProtectedZone = mutation({
     minY: v.number(),
     maxX: v.number(),
     maxY: v.number(),
+    ownerClientId: v.optional(v.string()),
+    ownerName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
@@ -225,6 +227,8 @@ export const createProtectedZone = mutation({
       maxX: Math.max(args.minX, args.maxX),
       maxY: Math.max(args.minY, args.maxY),
       createdAt: Date.now(),
+      ownerClientId: args.ownerClientId || undefined,
+      ownerName: args.ownerName || undefined,
     });
 
     return { success: true, zoneId };
@@ -247,12 +251,21 @@ export const deleteProtectedZone = mutation({
 });
 
 /**
- * Query: Get all active protected canvas zones.
+ * Query: Get all active protected canvas zones. `ownerClientId` is the exact
+ * spoofable value (see lib/identity.ts) that exempts a client from a zone's
+ * draw block, so it's stripped for non-admin callers — otherwise it'd be
+ * readable straight off the wire regardless of what the UI renders, handing
+ * out the bypass to anyone with devtools open.
  */
 export const getProtectedZones = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("protectedZones").collect();
+  args: { passcode: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const zones = await ctx.db.query("protectedZones").collect();
+    const isAdmin = args.passcode !== undefined && isPasscodeValid(args.passcode);
+    return zones.map((zone) => ({
+      ...zone,
+      ownerClientId: isAdmin ? zone.ownerClientId : undefined,
+    }));
   },
 });
 
