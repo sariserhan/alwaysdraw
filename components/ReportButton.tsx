@@ -44,6 +44,7 @@ export function ReportButton({
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
@@ -105,6 +106,7 @@ export function ReportButton({
     if (!isOpen) {
       positionPopover();
       setSubmitted(false);
+      setSubmitError(false);
       setReason("");
     }
     setIsOpen((prev) => !prev);
@@ -125,6 +127,7 @@ export function ReportButton({
     if (isSubmitting) return;
     try {
       setIsSubmitting(true);
+      setSubmitError(false);
       await createReport({
         reporterId: clientId,
         targetType: "area",
@@ -138,6 +141,7 @@ export function ReportButton({
       if (pendingRegion) onRegionConsumed();
     } catch (err) {
       console.error("Failed to submit report:", err);
+      setSubmitError(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -187,6 +191,11 @@ export function ReportButton({
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+              {submitError && (
+                <p className="rounded-sm border border-accent-crimson/60 bg-accent-crimson/10 px-2 py-1.5 font-mono text-[10px] text-accent-crimson">
+                  report didn&apos;t send — try again
+                </p>
+              )}
               {pendingRegion ? (
                 <div className="flex items-center justify-between rounded-sm border border-accent-crimson/60 bg-accent-crimson/10 px-2 py-1.5">
                   <span className="font-mono text-[10px] text-ink">

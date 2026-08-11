@@ -320,7 +320,11 @@ export function GlobalCanvas() {
 
   const handleDeleteProtectedZone = useCallback(async (zoneId: string) => {
     if (!adminPasscode) return;
-    await deleteProtectedZone({ passcode: adminPasscode, zoneId: zoneId as Id<"protectedZones"> });
+    try {
+      await deleteProtectedZone({ passcode: adminPasscode, zoneId: zoneId as Id<"protectedZones"> });
+    } catch {
+      setSubmitError("couldn't unlock that zone — try again");
+    }
   }, [adminPasscode, deleteProtectedZone]);
 
   const handleAuthenticateAdmin = useCallback(async (passcode: string): Promise<boolean> => {

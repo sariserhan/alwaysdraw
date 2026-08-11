@@ -22,6 +22,7 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
   const [isOpen, setIsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<Id<"bookmarks"> | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const entries = useQuery(api.bookmarks.listGallery, isOpen ? { clientId, limit: 30 } : "skip");
   const comments = useQuery(
@@ -39,6 +40,12 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!actionError) return;
+    const id = setTimeout(() => setActionError(null), 4000);
+    return () => clearTimeout(id);
+  }, [actionError]);
+
   const handleTeleport = (entry: NonNullable<typeof entries>[number]) => {
     onTeleport({ x: entry.x, y: entry.y }, entry.zoom, entry.title);
     setIsOpen(false);
@@ -53,8 +60,16 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
     e.preventDefault();
     const text = commentDraft.trim();
     if (!text) return;
-    addComment({ bookmarkId, clientId, username, text }).catch(() => {});
+    addComment({ bookmarkId, clientId, username, text }).catch(() => {
+      setActionError("comment didn't post — try again");
+    });
     setCommentDraft("");
+  };
+
+  const handleToggleVote = (bookmarkId: Id<"bookmarks">) => {
+    toggleVote({ bookmarkId, clientId }).catch(() => {
+      setActionError("vote didn't go through — try again");
+    });
   };
 
   const [hero, ...rest] = entries ?? [];
@@ -93,6 +108,12 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
             </button>
           </div>
 
+          {actionError && (
+            <p className="mt-2 rounded border border-accent-crimson/60 bg-accent-crimson/10 px-2.5 py-1.5 font-mono text-[11px] text-accent-crimson">
+              {actionError}
+            </p>
+          )}
+
           <div className="mt-4 max-h-[65vh] space-y-3 overflow-y-auto pr-1 font-mono">
             {entries === undefined && (
               <p className="py-8 text-center text-xs text-ink-dim">{t(locale, "loading")}</p>
@@ -115,7 +136,7 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
                   commentDraft={commentDraft}
                   onCommentDraftChange={setCommentDraft}
                   onTeleport={() => handleTeleport(hero)}
-                  onToggleVote={() => toggleVote({ bookmarkId: hero._id, clientId }).catch(() => {})}
+                  onToggleVote={() => handleToggleVote(hero._id)}
                   onToggleExpand={() => handleToggleExpand(hero._id)}
                   onSubmitComment={(e) => handleSubmitComment(e, hero._id)}
                 />
@@ -133,7 +154,7 @@ export function CommunityGalleryModal({ clientId, username, onTeleport, locale, 
                   commentDraft={commentDraft}
                   onCommentDraftChange={setCommentDraft}
                   onTeleport={() => handleTeleport(entry)}
-                  onToggleVote={() => toggleVote({ bookmarkId: entry._id, clientId }).catch(() => {})}
+                  onToggleVote={() => handleToggleVote(entry._id)}
                   onToggleExpand={() => handleToggleExpand(entry._id)}
                   onSubmitComment={(e) => handleSubmitComment(e, entry._id)}
                 />
