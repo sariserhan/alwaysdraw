@@ -70,9 +70,10 @@ export function MiniMap({
 
   return (
     <div
-      aria-label="wall overview — click to jump"
+      aria-label="wall overview — click, or press Enter, to jump to the center"
       role="button"
-      className="pointer-events-auto absolute right-3 z-20 overflow-hidden rounded-sm border-2 border-chrome-border shadow-[0_8px_20px_rgba(0,0,0,0.5)] sm:right-4"
+      tabIndex={0}
+      className="pointer-events-auto absolute right-3 z-20 overflow-hidden rounded-sm border-2 border-chrome-border shadow-[0_8px_20px_rgba(0,0,0,0.5)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-yellow sm:right-4"
       style={{ width: MINI_MAP_SIZE_PX, height: MINI_MAP_SIZE_PX, top }}
       onPointerDown={(e) => {
         (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
@@ -81,6 +82,14 @@ export function MiniMap({
       onPointerMove={(e) => {
         if (e.buttons !== 1) return;
         jumpFromPointer(e);
+      }}
+      onKeyDown={(e) => {
+        // No click position to derive from on a keyboard activation — jump
+        // to the center of the world, the same reasonable default any
+        // "jump" button with a single action would have.
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        onJump(0.5, 0.5);
       }}
     >
       <canvas ref={canvasRef} className="block h-full w-full cursor-pointer" />

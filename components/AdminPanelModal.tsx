@@ -97,12 +97,47 @@ export function AdminPanelModal({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Focus trap: this is a non-modal-positioned <aside> (not the only
+      // thing on screen — the canvas stays interactive behind it), so the
+      // browser won't do this for us the way a native <dialog> would.
+      // Without it, Tab from the last field walks focus out onto canvas
+      // tools a keyboard user can no longer see they've left the panel for.
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+    // Initial focus: the passcode field pre-auth (the one thing a keyboard
+    // user actually needs to reach first), otherwise the panel itself so
+    // Tab from here enters the panel's own controls rather than leaving
+    // focus stranded wherever it was on the page behind it.
+    const target = authenticated
+      ? modalRef.current
+      : (modalRef.current.querySelector<HTMLElement>("#admin-passcode") ?? modalRef.current);
+    target.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, authenticated]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,7 +314,9 @@ export function AdminPanelModal({
     <aside
       ref={modalRef}
       role="dialog"
+      aria-modal="true"
       aria-label="Admin Control Center"
+      tabIndex={-1}
       className="pointer-events-auto fixed left-4 top-28 bottom-20 z-40 flex w-96 sm:w-[440px] max-w-[calc(100vw-2rem)] flex-col gap-4 overflow-y-auto rounded-sm border-2 border-rust bg-chrome-bg/95 p-4 text-ink shadow-[0_16px_48px_rgba(0,0,0,0.85)] backdrop-blur-md"
     >
       <ChromeRivet className="top-2 left-2" />

@@ -192,11 +192,19 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
               bookmarks.map((bm) => (
                 <div
                   key={bm._id}
+                  role="menuitem"
+                  tabIndex={0}
                   onClick={() => {
                     onTeleport({ x: bm.x, y: bm.y }, bm.zoom, bm.title);
                     setIsOpen(false);
                   }}
-                  className="flex cursor-pointer items-center justify-between gap-2 rounded border border-chrome-border bg-chrome-bg-raised/80 px-2.5 py-1.5 transition-colors hover:border-rust hover:bg-rust/20"
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    onTeleport({ x: bm.x, y: bm.y }, bm.zoom, bm.title);
+                    setIsOpen(false);
+                  }}
+                  className="flex cursor-pointer items-center justify-between gap-2 rounded border border-chrome-border bg-chrome-bg-raised/80 px-2.5 py-1.5 transition-colors hover:border-rust hover:bg-rust/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-yellow"
                 >
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate font-mono text-xs font-bold text-ink">
