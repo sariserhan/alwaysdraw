@@ -1,11 +1,38 @@
 import { ImageResponse } from "next/og";
 
+// Best-effort only — in-memory state isn't durable across Workers
+// isolates/regions — but this route otherwise had zero throttling despite
+// being unauthenticated and CPU-bound (a Satori render per request), the
+// only endpoint in the app with no rate limit at all. Raises the bar for
+// casual abuse rather than being airtight, matching how this app already
+// treats e.g. the admin-passcode limiter.
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+let windowStartedAt = 0;
+let windowCount = 0;
+
+function isRateLimited(): boolean {
+  const now = Date.now();
+  if (now - windowStartedAt >= RATE_LIMIT_WINDOW_MS) {
+    windowStartedAt = now;
+    windowCount = 1;
+    return false;
+  }
+  windowCount += 1;
+  return windowCount > RATE_LIMIT_MAX_REQUESTS;
+}
+
+const MAX_PARAM_LENGTH = 20;
+
 export async function GET(request: Request) {
+  if (isRateLimited()) {
+    return new Response("Too many requests", { status: 429 });
+  }
   try {
     const { searchParams } = new URL(request.url);
-    const x = searchParams.get("x") ?? "25000";
-    const y = searchParams.get("y") ?? "25000";
-    const z = searchParams.get("z") ?? "1.0";
+    const x = (searchParams.get("x") ?? "25000").slice(0, MAX_PARAM_LENGTH);
+    const y = (searchParams.get("y") ?? "25000").slice(0, MAX_PARAM_LENGTH);
+    const z = (searchParams.get("z") ?? "1.0").slice(0, MAX_PARAM_LENGTH);
 
     return new ImageResponse(
       (

@@ -305,6 +305,17 @@ export function GlobalCanvas() {
     return "";
   });
   const [imagePlacement, setImagePlacement] = useState<AdminImagePlacement | null>(null);
+  // AdminPanelModal creates this blob URL and hands it off via
+  // onStartImagePlacement — nothing ever revoked it, so every image an
+  // admin selected (including ones cancelled before stamping) permanently
+  // pinned that blob in memory for the tab's lifetime. Resizing/
+  // repositioning the placement keeps the same url, so this only actually
+  // revokes on a genuine new selection, a clear, or unmount.
+  useEffect(() => {
+    const url = imagePlacement?.url;
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [imagePlacement?.url]);
   const [isStampingImage, setIsStampingImage] = useState(false);
   const [textInputPos, setTextInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
   const [textInputText, setTextInputText] = useState("");

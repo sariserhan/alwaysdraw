@@ -2,7 +2,14 @@ import { ConvexError, v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { consumeRateLimit } from "./abuse";
-import { ADMIN_VERIFY_GLOBAL_WINDOW, MAX_PROTECTED_ZONES, RATE_LIMIT_WINDOW_MS } from "./constants";
+import {
+  ADMIN_VERIFY_GLOBAL_WINDOW,
+  MAX_PROTECTED_ZONES,
+  RATE_LIMIT_WINDOW_MS,
+  MAX_BROADCAST_MESSAGE_LENGTH,
+  MAX_ZONE_NAME_LENGTH,
+  MAX_CLIENT_ID_LENGTH,
+} from "./constants";
 import { claimNextSequence } from "./canvasMetadata";
 
 // Convex caps reads at 4096 per function execution. Scanning the whole
@@ -12,12 +19,28 @@ import { claimNextSequence } from "./canvasMetadata";
 // components/AdminPanelModal.tsx's handleWipeArea).
 const PURGE_BATCH_SIZE = 500;
 
+// `===` short-circuits on the first mismatched character, so how long a
+// guess takes to reject leaks how many leading characters it got right —
+// a real (if slow) side channel stacked on top of the deliberately tight
+// admin:verify:global rate limit below. Always walks the full length
+// instead. Doesn't protect the length itself, same as every standard
+// timing-safe-equal implementation (Node's crypto.timingSafeEqual requires
+// equal-length inputs for the same reason) — length isn't the secret here.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export function isPasscodeValid(passcode: string): boolean {
   const secretKey = process.env.ADMIN_SECRET_KEY;
   // No fallback to a hardcoded default — an unconfigured deployment should
   // have no working admin passcode, not a guessable one.
   if (!secretKey) return false;
-  return passcode === secretKey;
+  return timingSafeEqual(passcode, secretKey);
 }
 
 // Every admin mutation routes through here, not just the pre-flight check —
@@ -144,6 +167,9 @@ export const publishBroadcast = mutation({
   },
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
+    if (args.message.length === 0 || args.message.length > MAX_BROADCAST_MESSAGE_LENGTH) {
+      throw new Error(`message must be between 1 and ${MAX_BROADCAST_MESSAGE_LENGTH} characters`);
+    }
 
     const activeList = await ctx.db
       .query("broadcasts")
@@ -219,6 +245,15 @@ export const createProtectedZone = mutation({
   },
   handler: async (ctx, args) => {
     await verifyAdminPasscode(ctx, args.passcode);
+    if (args.name.length === 0 || args.name.length > MAX_ZONE_NAME_LENGTH) {
+      throw new Error(`name must be between 1 and ${MAX_ZONE_NAME_LENGTH} characters`);
+    }
+    if (args.ownerName !== undefined && args.ownerName.length > MAX_ZONE_NAME_LENGTH) {
+      throw new Error(`ownerName must not exceed ${MAX_ZONE_NAME_LENGTH} characters`);
+    }
+    if (args.ownerClientId !== undefined && args.ownerClientId.length > MAX_CLIENT_ID_LENGTH) {
+      throw new Error(`ownerClientId must not exceed ${MAX_CLIENT_ID_LENGTH} characters`);
+    }
 
     const existingZones = await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES);
     if (existingZones.length >= MAX_PROTECTED_ZONES) {

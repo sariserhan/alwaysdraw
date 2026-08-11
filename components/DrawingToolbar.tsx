@@ -614,8 +614,6 @@ export function DrawingToolbar({
   const [activePalette, setActivePalette] = useState<Palette>(PALETTE_PRESETS[0]);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeBrushLabel = t(locale ?? "en", getBrushTypeTranslationKey(brushType));
   const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 

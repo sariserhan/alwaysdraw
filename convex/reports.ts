@@ -94,6 +94,15 @@ export const create = mutation({
         args.y > WORLD_HEIGHT
       ) {
         throw new Error(`an "area" report needs x/y within [0, ${WORLD_WIDTH}]/[0, ${WORLD_HEIGHT}]`);
+      } else if (
+        args.zoom !== undefined &&
+        (!Number.isFinite(args.zoom) || args.zoom < 0.1 || args.zoom > 10)
+      ) {
+        // Same [0.1, 10] bound bookmarks.create already uses — an admin
+        // acting on this report teleports the camera straight to this
+        // zoom (AdminPanelModal.tsx's handleTeleportToReport), so a
+        // NaN/Infinity/zero/negative value here would break that jump.
+        throw new Error("zoom must be between 0.1 and 10");
       }
     } else {
       if (args.commentId === undefined) {

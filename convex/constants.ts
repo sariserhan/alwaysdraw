@@ -58,6 +58,12 @@ export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
 // (clientId is self-reported), so this is a tight global-only cap — it
 // won't stop a determined attacker, but it makes casual brute-forcing slow.
 export const ADMIN_VERIFY_GLOBAL_WINDOW = 20;
+// These two are admin-gated (need the passcode), so exploitation requires a
+// compromised secret — still worth a cap so a compromised passcode doesn't
+// also get an unbounded blast radius the way every other user-facing text
+// field in this app already avoids.
+export const MAX_BROADCAST_MESSAGE_LENGTH = 500;
+export const MAX_ZONE_NAME_LENGTH = 100;
 
 export const MAX_REPORT_REASON_LENGTH = 280;
 export const REPORTS_PER_CLIENT_WINDOW = 5;
