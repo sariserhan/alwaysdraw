@@ -146,10 +146,16 @@ export default defineSchema({
   contentReports: defineTable({
     reporterId: v.string(),
     targetType: v.union(v.literal("area"), v.literal("comment")),
-    // "area" reports capture a camera position so an admin can teleport in.
+    // "area" reports capture either a single camera position (quick "report
+    // what I'm looking at") or a drag-marked rectangle (precise "report
+    // exactly this") — minX/minY/maxX/maxY are set only for the latter.
     x: v.optional(v.number()),
     y: v.optional(v.number()),
     zoom: v.optional(v.number()),
+    minX: v.optional(v.number()),
+    minY: v.optional(v.number()),
+    maxX: v.optional(v.number()),
+    maxY: v.optional(v.number()),
     // "comment" reports point at a specific canvasComments row.
     commentId: v.optional(v.id("canvasComments")),
     reason: v.optional(v.string()),

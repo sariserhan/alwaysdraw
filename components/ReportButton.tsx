@@ -6,6 +6,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
+import type { WorldRect } from "@/lib/types";
 import { t, type Locale } from "@/lib/i18n";
 
 export interface ReportButtonProps {
@@ -13,12 +14,31 @@ export interface ReportButtonProps {
   clientId: string;
   locale: Locale;
   iconOnly?: boolean;
+  /** Set once the user finishes dragging a rectangle via onStartRegionSelect
+   * — a report submitted while this is set uses the marked rectangle
+   * instead of the current camera view. */
+  pendingRegion: WorldRect | null;
+  /** Switches the canvas into "drag to mark an area" mode; this component
+   * closes its own popup so the drag isn't blocked by it. */
+  onStartRegionSelect: () => void;
+  /** Called once pendingRegion has been submitted or explicitly cleared, so
+   * the parent can null it back out. */
+  onRegionConsumed: () => void;
 }
 
-/** Lets any user flag drawn content in their current view for an admin to
- * review — the only user-facing moderation signal in the app; everything
- * else routes through an admin acting directly on strokes/comments. */
-export function ReportButton({ currentCamera, clientId, locale, iconOnly = false }: ReportButtonProps) {
+/** Lets any user flag drawn content — either their current view or a
+ * precisely drag-marked rectangle — for an admin to review. The only
+ * user-facing moderation signal in the app; everything else routes through
+ * an admin acting directly on strokes/comments. */
+export function ReportButton({
+  currentCamera,
+  clientId,
+  locale,
+  iconOnly = false,
+  pendingRegion,
+  onStartRegionSelect,
+  onRegionConsumed,
+}: ReportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [reason, setReason] = useState("");
@@ -33,6 +53,28 @@ export function ReportButton({ currentCamera, clientId, locale, iconOnly = false
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const positionPopover = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    if (window.innerWidth >= 1360) {
+      const top = Math.max(12, Math.min(rect.top, window.innerHeight - 320));
+      const right = window.innerWidth - rect.left + 12;
+      setCoords({ top, right });
+    } else {
+      setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
+    }
+  };
+
+  // A region drag just finished — reopen (or stay open) showing it, even
+  // though this component itself closed its popup to start the drag.
+  useEffect(() => {
+    if (!pendingRegion) return;
+    positionPopover();
+    setSubmitted(false);
+    setIsOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRegion]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,19 +102,22 @@ export function ReportButton({ currentCamera, clientId, locale, iconOnly = false
   }, [isOpen]);
 
   const toggleOpen = () => {
-    if (!isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      if (window.innerWidth >= 1360) {
-        const top = Math.max(12, Math.min(rect.top, window.innerHeight - 260));
-        const right = window.innerWidth - rect.left + 12;
-        setCoords({ top, right });
-      } else {
-        setCoords({ top: 80, right: Math.max(12, window.innerWidth - rect.right) });
-      }
+    if (!isOpen) {
+      positionPopover();
       setSubmitted(false);
       setReason("");
     }
     setIsOpen((prev) => !prev);
+  };
+
+  const handleMarkArea = () => {
+    setIsOpen(false);
+    onStartRegionSelect();
+  };
+
+  const handleClearRegion = () => {
+    onRegionConsumed();
+    setReason("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,13 +128,14 @@ export function ReportButton({ currentCamera, clientId, locale, iconOnly = false
       await createReport({
         reporterId: clientId,
         targetType: "area",
-        x: currentCamera.x,
-        y: currentCamera.y,
-        zoom: currentCamera.zoom,
+        ...(pendingRegion
+          ? { minX: pendingRegion.minX, minY: pendingRegion.minY, maxX: pendingRegion.maxX, maxY: pendingRegion.maxY }
+          : { x: currentCamera.x, y: currentCamera.y, zoom: currentCamera.zoom }),
         reason: reason.trim() || undefined,
       });
       setSubmitted(true);
       setReason("");
+      if (pendingRegion) onRegionConsumed();
     } catch (err) {
       console.error("Failed to submit report:", err);
     } finally {
@@ -141,7 +187,31 @@ export function ReportButton({ currentCamera, clientId, locale, iconOnly = false
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-              <p className="font-mono text-[10px] text-ink-dim">{t(locale, "report_area_desc")}</p>
+              {pendingRegion ? (
+                <div className="flex items-center justify-between rounded-sm border border-accent-crimson/60 bg-accent-crimson/10 px-2 py-1.5">
+                  <span className="font-mono text-[10px] text-ink">
+                    🚩 {t(locale, "report_region_selected")}: ({Math.round(pendingRegion.minX)}, {Math.round(pendingRegion.minY)}) → ({Math.round(pendingRegion.maxX)}, {Math.round(pendingRegion.maxY)})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearRegion}
+                    className="shrink-0 font-mono text-[10px] text-ink-dim underline hover:text-ink"
+                  >
+                    {t(locale, "report_region_clear")}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="font-mono text-[10px] text-ink-dim">{t(locale, "report_area_desc")}</p>
+                  <button
+                    type="button"
+                    onClick={handleMarkArea}
+                    className="rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1.5 font-mono text-[10px] font-bold text-ink transition-colors hover:border-rust hover:text-accent-yellow"
+                  >
+                    ⬚ {t(locale, "report_mark_area").toUpperCase()}
+                  </button>
+                </>
+              )}
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -155,7 +225,7 @@ export function ReportButton({ currentCamera, clientId, locale, iconOnly = false
                 disabled={isSubmitting}
                 className="rounded-sm border border-rust bg-rust/30 px-3 py-1.5 font-mono text-xs font-bold text-ink transition-colors hover:bg-rust hover:text-white disabled:opacity-40"
               >
-                {t(locale, "report_submit").toUpperCase()}
+                {(pendingRegion ? t(locale, "report_submit") : t(locale, "report_current_view")).toUpperCase()}
               </button>
             </form>
           )}

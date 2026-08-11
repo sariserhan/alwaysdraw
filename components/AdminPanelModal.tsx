@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { WorldRect } from "@/lib/types";
 import { ChromeRivet } from "./ChromeRivet";
 
 export interface AdminPanelModalProps {
@@ -15,6 +16,7 @@ export interface AdminPanelModalProps {
   onStartImagePlacement: (file: File, url: string, aspectRatio: number) => void;
   onPurgeAllStampedImages: () => Promise<void>;
   onTeleport?: (x: number, y: number, zoom: number) => void;
+  onTeleportToRegion?: (rect: WorldRect) => void;
 }
 
 export function AdminPanelModal({
@@ -26,6 +28,7 @@ export function AdminPanelModal({
   onStartImagePlacement,
   onPurgeAllStampedImages,
   onTeleport,
+  onTeleportToRegion,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -220,6 +223,11 @@ export function AdminPanelModal({
 
   const handleTeleportToReport = (x: number, y: number, zoom: number) => {
     onTeleport?.(x, y, zoom);
+    onClose();
+  };
+
+  const handleTeleportToReportRegion = (rect: WorldRect) => {
+    onTeleportToRegion?.(rect);
     onClose();
   };
 
@@ -635,19 +643,40 @@ export function AdminPanelModal({
                       </p>
                     )}
 
+                    {r.targetType === "area" &&
+                      r.minX !== undefined && r.minY !== undefined && r.maxX !== undefined && r.maxY !== undefined && (
+                        <p className="text-[10px] text-ink-dim">
+                          🚩 Marked area: ({Math.round(r.minX)}, {Math.round(r.minY)}) → ({Math.round(r.maxX)}, {Math.round(r.maxY)})
+                        </p>
+                    )}
+
                     {r.reason && (
                       <p className="text-[10px] text-ink-dim">Reason: {r.reason}</p>
                     )}
 
                     <div className="flex gap-2">
-                      {r.targetType === "area" && r.x !== undefined && r.y !== undefined && (
-                        <button
-                          type="button"
-                          onClick={() => handleTeleportToReport(r.x!, r.y!, r.zoom ?? 1)}
-                          className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink hover:border-rust hover:text-accent-yellow"
-                        >
-                          📍 TELEPORT
-                        </button>
+                      {r.targetType === "area" &&
+                        r.minX !== undefined && r.minY !== undefined && r.maxX !== undefined && r.maxY !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleTeleportToReportRegion({ minX: r.minX!, minY: r.minY!, maxX: r.maxX!, maxY: r.maxY! })
+                            }
+                            className="rounded border border-accent-crimson bg-accent-crimson/20 px-2 py-1 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent"
+                          >
+                            📍 TELEPORT TO MARKED AREA
+                          </button>
+                      )}
+                      {r.targetType === "area" &&
+                        (r.minX === undefined || r.minY === undefined || r.maxX === undefined || r.maxY === undefined) &&
+                        r.x !== undefined && r.y !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() => handleTeleportToReport(r.x!, r.y!, r.zoom ?? 1)}
+                            className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink hover:border-rust hover:text-accent-yellow"
+                          >
+                            📍 TELEPORT
+                          </button>
                       )}
                       {r.targetType === "comment" && r.commentId && r.commentText !== undefined && (
                         <button

@@ -20,6 +20,10 @@ const reportReturnFields = v.object({
   x: v.optional(v.number()),
   y: v.optional(v.number()),
   zoom: v.optional(v.number()),
+  minX: v.optional(v.number()),
+  minY: v.optional(v.number()),
+  maxX: v.optional(v.number()),
+  maxY: v.optional(v.number()),
   commentId: v.optional(v.id("canvasComments")),
   reason: v.optional(v.string()),
   status: v.union(v.literal("open"), v.literal("reviewed"), v.literal("dismissed")),
@@ -31,6 +35,10 @@ const reportReturnFields = v.object({
   commentAuthor: v.optional(v.string()),
 });
 
+function isFiniteWorldCoord(n: number): boolean {
+  return Number.isFinite(n) && n >= 0 && n <= Math.max(WORLD_WIDTH, WORLD_HEIGHT);
+}
+
 export const create = mutation({
   args: {
     reporterId: v.string(),
@@ -38,6 +46,12 @@ export const create = mutation({
     x: v.optional(v.number()),
     y: v.optional(v.number()),
     zoom: v.optional(v.number()),
+    // A drag-marked rectangle takes precedence over x/y/zoom when both are
+    // present — see components/ReportButton.tsx.
+    minX: v.optional(v.number()),
+    minY: v.optional(v.number()),
+    maxX: v.optional(v.number()),
+    maxY: v.optional(v.number()),
     commentId: v.optional(v.id("canvasComments")),
     reason: v.optional(v.string()),
   },
@@ -50,8 +64,26 @@ export const create = mutation({
       throw new Error(`reason must not exceed ${MAX_REPORT_REASON_LENGTH} characters`);
     }
 
+    const hasRect =
+      args.minX !== undefined || args.minY !== undefined || args.maxX !== undefined || args.maxY !== undefined;
+
     if (args.targetType === "area") {
-      if (
+      if (hasRect) {
+        if (
+          args.minX === undefined ||
+          args.minY === undefined ||
+          args.maxX === undefined ||
+          args.maxY === undefined ||
+          !isFiniteWorldCoord(args.minX) ||
+          !isFiniteWorldCoord(args.minY) ||
+          !isFiniteWorldCoord(args.maxX) ||
+          !isFiniteWorldCoord(args.maxY) ||
+          args.minX >= args.maxX ||
+          args.minY >= args.maxY
+        ) {
+          throw new Error("a marked-area report needs a valid minX/minY/maxX/maxY rectangle");
+        }
+      } else if (
         args.x === undefined ||
         args.y === undefined ||
         !Number.isFinite(args.x) ||
@@ -87,6 +119,10 @@ export const create = mutation({
       x: args.x,
       y: args.y,
       zoom: args.zoom,
+      minX: args.minX,
+      minY: args.minY,
+      maxX: args.maxX,
+      maxY: args.maxY,
       commentId: args.commentId,
       reason: args.reason?.trim() || undefined,
       status: "open",

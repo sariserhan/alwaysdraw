@@ -47,4 +47,5 @@ export type Tool =
   | "eyedropper"
   | "text"
   | "comment"
-  | "region";
+  | "region"
+  | "reportRegion";

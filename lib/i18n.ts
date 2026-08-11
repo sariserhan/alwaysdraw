@@ -124,6 +124,11 @@ export const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     report_submitted: "Reported — thanks",
     report_comment: "Report",
     report_comment_submitted: "Reported",
+    report_mark_area: "Mark Rectangular Area",
+    report_current_view: "Report Current View",
+    report_region_select_hint: "Drag on the canvas to mark the area you're reporting",
+    report_region_selected: "Area marked",
+    report_region_clear: "Clear selection",
   },
   fr: {
     brush: "Pinceau",

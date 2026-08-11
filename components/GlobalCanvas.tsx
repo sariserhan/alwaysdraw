@@ -129,6 +129,15 @@ export function GlobalCanvas() {
   const shapePreviewRef = useRef<LocalStroke | null>(null);
   const regionDragRef = useRef<{ start: Point; current: Point } | null>(null);
   const [replayRegion, setReplayRegion] = useState<WorldRect | null>(null);
+  // Drag-marked rectangle for the "report a specific area" flow — distinct
+  // from regionDragRef/replayRegion (Time Travel/Export scoping) since both
+  // can be mid-use independently. pendingReportRegion is the just-finished
+  // selection waiting to be submitted or cleared from ReportButton's panel;
+  // highlightedReportRegion is what an admin sees after clicking "teleport"
+  // on an already-submitted rect-based report — never shown to other users.
+  const reportRegionDragRef = useRef<{ start: Point; current: Point } | null>(null);
+  const [pendingReportRegion, setPendingReportRegion] = useState<WorldRect | null>(null);
+  const [highlightedReportRegion, setHighlightedReportRegion] = useState<WorldRect | null>(null);
   const isStencilDraggingRef = useRef(false);
   const lastStencilWorldRef = useRef<Point | null>(null);
   const laserTrailsRef = useRef<LaserTrail[]>([]);
@@ -497,7 +506,39 @@ export function GlobalCanvas() {
       ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
       ctx.restore();
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion]);
+
+    // "Report a specific area" rectangle — the live drag while marking it,
+    // then the confirmed selection while the report form is still open. This
+    // is local-only, never synced or shown to other users.
+    const liveReportRegionDrag = reportRegionDragRef.current;
+    const reportRegionToDraw = liveReportRegionDrag
+      ? normalizeRect(liveReportRegionDrag.start, liveReportRegionDrag.current)
+      : pendingReportRegion;
+    if (reportRegionToDraw) {
+      const topLeft = worldToScreen(reportRegionToDraw.minX, reportRegionToDraw.minY, cameraRef.current, width, height);
+      const bottomRight = worldToScreen(reportRegionToDraw.maxX, reportRegionToDraw.maxY, cameraRef.current, width, height);
+      ctx.save();
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.restore();
+    }
+
+    // Admin-only: the marked rectangle of a report just jumped to from the
+    // Reports queue — never shown to anyone but the admin who clicked it,
+    // and never persisted (cleared a few seconds after teleporting in).
+    if (highlightedReportRegion) {
+      const topLeft = worldToScreen(highlightedReportRegion.minX, highlightedReportRegion.minY, cameraRef.current, width, height);
+      const bottomRight = worldToScreen(highlightedReportRegion.maxX, highlightedReportRegion.maxY, cameraRef.current, width, height);
+      ctx.save();
+      ctx.strokeStyle = "#c0392b";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 5]);
+      ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      ctx.restore();
+    }
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1491,6 +1532,11 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "reportRegion") {
+        reportRegionDragRef.current = { start: worldPt, current: worldPt };
+        return;
+      }
+
       if (tool === "stencil") {
         isStencilDraggingRef.current = true;
         lastStencilWorldRef.current = worldPt;
@@ -1657,6 +1703,14 @@ export function GlobalCanvas() {
         return;
       }
 
+      if (tool === "reportRegion") {
+        const drag = reportRegionDragRef.current;
+        if (!drag) return;
+        drag.current = worldPt;
+        scheduleRedraw({ strokes: true });
+        return;
+      }
+
       if (tool === "stencil") {
         if (isStencilDraggingRef.current && lastStencilWorldRef.current) {
           const minSpacing = Math.max(30, brushWidth * 3);
@@ -1733,6 +1787,16 @@ export function GlobalCanvas() {
         scheduleRedraw({ strokes: true });
       }
 
+      if (tool === "reportRegion") {
+        const drag = reportRegionDragRef.current;
+        reportRegionDragRef.current = null;
+        if (drag && distance(drag.start, drag.current) >= MIN_REGION_DRAG) {
+          setPendingReportRegion(normalizeRect(drag.start, drag.current));
+        }
+        setTool("brush");
+        scheduleRedraw({ strokes: true });
+      }
+
       if (tool === "ruler") {
         rulerDragRef.current = null;
         updateRuler();
@@ -1787,6 +1851,18 @@ export function GlobalCanvas() {
   const handleClearRegion = useCallback(() => {
     setReplayRegion(null);
   }, []);
+
+  // Admin-only: jump to and highlight a reported rectangle. The highlight
+  // is local to this admin's own screen and clears itself — never synced,
+  // never shown to other users.
+  const handleTeleportToReportedRegion = useCallback((rect: WorldRect) => {
+    const fitted = fitCameraToRegion(rect, viewportRef.current.width, viewportRef.current.height);
+    cameraRef.current = fitted;
+    setCameraSnapshot(fitted);
+    setHighlightedReportRegion(rect);
+    scheduleRedraw({ world: true, strokes: true });
+    setTimeout(() => setHighlightedReportRegion(null), 6000);
+  }, [scheduleRedraw]);
 
   const handleToolChange = useCallback((nextTool: Tool) => {
     setTool(nextTool);
@@ -1981,7 +2057,15 @@ export function GlobalCanvas() {
               locale={locale}
               iconOnly
             />
-            <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} iconOnly />
+            <ReportButton
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              locale={locale}
+              iconOnly
+              pendingRegion={pendingReportRegion}
+              onStartRegionSelect={() => setTool('reportRegion')}
+              onRegionConsumed={() => setPendingReportRegion(null)}
+            />
 
             <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
 
@@ -2099,7 +2183,14 @@ export function GlobalCanvas() {
               onTeleport={handleBookmarkTeleport}
               locale={locale}
             />
-            <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} />
+            <ReportButton
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              locale={locale}
+              pendingRegion={pendingReportRegion}
+              onStartRegionSelect={() => setTool('reportRegion')}
+              onRegionConsumed={() => setPendingReportRegion(null)}
+            />
           </div>
 
           <div className="border-t border-chrome-border/60" />
@@ -2327,7 +2418,14 @@ export function GlobalCanvas() {
                 onTeleport={handleBookmarkTeleport}
                 locale={locale}
               />
-              <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} />
+              <ReportButton
+              currentCamera={cameraSnapshot}
+              clientId={clientId}
+              locale={locale}
+              pendingRegion={pendingReportRegion}
+              onStartRegionSelect={() => setTool('reportRegion')}
+              onRegionConsumed={() => setPendingReportRegion(null)}
+            />
             </div>
 
             <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
@@ -2411,6 +2509,12 @@ export function GlobalCanvas() {
       {tool === "region" && (
         <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border border-accent-yellow bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-yellow shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
           ⬚ {t(locale, "region_select_hint")}
+        </div>
+      )}
+
+      {tool === "reportRegion" && (
+        <div className="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-sm border border-accent-crimson bg-chrome-bg/95 px-3 py-1.5 font-mono text-xs font-bold text-accent-crimson shadow-[0_4px_16px_rgba(0,0,0,0.85)] backdrop-blur-md">
+          🚩 {t(locale, "report_region_select_hint")}
         </div>
       )}
 
@@ -2507,6 +2611,7 @@ export function GlobalCanvas() {
           onStartImagePlacement={handleStartImagePlacement}
           onPurgeAllStampedImages={handlePurgeAllStampedImages}
           onTeleport={(x, y, zoom) => handleBookmarkTeleport({ x, y }, zoom, "Reported Area")}
+          onTeleportToRegion={handleTeleportToReportedRegion}
         />
       </nav>
 
