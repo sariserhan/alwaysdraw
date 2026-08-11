@@ -1220,6 +1220,7 @@ export function GlobalCanvas() {
       const myTrail = laserTrailsRef.current.find((t) => !t.id.startsWith("remote-"));
       heartbeat({
         clientId,
+        username,
         cursorX: lastCursorWorldRef.current.x,
         cursorY: lastCursorWorldRef.current.y,
         laserTrail: myTrail ? myTrail.points : undefined,
@@ -1228,7 +1229,7 @@ export function GlobalCanvas() {
     send();
     const id = setInterval(send, 3000);
     return () => clearInterval(id);
-  }, [heartbeat, clientId]);
+  }, [heartbeat, clientId, username]);
 
   const commitOwnChunk = useCallback(
     (chunk: LocalStroke) => {

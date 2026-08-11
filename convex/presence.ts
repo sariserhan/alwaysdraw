@@ -27,6 +27,7 @@ function clamp(value: number, max: number): number {
 export const heartbeat = mutation({
   args: {
     clientId: v.string(),
+    username: v.optional(v.string()),
     cursorX: v.number(),
     cursorY: v.number(),
     laserTrail: v.optional(
@@ -81,6 +82,7 @@ export const heartbeat = mutation({
       .unique();
     if (existing !== null) {
       await ctx.db.patch(existing._id, {
+        username: args.username,
         cursorX,
         cursorY,
         laserTrail,
@@ -89,6 +91,7 @@ export const heartbeat = mutation({
     } else {
       await ctx.db.insert("presence", {
         clientId: args.clientId,
+        username: args.username,
         cursorX,
         cursorY,
         laserTrail,
@@ -104,6 +107,7 @@ export const list = query({
   returns: v.array(
     v.object({
       clientId: v.string(),
+      username: v.optional(v.string()),
       cursorX: v.number(),
       cursorY: v.number(),
       laserTrail: v.optional(
@@ -125,6 +129,7 @@ export const list = query({
       .take(MAX_PRESENCE_LIST);
     return rows.map((r) => ({
       clientId: r.clientId,
+      username: r.username,
       cursorX: r.cursorX,
       cursorY: r.cursorY,
       laserTrail: r.laserTrail,
