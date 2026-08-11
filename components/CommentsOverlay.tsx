@@ -66,7 +66,7 @@ export function CommentsOverlay({
         return (
           <div
             key={comment.id}
-            className="pointer-events-auto absolute transition-all"
+            className="pointer-events-auto absolute"
             style={{
               left: screenPt.x,
               top: screenPt.y,
