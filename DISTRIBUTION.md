@@ -33,7 +33,7 @@ The app's technical SEO architecture is fully implemented to maximize search eng
 Concrete, one-shot posts to specific communities — do these once the product is stable enough to survive a traffic spike, not before.
 
 - [ ] **Reddit Launch**:
-  - `r/InternetIsBeautiful` — Pitch: *"AlwaysDraw: A single 10,000x10,000 shared real-time drawing canvas for the internet"*. (High-potential channel for driving 50,000+ instant visitors).
+  - `r/InternetIsBeautiful` — Pitch: *"AlwaysDraw: A single 20,000x20,000 shared real-time drawing canvas for the internet"*. (High-potential channel for driving 50,000+ instant visitors).
   - Art & Dev Subreddits: `r/webdev`, `r/SideProject`, `r/PixelArt`, `r/drawing`, `r/WebGames` (r/place nostalgia is a natural comparison point).
 - [ ] **Hacker News "Show HN"**: Technical audience will care about the real-time sync architecture (Convex, append-only history, live tail) as much as the canvas itself; lead with the live link, not a static screenshot.
 - [ ] **Product Hunt Launch**: Full Product Hunt product launch with short interactive preview clips.

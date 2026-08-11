@@ -72,10 +72,12 @@ lib/
 
 convex/
   schema.ts              Database schema definitions
-  strokes.ts             Stroke submission (validated, sequenced, idempotent), listSince, listRecent
-  operations.ts          Protected zones, wipeArea, rollbackClient, telemetry
-  presence.ts            Heartbeat, presence list, online counts
+  strokes.ts             Stroke submission (validated, sequenced, idempotent) & listSince (the live sync path)
+  admin.ts               Protected zones, wipeArea, rollbackClient, telemetry
+  presence.ts            Heartbeat, tile-scoped listByTiles (what clients actually subscribe to), online counts
+  comments.ts            Sticky-note comments: create/list/remove + admin moderation
   bookmarks.ts           Saved location bookmarks & comments
+  snapshots.ts           Rendered-image checkpoints so new visitors don't replay the full history
 ```
 
 ---
@@ -95,12 +97,16 @@ npm run dev
 
 Open `http://localhost:3000` to launch directly into the canvas.
 
+### Environment variables
+
+`npx convex dev` writes `CONVEX_DEPLOYMENT`/`NEXT_PUBLIC_CONVEX_URL`/`NEXT_PUBLIC_CONVEX_SITE_URL` into `.env.local` automatically on first run — nothing to set by hand for those. Copy `.env.example` to `.env.local` for everything else; see it for the full list and what each one does. The one you actually need locally is `ADMIN_SECRET_KEY`, to unlock the admin panel (`Shift+A`) — without it, `isPasscodeValid` has no fallback and every admin action is simply unreachable, by design (an unconfigured deployment should have no working passcode, not a guessable default one).
+
 ---
 
 ## 🧪 4. Testing Instructions
 
 ```bash
-# Run Vitest unit test suite (100 tests across 14 test files)
+# Run Vitest unit test suite (126 tests across 16 test files)
 npm test
 
 # Run Vitest in watch mode

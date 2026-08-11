@@ -32,7 +32,7 @@ Status shorthand: ✅ shipped · 🚧 in progress · ⏳ planned, not started.
 - [x] Desktop input (drag/wheel/space-drag) + mobile input (1-finger draw, 2-finger pan/pinch)
 - [x] Reload reconstructs the shared canvas from history
 - [x] Two-layer canvas (world + strokes) so erasing reveals the wall, not the page background — added after the original single-layer approach turned out to make erasing look broken
-- [x] World size: 5,000×5,000 → bumped to **10,000×10,000** per request
+- [x] World size: 5,000×5,000 → bumped to 10,000×10,000, then to **20,000×20,000** (see `convex/constants.ts` for the scaling history)
 
 ### Visual identity ✅ (via the Impeccable design pass — not in the original spec)
 - [x] PRODUCT.md + DESIGN.md: a committed visual world, **"The Bolted Rack"** — a rusted train-yard wall, riveted steel chrome, no whiteboard-SaaS look
@@ -89,9 +89,10 @@ Goal: make it feel like a real product, not a tech demo. Still Next.js + Convex,
 
 Goal: stop treating the whole world as one monolithic subscription.
 
-- [x] Divide the world into 500×500 spatial tiles (`lib/tiling.ts`), indexed into a 20×20 grid (400 tiles)
-- [x] Viewport-bounded subscriptions & culling (`listByTiles` and viewport tile culling for 60 FPS performance)
-- [x] Real-time spatial tile status badge (`TILES: N/400`) in top header bar
+- [x] Divide the world into 500×500 spatial tiles (`lib/tiling.ts`), indexed into a 40×40 grid (1,600 tiles, tracking the 20,000×20,000 world size above)
+- [x] Viewport tile culling at render time — an already-loaded stroke is skipped from painting if none of its tiles are visible, for 60 FPS performance
+- [ ] Viewport-bounded *subscriptions* — `strokes.listByTiles` exists on the backend (built, unit-tested) but nothing on the client actually calls it; every client still subscribes to the full global stroke history via `strokes.listSince`. Presence *is* tile-scoped this way (`presence.listByTiles`, see the Backlog section) — strokes never got the same treatment. Correcting an earlier overstatement here: this was previously (incorrectly) checked off as shipped.
+- [x] Real-time spatial tile status badge (`TILES: N/1600`) in top header bar
 - [x] Spatial discovery camera teleportation (Busiest Hotspot, Latest Activity, Random Art Spot with active cell exclusion)
 
 ## V4 — Dedicated Realtime Infrastructure ⏳ not started
@@ -134,11 +135,13 @@ Near-term, concrete, not tied to a specific numbered version:
 
 - [x] Verify production deployment — live at https://alwaysdraw.alwaysdraw.workers.dev/, `npm run smoke:production` passes, existing history replays correctly. Still open: exact deployed Git commit / Convex production deployment name / rollback target aren't recorded (see `DEPLOYMENT.md`) — Cloudflare's GitHub integration builds outside this repo, so these need recording by hand each release
 - [x] Automated tests for stroke sequencing, replay ordering, and Convex `strokes.submit` validation
-- [x] Scale online-count reads with a cron-maintained singleton; remote cursor fan-out remains intentionally capped
+- [x] Scale online-count reads with a cron-maintained singleton
 - [x] Cursor-based live catch-up shipped with sequence-cursor coverage
 - [x] Activate Sentry with a real project key and verify receipt — `NEXT_PUBLIC_SENTRY_DSN` set, confirmed locally: the example page's frontend + backend test errors both sent real envelopes to the configured project (`sentry.javascript.nextjs/10.69.0`), matching SDK version installed. Not yet reverified on the production Cloudflare deployment specifically (same build-time-env-var caveat — needs a fresh build there too).
 - [ ] Activate PostHog with a real project key — deliberately deferred, not scheduled yet
 - [x] Public-write guardrails: bounded identifiers, per-client/global fixed-window limits for strokes and presence, and an `ALWAYSDRAW_READ_ONLY=1` incident switch
 - [x] Browser smoke coverage for desktop/mobile plus an opt-in, non-production two-browser synchronization/reload test
-
-Nothing else from this session's conversation is outstanding — every explicit ask (eraser fix, bigger canvas, light theme, 13 brushes, Pan/Zoom tools, opacity, custom color picker, legibility fixes, collapsible/hideable toolbar, live brush cursor) has been built, verified live, and committed.
+- [x] Remote cursor presence (`presence.listByTiles`) reads each tile the viewer can actually see via its own indexed lookup instead of one global subscription every heartbeat re-pushed to — past a visible-tile-count threshold (zoomed out far enough that scoping buys nothing) the query is skipped entirely rather than falling back to a global read
+- [ ] Strokes never got the equivalent treatment — `strokes.listByTiles` exists and is tested but nothing calls it; every client still subscribes to the full stroke history via `strokes.listSince`. Real, but lower urgency than it looks: the snapshot system (below) already bounds *replay* cost, so this is about ongoing per-write fan-out, not initial load
+- [x] Snapshot generation — `snapshots.submit` existed on the backend but had zero callers anywhere, so every visitor did a full history replay from sequence 0 with no cap that shrinks over time. Now self-sustaining: whichever client finishes replay past a stroke-count threshold since the last snapshot renders one client-side (reusing the mini-map's own paint functions) and submits it in the background
+- [ ] Production Convex deployment name, exact deployed commit, and a known-good rollback target are still not recorded anywhere in this repo (see `DEPLOYMENT.md`) — genuine gap, not just a documentation nicety, since there's currently no way to roll back a bad release from this checkout alone
