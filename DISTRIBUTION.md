@@ -16,7 +16,7 @@ Status shorthand: ✅ done · 🚧 in progress · ⏳ planned, not started.
 
 The app's technical SEO architecture is fully implemented to maximize search engine indexing and social link preview engagement:
 
-- ✅ **Dynamic OpenGraph Social Card Generator**: [`app/api/og/route.tsx`](app/api/og/route.tsx) generates dynamic social share preview cards complete with coordinate badges for deep-linked canvas spots (`?x=...&y=...&z=...`).
+- ⏳ **~~Dynamic OpenGraph Social Card Generator~~ removed**: `next/og`'s `ImageResponse` pulled ~1.5MB of WASM/font binaries (resvg, yoga, a font) into the Worker bundle, tipping it over Cloudflare's 3 MiB free-plan size limit and blocking every deploy. Replaced with a static `public/og-image.jpg` (same image for every share link, no per-coordinate badge). Rebuilding this as a genuinely dynamic card would need to run outside the main Worker bundle — e.g. a separate lightweight function — to avoid the same size problem.
 - ✅ **Comprehensive OpenGraph & Twitter Metadata**: Configured in [`app/layout.tsx`](app/layout.tsx) with canonical URLs, title templates (`AlwaysDraw — The World's Shared Real-Time Canvas`), meta descriptions, keywords, author tags, and `summary_large_image` Twitter cards.
 - ✅ **Structured Data (JSON-LD)**: Implemented `Schema.org/WebApplication` microdata embedded in layout head for rich snippet discovery.
 - ✅ **Search Engine Crawler Control**: Automated [`sitemap.ts`](app/sitemap.ts) (`/sitemap.xml`) and [`robots.ts`](app/robots.ts) files for search engine indexing.
