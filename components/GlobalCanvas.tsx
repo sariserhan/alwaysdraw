@@ -352,6 +352,7 @@ export function GlobalCanvas() {
   const heartbeat = useMutation(api.presence.heartbeat);
   const createComment = useMutation(api.comments.create);
   const removeComment = useMutation(api.comments.remove);
+  const adminRemoveComment = useMutation(api.comments.adminRemove);
   const reportContent = useMutation(api.reports.create);
 
   const onlineCount = useQuery(api.presence.onlineCount);
@@ -1648,6 +1649,14 @@ export function GlobalCanvas() {
     [clientId, removeComment],
   );
 
+  const handleAdminDeleteComment = useCallback(
+    (id: string) => {
+      if (!adminPasscode) return;
+      adminRemoveComment({ commentId: id as Id<"canvasComments">, passcode: adminPasscode }).catch(() => {});
+    },
+    [adminPasscode, adminRemoveComment],
+  );
+
   const handleReportComment = useCallback(
     (id: string) => {
       reportContent({
@@ -2853,6 +2862,8 @@ export function GlobalCanvas() {
         viewportHeight={viewportSize.height}
         onDeleteComment={handleDeleteComment}
         onReportComment={handleReportComment}
+        onAdminDeleteComment={handleAdminDeleteComment}
+        isAdmin={Boolean(adminPasscode)}
       />
 
       {commentInputPos && (

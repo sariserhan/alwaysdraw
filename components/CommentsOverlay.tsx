@@ -22,6 +22,8 @@ export interface CommentsOverlayProps {
   viewportHeight: number;
   onDeleteComment?: (id: string) => void;
   onReportComment?: (id: string) => void;
+  onAdminDeleteComment?: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 export interface CommentsOverlayHandle {
@@ -40,7 +42,7 @@ export interface CommentsOverlayHandle {
 
 export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlayProps>(
   function CommentsOverlay(
-    { comments, camera, viewportWidth, viewportHeight, onDeleteComment, onReportComment },
+    { comments, camera, viewportWidth, viewportHeight, onDeleteComment, onReportComment, onAdminDeleteComment, isAdmin },
     ref,
   ) {
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -148,6 +150,16 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                           className="text-accent-crimson hover:underline"
                         >
                           Delete
+                        </button>
+                      )}
+                      {isAdmin && onAdminDeleteComment && (
+                        <button
+                          type="button"
+                          onClick={() => onAdminDeleteComment(comment.id)}
+                          className="text-accent-crimson hover:underline"
+                          title="Delete this comment as admin"
+                        >
+                          🛡️ Admin Delete
                         </button>
                       )}
                     </div>
