@@ -111,7 +111,7 @@ export const RemoteCursors = forwardRef<RemoteCursorsHandle, RemoteCursorsProps>
           return null;
         }
         const fill = colorForClient(e.clientId);
-        const labelText = e.username?.trim() || `User_${e.clientId}`;
+        const labelText = e.username?.trim() || e.clientId;
         return (
           <div
             key={e.clientId}
