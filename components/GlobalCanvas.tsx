@@ -1997,7 +1997,6 @@ export function GlobalCanvas() {
             </button>
 
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} iconOnly />
-            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} iconOnly />
             <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} iconOnly />
 
             <button
@@ -2130,9 +2129,8 @@ export function GlobalCanvas() {
           <div className="flex flex-col items-start gap-2 w-full">
             <MobileGroupLabel>🌐 {t(locale, "group_view_display")}</MobileGroupLabel>
             <GridToggle config={gridConfig} onChange={setGridConfig} locale={locale} />
-            <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
             <HideCommentsToggle showComments={showComments} onToggle={toggleShowComments} locale={locale} />
-            
+
             {/* Line 1: -, 10%, + */}
             <div className="w-full pt-1">
               <ZoomPill
@@ -2326,6 +2324,7 @@ export function GlobalCanvas() {
             controls, so this must stay desktop-only to avoid duplicating
             them and overflowing narrow headers). */}
         <div className="hidden min-[1360px]:flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
+          <UsernameControl username={username} onUsernameChange={handleUsernameChange} locale={locale} />
           <LanguagePicker
             currentLocale={locale}
             onLocaleChange={(loc) => {
