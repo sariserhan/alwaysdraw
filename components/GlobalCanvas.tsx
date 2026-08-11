@@ -241,6 +241,29 @@ export function GlobalCanvas() {
   const viewportRef = useRef({ width: 0, height: 0 });
 
   const committedRef = useRef<ServerStroke[]>([]);
+  // Mirrors committedRef, bucketed by tile, so a tile-scoped lookup (hover
+  // attribution) doesn't have to linearly scan every stroke the wall has
+  // ever had just to find the handful in one tile — kept in sync at every
+  // site that pushes to or removes from committedRef.
+  const strokesByTileRef = useRef<Map<string, ServerStroke[]>>(new Map());
+  const addToTileIndex = useCallback((stroke: ServerStroke) => {
+    if (!stroke.tiles || stroke.tiles.length === 0) return;
+    for (const tileId of stroke.tiles) {
+      const bucket = strokesByTileRef.current.get(tileId);
+      if (bucket) bucket.push(stroke);
+      else strokesByTileRef.current.set(tileId, [stroke]);
+    }
+  }, []);
+  const removeFromTileIndex = useCallback((clientStrokeId: string, tiles: string[] | undefined) => {
+    if (!tiles || tiles.length === 0) return;
+    for (const tileId of tiles) {
+      const bucket = strokesByTileRef.current.get(tileId);
+      if (!bucket) continue;
+      const next = bucket.filter((s) => s.clientStrokeId !== clientStrokeId);
+      if (next.length > 0) strokesByTileRef.current.set(tileId, next);
+      else strokesByTileRef.current.delete(tileId);
+    }
+  }, []);
   const appliedIdsRef = useRef<Set<string>>(new Set());
   const pendingRef = useRef<Map<string, LocalStroke>>(new Map());
   const replayStartedAtRef = useRef<number | null>(null);
@@ -1147,8 +1170,10 @@ export function GlobalCanvas() {
               // that's a pre-existing snapshot limitation, not new here —
               // it self-heals whenever the snapshot is next regenerated.
               committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
+              removeFromTileIndex(s.clientStrokeId, s.tiles);
             } else {
               committedRef.current.push(s);
+              addToTileIndex(s);
             }
             appliedIdsRef.current.add(s.clientStrokeId);
             after = Math.max(after, s.sequence);
@@ -1230,12 +1255,14 @@ export function GlobalCanvas() {
           const before = committedRef.current.length;
           committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
           if (committedRef.current.length !== before) anyRemoved = true;
+          removeFromTileIndex(s.clientStrokeId, s.tiles);
           continue;
         }
         if (appliedIdsRef.current.has(s.clientStrokeId)) continue;
         appliedIdsRef.current.add(s.clientStrokeId);
         pendingRef.current.delete(s.clientStrokeId);
         committedRef.current.push(s);
+        addToTileIndex(s);
         newlyApplied.push(s);
       }
       const lastSeq = liveTail[liveTail.length - 1].sequence;
@@ -2021,13 +2048,14 @@ export function GlobalCanvas() {
       // Attribution tooltip: only while genuinely hovering (mouse, no button
       // held) — a stencil/shape/ruler drag or an active brush stroke has its
       // own meaning for pointer movement and shouldn't also flip a tooltip
-      // in and out under the cursor. Pre-filtered to strokes tagged with the
-      // cursor's own spatial tile (already stored per stroke for rendering)
-      // so this stays cheap regardless of how many strokes the wall has.
+      // in and out under the cursor. Looked up via strokesByTileRef (a real
+      // tile-bucketed index kept in sync with committedRef, not a linear
+      // scan filtered by tile) so this stays cheap regardless of how many
+      // strokes the wall has.
       if (e.pointerType === "mouse" && e.buttons === 0) {
         const { tileX, tileY } = getTileCoords(worldPt.x, worldPt.y, TILE_SIZE);
         const cursorTileId = getTileId(tileX, tileY);
-        const candidates = committedRef.current.filter((s) => s.tiles?.includes(cursorTileId));
+        const candidates = strokesByTileRef.current.get(cursorTileId) ?? [];
         const extraRadiusWorld = HOVER_SCREEN_RADIUS_PX / cameraRef.current.zoom;
         const hit = findStrokeNearPoint(candidates, worldPt, extraRadiusWorld);
         setHoverAttribution(
