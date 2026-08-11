@@ -4,16 +4,16 @@ Deployment is not verified by source code alone. Complete this record for every 
 
 ## Current production release
 
-- Public URL: https://alwaysdraw.alwaysdraw.workers.dev/ (Cloudflare Workers, deployed via Cloudflare's GitHub integration — no `wrangler.jsonc` in this repo by design, build/deploy config lives in the Cloudflare dashboard)
-- Git commit: not confirmed — Cloudflare's Git integration builds from `origin/main` on push; local `main` was at `14a2d445` (2026-08-10) when this was checked, but the exact commit Cloudflare built from was not independently confirmed
-- Convex production deployment: not recorded — not visible from this checkout; record the deployment name from `npx convex deploy` output or the Convex dashboard
+- Public URL: **https://alwaysdraw.com/** (custom domain — superseded the earlier `alwaysdraw.alwaysdraw.workers.dev` `.workers.dev` default; Cloudflare Workers via OpenNext, deployed through Cloudflare's dashboard Git integration — no `wrangler.jsonc` in this repo by design, build/deploy config lives in the Cloudflare dashboard, confirmed via the `x-opennext: 1` response header)
+- Git commit: still not confirmed — Cloudflare's Git integration builds from `origin/main` on push; not independently verifiable from this checkout
+- Convex production deployment: **`intent-dove-612`** (`https://intent-dove-612.convex.cloud`) — confirmed via the Convex MCP `status` tool. Read-only from this checkout by design (production writes require an explicit override flag this session never used).
 - Cloudflare Worker/version: not recorded
 - Migration/schema version: not recorded
-- Released at: not recorded
-- Released by: not recorded
-- Smoke result: **PASS** — `npm run smoke:production` against the public URL above: `{"ok":true,"url":"https://alwaysdraw.alwaysdraw.workers.dev/","title":"AlwaysDraw"}` (page loads, wordmark renders, theme toggle present, Pan tool activates, zero browser console errors). Also manually verified: existing canvas history renders (confirms replay against production Convex), header shows live connection status + online count, zoom/reset controls work. Not re-verified: two-browser realtime sync and erase (would require drawing on the real production canvas, which is permanent/append-only — skipped intentionally).
+- Released at / by: not recorded
+- **Known-broken right now**: `/api/geo` and `/api/og` both return HTTP 500 in production as of this check (curl'd directly), from a `runtime = "edge"` directive that's fatal under OpenNext/Cloudflare — this is why country flags render white in prod. The fix is committed to `main` locally but **production has not been redeployed since** — this is the single most important pending action, more urgent than anything else in this file.
+- Smoke result: stale — the PASS recorded previously was against the old `.workers.dev` URL, before the domain move and before the edge-runtime bug above was found. Needs a fresh `ALWAYSDRAW_SMOKE_URL=https://alwaysdraw.com npm run smoke:production` run after the next deploy.
 - Rollback target: not recorded
-- **Sentry/PostHog: NOT active in this deployment.** Verified via live network/DOM inspection: no requests to `*.sentry.io` or `*.i.posthog.com`, no `window.Sentry`/`window.posthog`. The instrumentation code is correct and already committed, but `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_POSTHOG_KEY` are build-time-inlined values — if they were added to Cloudflare's environment after the last build, this deployment predates them. Needs a fresh build/deploy, then re-verification.
+- **Sentry/PostHog: not reverified since the domain move** — the last check (against the old `.workers.dev` URL) found neither active despite `NEXT_PUBLIC_SENTRY_DSN` being set locally, attributed to build-time env var timing. Needs reverification against `https://alwaysdraw.com/` after the next deploy, alongside the edge-runtime fix above.
 
 ## Required release gates
 

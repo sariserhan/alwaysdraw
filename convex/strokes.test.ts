@@ -297,24 +297,6 @@ describe("strokes.listSince — replay ordering and pagination", () => {
   });
 });
 
-describe("strokes.listRecent — live tail", () => {
-  let t: ReturnType<typeof convexTest>;
-  beforeEach(() => {
-    t = convexTest(schema, modules);
-  });
-
-  it("returns the most recent N strokes in ascending sequence order", async () => {
-    for (let i = 0; i < 10; i++) {
-      await t.mutation(api.strokes.submit, strokeArgs({ clientStrokeId: `recent-${i}` }));
-    }
-    const rows = await t.query(api.strokes.listRecent, { limit: 3 });
-    expect(rows).toHaveLength(3);
-    expect(rows.map((r) => r.clientStrokeId)).toEqual(["recent-7", "recent-8", "recent-9"]);
-    const sequences = rows.map((r) => r.sequence);
-    expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
-  });
-});
-
 describe("strokes.listByTiles — spatial query filtering", () => {
   let t: ReturnType<typeof convexTest>;
   beforeEach(() => {

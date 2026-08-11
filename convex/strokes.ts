@@ -244,25 +244,6 @@ export const listSince = query({
   },
 });
 
-export const listRecent = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  returns: v.array(strokeReturnFields),
-  handler: async (ctx, args) => {
-    const limit = Math.min(
-      Math.max(1, args.limit ?? DEFAULT_LIST_LIMIT),
-      MAX_LIST_LIMIT,
-    );
-    const rows = await ctx.db
-      .query("strokes")
-      .withIndex("by_sequence")
-      .order("desc")
-      .take(limit);
-    return rows.reverse();
-  },
-});
-
 export const listByTiles = query({
   args: {
     tileKeys: v.array(v.string()),
