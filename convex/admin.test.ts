@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
@@ -9,13 +9,21 @@ const modules = Object.fromEntries(
   Object.entries(allModules).filter(([path]) => !path.endsWith(".test.ts")),
 );
 
-const PASSCODE = "alwaysdraw-admin-2026";
+// There's no hardcoded fallback passcode anymore (an unconfigured deployment
+// must have no working admin passcode) — tests set the env var explicitly,
+// same as a real deployment would.
+const PASSCODE = "test-admin-passcode";
 
 describe("convex/admin — protected zones & moderation", () => {
   let t: ReturnType<typeof convexTest>;
 
   beforeEach(() => {
+    vi.stubEnv("ADMIN_SECRET_KEY", PASSCODE);
     t = convexTest(schema, modules);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe("passcode verification", () => {
@@ -95,10 +103,12 @@ describe("convex/admin — protected zones & moderation", () => {
         }),
       ).resolves.toBeDefined();
 
-      // Admin user drawing inside protected zone (clientId starts with ADMIN_)
+      // Spoofing an "ADMIN_"-prefixed clientId must NOT bypass protection —
+      // clientId is client-supplied and unauthenticated, so only a real,
+      // server-verified passcode should ever grant the bypass.
       await expect(
         t.mutation(api.strokes.submit, {
-          clientStrokeId: "admin-stroke-ok",
+          clientStrokeId: "spoofed-admin-stroke-blocked",
           clientId: "ADMIN_super_user",
           mode: "draw",
           brushType: "brush",
@@ -106,6 +116,21 @@ describe("convex/admin — protected zones & moderation", () => {
           width: 10,
           points: [{ x: 550, y: 550 }],
           clientTimestamp: Date.now(),
+        }),
+      ).rejects.toThrow(/PROTECTED_ZONE/);
+
+      // A real admin (verified passcode) can draw inside the protected zone.
+      await expect(
+        t.mutation(api.strokes.submit, {
+          clientStrokeId: "admin-stroke-ok",
+          clientId: "ADMIN_IMAGE_STAMPER",
+          mode: "draw",
+          brushType: "brush",
+          color: "#ff0000",
+          width: 10,
+          points: [{ x: 550, y: 550 }],
+          clientTimestamp: Date.now(),
+          adminPasscode: PASSCODE,
         }),
       ).resolves.toBeDefined();
     });

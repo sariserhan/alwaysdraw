@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import {
   WORLD_WIDTH,
@@ -18,6 +18,7 @@ import {
   assertWritesEnabled,
   consumeRateLimit,
 } from "./abuse";
+import { containsProfanity } from "./profanity";
 
 const bookmarkReturnFields = v.object({
   _id: v.id("bookmarks"),
@@ -100,6 +101,9 @@ export const create = mutation({
     const title = args.title.trim();
     if (!title || title.length > 50) {
       throw new Error("title must be between 1 and 50 characters");
+    }
+    if (containsProfanity(title)) {
+      throw new ConvexError("PROFANITY_BLOCKED: title contains a blocked word");
     }
 
     if (!Number.isFinite(args.x) || args.x < 0 || args.x > WORLD_WIDTH) {
@@ -244,10 +248,16 @@ export const addComment = mutation({
     assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
     if (args.username !== undefined) {
       assertBoundedIdentifier(args.username, "username", MAX_USERNAME_LENGTH);
+      if (containsProfanity(args.username)) {
+        throw new ConvexError("PROFANITY_BLOCKED: username contains a blocked word — please choose another");
+      }
     }
     const text = args.text.trim();
     if (!text || text.length > MAX_COMMENT_LENGTH) {
       throw new Error(`comment must be between 1 and ${MAX_COMMENT_LENGTH} characters`);
+    }
+    if (containsProfanity(text)) {
+      throw new ConvexError("PROFANITY_BLOCKED: comment contains a blocked word");
     }
 
     const bookmark = await ctx.db.get(args.bookmarkId);

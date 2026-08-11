@@ -58,6 +58,7 @@ import { MiniMap, MINI_MAP_SIZE_PX, useHeaderBottomOffset } from "./MiniMap";
 import { TimeTravelMenu } from "./ReplayBar";
 import { ExploreMenu } from "./ExploreMenu";
 import { BookmarkMenu } from "./BookmarkMenu";
+import { ReportButton } from "./ReportButton";
 import { CommunityGalleryModal } from "./CommunityGalleryModal";
 import { ExportModal } from "./ExportModal";
 import { LanguagePicker } from "./LanguagePicker";
@@ -323,6 +324,7 @@ export function GlobalCanvas() {
   const heartbeat = useMutation(api.presence.heartbeat);
   const createComment = useMutation(api.comments.create);
   const removeComment = useMutation(api.comments.remove);
+  const reportContent = useMutation(api.reports.create);
 
   const onlineCount = useQuery(api.presence.onlineCount);
   const presenceList = useQuery(api.presence.list);
@@ -1087,6 +1089,7 @@ export function GlobalCanvas() {
               opacity,
               points: chunk,
               clientTimestamp: Date.now(),
+              adminPasscode,
             }),
           );
         }
@@ -1317,9 +1320,16 @@ export function GlobalCanvas() {
         text,
         x: Math.round(commentInputPos.world.x),
         y: Math.round(commentInputPos.world.y),
-      }).catch(() => {});
-      setCommentText("");
-      setCommentInputPos(null);
+      })
+        .then(() => {
+          setCommentText("");
+          setCommentInputPos(null);
+        })
+        .catch((err) => {
+          setSubmitError(
+            err instanceof ConvexError ? String(err.data) : "comment didn't post — try again",
+          );
+        });
     },
     [commentText, commentInputPos, clientId, username, countryCode, createComment],
   );
@@ -1329,6 +1339,17 @@ export function GlobalCanvas() {
       removeComment({ commentId: id as Id<"canvasComments">, clientId }).catch(() => {});
     },
     [clientId, removeComment],
+  );
+
+  const handleReportComment = useCallback(
+    (id: string) => {
+      reportContent({
+        reporterId: clientId,
+        targetType: "comment",
+        commentId: id as Id<"canvasComments">,
+      }).catch(() => {});
+    },
+    [clientId, reportContent],
   );
 
   const stampStencilAt = useCallback(
@@ -1960,6 +1981,7 @@ export function GlobalCanvas() {
               locale={locale}
               iconOnly
             />
+            <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} iconOnly />
 
             <div className="my-0.5 h-px w-6 bg-chrome-border/60" />
 
@@ -2077,6 +2099,7 @@ export function GlobalCanvas() {
               onTeleport={handleBookmarkTeleport}
               locale={locale}
             />
+            <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} />
           </div>
 
           <div className="border-t border-chrome-border/60" />
@@ -2207,8 +2230,11 @@ export function GlobalCanvas() {
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
         </div>
 
-        {/* Right Section: All Preferences & Status Controls on Topbar */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
+        {/* Right Section: Preferences & Status Controls (>= 1360px only —
+            the mobile drawer below has its own copies of these same
+            controls, so this must stay desktop-only to avoid duplicating
+            them and overflowing narrow headers). */}
+        <div className="hidden min-[1360px]:flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-4">
           <LanguagePicker
             currentLocale={locale}
             onLocaleChange={(loc) => {
@@ -2220,6 +2246,32 @@ export function GlobalCanvas() {
           <HotkeysModal isOpen={hotkeysOpen} onToggle={() => setHotkeysOpen((v) => !v)} locale={locale} />
           <HelpModal locale={locale} />
           <ConnectionStatus locale={locale} />
+        </div>
+
+        {/* Mobile Hamburger Button (< 1360px) — the desktop sidebar is
+            `min-[1360px]:flex`-only, so below that width this is the only
+            way to reach Grid/Bookmarks/Explore/Gallery/Time Travel/Export
+            etc. at all. */}
+        <div className="min-[1360px]:hidden pr-1">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised px-2.5 py-1 font-mono text-xs font-bold text-ink uppercase shadow-sm transition hover:bg-chrome-bg-recessed active:scale-95"
+            aria-label="Toggle Mobile Menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <>
+                <span className="text-accent-crimson text-sm font-black">✕</span>
+                <span>{t(locale, "close")}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-accent-yellow text-sm font-black">☰</span>
+                <span>{t(locale, "menu")}</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Mobile Drawer Dropdown Menu */}
@@ -2275,6 +2327,7 @@ export function GlobalCanvas() {
                 onTeleport={handleBookmarkTeleport}
                 locale={locale}
               />
+              <ReportButton currentCamera={cameraSnapshot} clientId={clientId} locale={locale} />
             </div>
 
             <MobileGroupLabel>🎥 {t(locale, "group_timeline_export")}</MobileGroupLabel>
@@ -2367,6 +2420,7 @@ export function GlobalCanvas() {
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
         onDeleteComment={handleDeleteComment}
+        onReportComment={handleReportComment}
       />
 
       {commentInputPos && (
@@ -2452,6 +2506,7 @@ export function GlobalCanvas() {
           onAuthenticate={handleAuthenticateAdmin}
           onStartImagePlacement={handleStartImagePlacement}
           onPurgeAllStampedImages={handlePurgeAllStampedImages}
+          onTeleport={(x, y, zoom) => handleBookmarkTeleport({ x, y }, zoom, "Reported Area")}
         />
       </nav>
 

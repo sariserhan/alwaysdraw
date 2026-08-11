@@ -25,7 +25,8 @@ export default defineSchema({
     serverTimestamp: v.number(),
   })
     .index("by_sequence", ["sequence"])
-    .index("by_clientStrokeId", ["clientStrokeId"]),
+    .index("by_clientStrokeId", ["clientStrokeId"])
+    .index("by_clientId", ["clientId"]),
 
   canvasMetadata: defineTable({
     currentSequence: v.number(),
@@ -138,4 +139,23 @@ export default defineSchema({
     maxY: v.number(),
     createdAt: v.number(),
   }).index("by_createdAt", ["createdAt"]),
+
+  // User-facing "flag this" reports, reviewed by an admin. Two shapes share
+  // one table rather than splitting into commentReports/areaReports: they're
+  // reviewed through the same queue and the branching is a single field.
+  contentReports: defineTable({
+    reporterId: v.string(),
+    targetType: v.union(v.literal("area"), v.literal("comment")),
+    // "area" reports capture a camera position so an admin can teleport in.
+    x: v.optional(v.number()),
+    y: v.optional(v.number()),
+    zoom: v.optional(v.number()),
+    // "comment" reports point at a specific canvasComments row.
+    commentId: v.optional(v.id("canvasComments")),
+    reason: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("reviewed"), v.literal("dismissed")),
+    createdAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_reporter", ["reporterId"]),
 });

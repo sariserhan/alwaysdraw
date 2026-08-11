@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
@@ -22,6 +23,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
   const [mounted, setMounted] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -82,6 +84,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
 
     try {
       setIsSaving(true);
+      setSaveError(null);
       await createBookmark({
         title: trimmed,
         x: currentCamera.x,
@@ -92,6 +95,7 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
       setTitleInput("");
     } catch (err) {
       console.error("Failed to save bookmark:", err);
+      setSaveError(err instanceof ConvexError ? String(err.data) : "couldn't save — try again");
     } finally {
       setIsSaving(false);
     }
@@ -169,6 +173,9 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
                 {t(locale, "save").toUpperCase()}
               </button>
             </div>
+            {saveError && (
+              <span className="font-mono text-[10px] text-accent-crimson">{saveError}</span>
+            )}
           </form>
 
           {/* List of saved spots */}

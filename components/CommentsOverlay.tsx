@@ -21,6 +21,7 @@ export interface CommentsOverlayProps {
   viewportWidth: number;
   viewportHeight: number;
   onDeleteComment?: (id: string) => void;
+  onReportComment?: (id: string) => void;
 }
 
 export function CommentsOverlay({
@@ -29,8 +30,10 @@ export function CommentsOverlay({
   viewportWidth,
   viewportHeight,
   onDeleteComment,
+  onReportComment,
 }: CommentsOverlayProps) {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
   if (!comments || comments.length === 0) return null;
 
@@ -86,15 +89,33 @@ export function CommentsOverlay({
                 </p>
                 <div className="flex items-center justify-between pt-1 text-[9px] text-ink-dim">
                   <span>{new Date(comment.createdAt).toLocaleTimeString()}</span>
-                  {onDeleteComment && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteComment(comment.id)}
-                      className="text-accent-crimson hover:underline"
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {onReportComment && (
+                      reportedIds.has(comment.id) ? (
+                        <span className="text-accent-green">Reported</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onReportComment(comment.id);
+                            setReportedIds((prev) => new Set(prev).add(comment.id));
+                          }}
+                          className="text-accent-yellow hover:underline"
+                        >
+                          🚩 Report
+                        </button>
+                      )
+                    )}
+                    {onDeleteComment && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteComment(comment.id)}
+                        className="text-accent-crimson hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (

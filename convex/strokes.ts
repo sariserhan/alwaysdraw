@@ -28,6 +28,8 @@ import {
   assertWritesEnabled,
   consumeRateLimit,
 } from "./abuse";
+import { isPasscodeValid } from "./admin";
+import { containsProfanity } from "./profanity";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
 const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
@@ -64,6 +66,10 @@ export const submit = mutation({
     opacity: v.optional(v.number()),
     points: v.array(pointValidator),
     clientTimestamp: v.number(),
+    // Only set by the admin image-stamping path — a real, server-verified
+    // credential, not the clientId string (which is client-supplied and
+    // unauthenticated, so it must never be trusted to grant a bypass).
+    adminPasscode: v.optional(v.string()),
   },
   returns: v.object({ sequence: v.number() }),
   handler: async (ctx, args) => {
@@ -82,6 +88,9 @@ export const submit = mutation({
     }
     if (args.username !== undefined) {
       assertBoundedIdentifier(args.username, "username", MAX_USERNAME_LENGTH);
+      if (containsProfanity(args.username)) {
+        throw new ConvexError("PROFANITY_BLOCKED: username contains a blocked word — please choose another");
+      }
     }
     if (args.countryCode !== undefined && !COUNTRY_CODE_PATTERN.test(args.countryCode)) {
       throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
@@ -136,7 +145,8 @@ export const submit = mutation({
     }
 
     // --- Protected Canvas Zones Validation ---
-    if (!args.clientId.startsWith("ADMIN_")) {
+    const isVerifiedAdmin = args.adminPasscode !== undefined && isPasscodeValid(args.adminPasscode);
+    if (!isVerifiedAdmin) {
       const protectedZones = await ctx.db.query("protectedZones").collect();
       if (protectedZones.length > 0) {
         for (const zone of protectedZones) {

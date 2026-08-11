@@ -1,12 +1,22 @@
 import { ConvexError, v } from "convex/values";
+import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
+import { consumeRateLimit } from "./abuse";
+import { ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
 
-function isPasscodeValid(passcode: string): boolean {
-  const secretKey = process.env.ADMIN_SECRET_KEY ?? "alwaysdraw-admin-2026";
+export function isPasscodeValid(passcode: string): boolean {
+  const secretKey = process.env.ADMIN_SECRET_KEY;
+  // No fallback to a hardcoded default — an unconfigured deployment should
+  // have no working admin passcode, not a guessable one.
+  if (!secretKey) return false;
   return passcode === secretKey;
 }
 
-function verifyAdminPasscode(passcode: string) {
+// Every admin mutation routes through here, not just the pre-flight check —
+// otherwise a client could skip verifyPasscode and brute-force a passcode
+// directly against e.g. wipeArea instead.
+export async function verifyAdminPasscode(ctx: MutationCtx, passcode: string) {
+  await consumeRateLimit(ctx, "admin:verify:global", ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS);
   if (!isPasscodeValid(passcode)) {
     throw new ConvexError("INVALID_ADMIN_PASSCODE: Unauthorized administrative operation.");
   }
@@ -17,7 +27,8 @@ function verifyAdminPasscode(passcode: string) {
  */
 export const verifyPasscode = mutation({
   args: { passcode: v.string() },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    await consumeRateLimit(ctx, "admin:verify:global", ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS);
     return isPasscodeValid(args.passcode);
   },
 });
@@ -34,7 +45,7 @@ export const wipeArea = mutation({
     maxY: v.number(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
 
     const allStrokes = await ctx.db.query("strokes").collect();
     let deletedCount = 0;
@@ -63,11 +74,11 @@ export const rollbackClient = mutation({
     targetClientId: v.string(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
 
     const clientStrokes = await ctx.db
       .query("strokes")
-      .filter((q) => q.eq(q.field("clientId"), args.targetClientId))
+      .withIndex("by_clientId", (q) => q.eq("clientId", args.targetClientId))
       .collect();
 
     for (const stroke of clientStrokes) {
@@ -87,7 +98,7 @@ export const publishBroadcast = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
 
     const activeList = await ctx.db
       .query("broadcasts")
@@ -117,7 +128,7 @@ export const clearBroadcast = mutation({
     passcode: v.string(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
 
     const activeList = await ctx.db
       .query("broadcasts")
@@ -160,7 +171,7 @@ export const createProtectedZone = mutation({
     maxY: v.number(),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
 
     const zoneId = await ctx.db.insert("protectedZones", {
       name: args.name,
@@ -184,7 +195,7 @@ export const deleteProtectedZone = mutation({
     zoneId: v.id("protectedZones"),
   },
   handler: async (ctx, args) => {
-    verifyAdminPasscode(args.passcode);
+    await verifyAdminPasscode(ctx, args.passcode);
     await ctx.db.delete(args.zoneId);
     return { success: true };
   },

@@ -48,6 +48,14 @@ export const VOTES_PER_CLIENT_WINDOW = 30;
 // are infrequent, so this is generous headroom, not a real throughput cap.
 export const SNAPSHOTS_GLOBAL_WINDOW = 5;
 export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
+// Admin passcode attempts have no reliable per-attacker identity to key on
+// (clientId is self-reported), so this is a tight global-only cap — it
+// won't stop a determined attacker, but it makes casual brute-forcing slow.
+export const ADMIN_VERIFY_GLOBAL_WINDOW = 20;
+
+export const MAX_REPORT_REASON_LENGTH = 280;
+export const REPORTS_PER_CLIENT_WINDOW = 5;
+export const REPORTS_GLOBAL_WINDOW = 50;
 
 export const PRESENCE_ONLINE_WINDOW_MS = 30_000;
 export const PRESENCE_STALE_MS = 2 * 60_000;

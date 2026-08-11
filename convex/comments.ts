@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import {
   WORLD_WIDTH,
@@ -16,6 +16,8 @@ import {
   assertWritesEnabled,
   consumeRateLimit,
 } from "./abuse";
+import { verifyAdminPasscode } from "./admin";
+import { containsProfanity } from "./profanity";
 
 const commentReturnFields = v.object({
   _id: v.id("canvasComments"),
@@ -59,6 +61,9 @@ export const create = mutation({
     assertBoundedIdentifier(args.clientId, "clientId", MAX_CLIENT_ID_LENGTH);
     if (args.username !== undefined) {
       assertBoundedIdentifier(args.username, "username", MAX_USERNAME_LENGTH);
+      if (containsProfanity(args.username)) {
+        throw new ConvexError("PROFANITY_BLOCKED: username contains a blocked word — please choose another");
+      }
     }
     if (args.countryCode !== undefined && !COUNTRY_CODE_PATTERN.test(args.countryCode)) {
       throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
@@ -66,6 +71,9 @@ export const create = mutation({
     const text = args.text.trim();
     if (!text || text.length > MAX_COMMENT_LENGTH) {
       throw new Error(`comment must be between 1 and ${MAX_COMMENT_LENGTH} characters`);
+    }
+    if (containsProfanity(text)) {
+      throw new ConvexError("PROFANITY_BLOCKED: comment contains a blocked word");
     }
     if (!Number.isFinite(args.x) || args.x < 0 || args.x > WORLD_WIDTH) {
       throw new Error(`x must be within [0, ${WORLD_WIDTH}]`);
@@ -117,6 +125,21 @@ export const remove = mutation({
     if (comment.clientId !== args.clientId) {
       throw new Error("can only delete your own comment");
     }
+    await ctx.db.delete(args.commentId);
+    return null;
+  },
+});
+
+/** Admin moderation: remove any comment regardless of author, e.g. acting on
+ * a report. Unlike `remove`, this isn't limited to the caller's own notes. */
+export const adminRemove = mutation({
+  args: {
+    passcode: v.string(),
+    commentId: v.id("canvasComments"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await verifyAdminPasscode(ctx, args.passcode);
     await ctx.db.delete(args.commentId);
     return null;
   },

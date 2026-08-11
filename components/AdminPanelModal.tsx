@@ -14,6 +14,7 @@ export interface AdminPanelModalProps {
   onAuthenticate: (passcode: string) => Promise<boolean>;
   onStartImagePlacement: (file: File, url: string, aspectRatio: number) => void;
   onPurgeAllStampedImages: () => Promise<void>;
+  onTeleport?: (x: number, y: number, zoom: number) => void;
 }
 
 export function AdminPanelModal({
@@ -24,10 +25,11 @@ export function AdminPanelModal({
   onAuthenticate,
   onStartImagePlacement,
   onPurgeAllStampedImages,
+  onTeleport,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "telemetry">("moderation");
+  const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "reports" | "telemetry">("moderation");
 
   // Moderation state
   const [wipeMinX, setWipeMinX] = useState(0);
@@ -56,10 +58,16 @@ export function AdminPanelModal({
   const clearBroadcast = useMutation(api.admin.clearBroadcast);
   const createProtectedZone = useMutation(api.admin.createProtectedZone);
   const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
+  const updateReportStatus = useMutation(api.reports.updateStatus);
+  const adminRemoveComment = useMutation(api.comments.adminRemove);
 
   const protectedZones = useQuery(api.admin.getProtectedZones);
   const telemetry = useQuery(
     api.admin.getTelemetry,
+    authenticated ? { passcode: activePasscode } : "skip",
+  );
+  const openReports = useQuery(
+    api.reports.listOpen,
     authenticated ? { passcode: activePasscode } : "skip",
   );
 
@@ -202,6 +210,32 @@ export function AdminPanelModal({
     }
   };
 
+  const handleDismissReport = async (reportId: Id<"contentReports">) => {
+    try {
+      await updateReportStatus({ passcode: activePasscode, reportId, status: "dismissed" });
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Dismiss failed"}`);
+    }
+  };
+
+  const handleTeleportToReport = (x: number, y: number, zoom: number) => {
+    onTeleport?.(x, y, zoom);
+    onClose();
+  };
+
+  const handleDeleteReportedComment = async (
+    reportId: Id<"contentReports">,
+    commentId: Id<"canvasComments">,
+  ) => {
+    try {
+      await adminRemoveComment({ passcode: activePasscode, commentId });
+      await updateReportStatus({ passcode: activePasscode, reportId, status: "reviewed" });
+      setActionStatus("Success! Comment removed.");
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Delete failed"}`);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -248,12 +282,9 @@ export function AdminPanelModal({
               type="password"
               value={inputPasscode}
               onChange={(e) => setInputPasscode(e.target.value)}
-              placeholder="Default: alwaysdraw-admin-2026"
+              placeholder="••••••••"
               className="rounded border border-chrome-border bg-chrome-bg-raised px-3 py-2 text-xs font-mono text-ink focus:border-rust focus:outline-none"
             />
-            <span className="text-[10px] text-ink-dim">
-              Default local key: <code className="text-accent-yellow">alwaysdraw-admin-2026</code>
-            </span>
           </div>
           {authError && <span className="font-mono text-xs text-accent-crimson">{authError}</span>}
           <button
@@ -310,6 +341,17 @@ export function AdminPanelModal({
               }`}
             >
               📢 BANNER
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("reports")}
+              className={`px-2 py-1.5 font-bold transition-colors whitespace-nowrap ${
+                activeTab === "reports"
+                  ? "border-b-2 border-rust text-accent-yellow"
+                  : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              🚩 REPORTS{openReports && openReports.length > 0 ? ` (${openReports.length})` : ""}
             </button>
             <button
               type="button"
@@ -562,6 +604,71 @@ export function AdminPanelModal({
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: Reports queue */}
+          {activeTab === "reports" && (
+            <div className="flex flex-col gap-2 text-left font-mono text-xs">
+              {!openReports || openReports.length === 0 ? (
+                <span className="text-[10px] text-ink-dim">No open reports.</span>
+              ) : (
+                openReports.map((r) => (
+                  <div
+                    key={r._id}
+                    className="flex flex-col gap-1.5 rounded border border-chrome-border bg-chrome-bg-raised/70 p-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-accent-yellow">
+                        {r.targetType === "area" ? "🗺️ Area" : "📝 Comment"}
+                      </span>
+                      <span className="text-[9px] text-ink-dim">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {r.targetType === "comment" && (
+                      <p className="rounded bg-chrome-bg p-1.5 text-[11px] text-ink">
+                        {r.commentText !== undefined
+                          ? `"${r.commentText}" — ${r.commentAuthor ?? "anon"}`
+                          : "(comment already deleted)"}
+                      </p>
+                    )}
+
+                    {r.reason && (
+                      <p className="text-[10px] text-ink-dim">Reason: {r.reason}</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      {r.targetType === "area" && r.x !== undefined && r.y !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => handleTeleportToReport(r.x!, r.y!, r.zoom ?? 1)}
+                          className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink hover:border-rust hover:text-accent-yellow"
+                        >
+                          📍 TELEPORT
+                        </button>
+                      )}
+                      {r.targetType === "comment" && r.commentId && r.commentText !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReportedComment(r._id, r.commentId!)}
+                          className="rounded border border-accent-crimson bg-accent-crimson/20 px-2 py-1 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent"
+                        >
+                          🗑️ DELETE COMMENT
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDismissReport(r._id)}
+                        className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink-dim hover:text-ink"
+                      >
+                        DISMISS
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
