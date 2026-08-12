@@ -1,11 +1,25 @@
-const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
-const REGIONAL_INDICATOR_OFFSET = 0x1f1e6 - 65; // 'A'.charCodeAt(0) === 65
-
-/** ISO 3166-1 alpha-2 code -> flag emoji, via the Unicode regional-indicator
- * trick (each letter A-Z maps to its own regional-indicator symbol; a pair
- * of them renders as that country's flag). Falls back to a white flag for
- * unknown/invalid codes rather than showing garbled text. */
-export function countryCodeToFlag(code: string | undefined): string {
-  if (!code || !COUNTRY_CODE_PATTERN.test(code)) return "🏳️";
-  return [...code].map((c) => String.fromCodePoint(c.charCodeAt(0) + REGIONAL_INDICATOR_OFFSET)).join("");
+/** Convert ISO 3166-1 alpha-2 country code to flag emoji */
+export function getCountryFlagEmoji(countryCode?: string): string {
+  if (!countryCode || countryCode.length !== 2) return "🌐";
+  const codePoints = countryCode
+    .toUpperCase()
+    .split("")
+    .map((char) => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
 }
+
+export const POPULAR_COUNTRIES = [
+  { code: "US", name: "🇺🇸 United States" },
+  { code: "DE", name: "🇩🇪 Germany" },
+  { code: "JP", name: "🇯🇵 Japan" },
+  { code: "FR", name: "🇫🇷 France" },
+  { code: "GB", name: "🇬🇧 United Kingdom" },
+  { code: "BR", name: "🇧🇷 Brazil" },
+  { code: "CA", name: "🇨🇦 Canada" },
+  { code: "AU", name: "🇦🇺 Australia" },
+  { code: "ES", name: "🇪🇸 Spain" },
+  { code: "IT", name: "🇮🇹 Italy" },
+  { code: "KR", name: "🇰🇷 South Korea" },
+  { code: "IN", name: "🇮🇳 India" },
+  { code: "TR", name: "🇹🇷 Turkey" },
+];

@@ -24,8 +24,17 @@ export function DrawingChallengeWidget({
 
   if (!activeGoal) return null;
 
-  const handleAccept = () => {
-    onAcceptChallenge?.(activeGoal);
+  const hasArea =
+    activeGoal.targetX !== undefined &&
+    activeGoal.targetY !== undefined &&
+    (activeGoal.targetX !== 0 || activeGoal.targetY !== 0);
+
+  const handleAction = () => {
+    if (hasArea) {
+      onAcceptChallenge?.(activeGoal);
+    } else {
+      onDismissGoal?.();
+    }
   };
 
   if (minimized) {
@@ -51,7 +60,7 @@ export function DrawingChallengeWidget({
       <div className="flex items-center justify-between border-b border-chrome-border/70 pb-2 mb-2.5 font-mono text-xs font-bold uppercase text-accent-yellow">
         <div className="flex items-center gap-1.5">
           <span>🎯</span>
-          <span>Community Drawing Goal</span>
+          <span>{hasArea ? "Community Drawing Goal" : "Admin Announcement Banner"}</span>
         </div>
         <button
           type="button"
@@ -60,7 +69,7 @@ export function DrawingChallengeWidget({
             onDismissGoal?.();
           }}
           className="text-ink-dim hover:text-ink text-xs font-bold px-1"
-          title="Minimize drawing goal widget"
+          title="Dismiss goal banner"
         >
           ✕
         </button>
@@ -73,10 +82,10 @@ export function DrawingChallengeWidget({
       <div className="flex items-center gap-2 font-mono text-xs">
         <button
           type="button"
-          onClick={handleAccept}
+          onClick={handleAction}
           className="w-full rounded-sm bg-accent-crimson px-3 py-2 font-bold uppercase tracking-wider text-white shadow-sm hover:bg-accent-crimson-deep transition-colors"
         >
-          🎨 Teleport &amp; Draw Goal
+          {hasArea ? "🎨 Teleport & Draw Goal" : "👍 OK, Got It"}
         </button>
       </div>
     </div>

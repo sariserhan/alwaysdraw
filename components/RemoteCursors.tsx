@@ -3,8 +3,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { worldToScreen } from "@/lib/coordinates";
 import type { Camera } from "@/lib/camera";
+import { getCountryFlagEmoji } from "@/lib/flags";
 
-type CursorEntry = { clientId: string; username?: string; cursorX: number; cursorY: number };
+type CursorEntry = { clientId: string; username?: string; countryCode?: string; cursorX: number; cursorY: number };
 
 const CURSOR_COLORS = ["#e0432b", "#39c07a", "#2f9fe0", "#e0b13a", "#c14fd6"];
 
@@ -132,10 +133,11 @@ export const RemoteCursors = forwardRef<RemoteCursorsHandle, RemoteCursorsProps>
               />
             </svg>
             <span
-              className="rounded-sm border border-black/40 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white shadow-sm opacity-90 backdrop-blur-sm whitespace-nowrap max-w-[120px] truncate"
+              className="flex items-center gap-1 rounded-sm border border-black/40 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white shadow-sm opacity-90 backdrop-blur-sm whitespace-nowrap max-w-[140px] truncate"
               style={{ backgroundColor: fill }}
             >
-              {labelText}
+              <span>{getCountryFlagEmoji(e.countryCode)}</span>
+              <span className="truncate">{labelText}</span>
             </span>
           </div>
         );

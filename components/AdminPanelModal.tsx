@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { WorldRect } from "@/lib/types";
 import { ChromeRivet } from "./ChromeRivet";
+import { POPULAR_COUNTRIES } from "@/lib/flags";
 
 export interface AdminPanelModalProps {
   isOpen: boolean;
@@ -31,7 +32,8 @@ export interface AdminPanelModalProps {
     x: number,
     y: number,
     brushType: any,
-    color: string
+    color: string,
+    countryCode?: string
   ) => void;
   /** Launch an active community drawing goal worldwide */
   onLaunchGoal?: (prompt: string, targetX?: number, targetY?: number) => void;
@@ -80,6 +82,7 @@ export function AdminPanelModal({
   // AI Agent state
   const [aiArtistName, setAiArtistName] = useState("ArtistAlex");
   const [aiPrompt, setAiPrompt] = useState("castle");
+  const [aiCountry, setAiCountry] = useState("US");
   const [aiZoneX, setAiZoneX] = useState(0);
   const [aiZoneY, setAiZoneY] = useState(0);
   const [aiBrush, setAiBrush] = useState("neonGlow");
@@ -931,15 +934,31 @@ export function AdminPanelModal({
                   Spawn a human-simulated AI artist agent. The AI artist moves a visible remote cursor across the canvas drawing stroke-by-stroke in real time so other users watch live human-like drawing.
                 </p>
 
-                <div>
-                  <label className="block text-[10px] text-ink-dim font-bold">Artist Display Name</label>
-                  <input
-                    type="text"
-                    value={aiArtistName}
-                    onChange={(e) => setAiArtistName(e.target.value)}
-                    placeholder="e.g. ArtistAlex, PixelMaster, NeonGhost"
-                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs text-ink focus:border-rust focus:outline-none"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Artist Display Name</label>
+                    <input
+                      type="text"
+                      value={aiArtistName}
+                      onChange={(e) => setAiArtistName(e.target.value)}
+                      placeholder="e.g. ArtistAlex, PixelMaster"
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs text-ink focus:border-rust focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Simulated Country</label>
+                    <select
+                      value={aiCountry}
+                      onChange={(e) => setAiCountry(e.target.value)}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1.5 text-xs text-ink"
+                    >
+                      {POPULAR_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
@@ -1005,8 +1024,8 @@ export function AdminPanelModal({
                   type="button"
                   onClick={() => {
                     if (!onSpawnAiAgent) return;
-                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor);
-                    setActionStatus(`Success! Spawned AI Artist "${aiArtistName}" drawing "${aiPrompt}" at (${aiZoneX}, ${aiZoneY}).`);
+                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor, aiCountry);
+                    setActionStatus(`Success! Spawned AI Artist "${aiArtistName}" (${aiCountry}) drawing "${aiPrompt}" at (${aiZoneX}, ${aiZoneY}).`);
                   }}
                   className="mt-2 rounded bg-accent-crimson px-3 py-2 font-mono text-xs font-bold uppercase text-white shadow-md hover:bg-accent-crimson-deep transition-all"
                 >

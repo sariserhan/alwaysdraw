@@ -45,7 +45,7 @@ import {
   getHasSeenWelcomeHint,
   setHasSeenWelcomeHint,
 } from "@/lib/identity";
-import { countryCodeToFlag } from "@/lib/flags";
+import { getCountryFlagEmoji } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
 import { CommentsOverlay, type CanvasComment, type CommentsOverlayHandle } from "./CommentsOverlay";
@@ -2328,7 +2328,7 @@ export function GlobalCanvas() {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [activeAdminGoal, setActiveAdminGoal] = useState<ActiveGoal | null>(null);
   const [aiAgentCursors, setAiAgentCursors] = useState<
-    Map<string, { clientId: string; username: string; cursorX: number; cursorY: number }>
+    Map<string, { clientId: string; username: string; countryCode?: string; cursorX: number; cursorY: number }>
   >(new Map());
 
   const handleLaunchGoal = useCallback((promptText: string, targetX?: number, targetY?: number) => {
@@ -2340,7 +2340,15 @@ export function GlobalCanvas() {
   }, []);
 
   const handleAdminSpawnAiAgent = useCallback(
-    (name: string, promptText: string, zoneX: number, zoneY: number, brush: BrushType, strokeColor: string) => {
+    (
+      name: string,
+      promptText: string,
+      zoneX: number,
+      zoneY: number,
+      brush: BrushType,
+      strokeColor: string,
+      countryCode: string = "US",
+    ) => {
       const aiClientId = `ai-artist-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
       const displayName = `${name} 🎨`;
 
@@ -2392,18 +2400,19 @@ export function GlobalCanvas() {
             st.width,
             st.opacity,
             displayName,
-            "AI",
+            countryCode,
             commitOwnChunk,
           );
 
           densePoints.forEach((pt, pIdx) => {
             setTimeout(() => {
-              // Update live remote cursor position for the AI artist
+              // Update live remote cursor position for the AI artist with country code
               setAiAgentCursors((prev) => {
                 const next = new Map(prev);
                 next.set(aiClientId, {
                   clientId: aiClientId,
                   username: displayName,
+                  countryCode,
                   cursorX: pt.x,
                   cursorY: pt.y,
                 });
@@ -3195,7 +3204,7 @@ export function GlobalCanvas() {
           style={{ left: hoverAttribution.screenX + 14, top: hoverAttribution.screenY - 10 }}
         >
           <div className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg/95 px-2 py-1 font-mono text-[11px] font-bold text-ink shadow-[0_4px_12px_rgba(0,0,0,0.7)] backdrop-blur-sm">
-            <span>{countryCodeToFlag(hoverAttribution.countryCode)}</span>
+            <span>{getCountryFlagEmoji(hoverAttribution.countryCode)}</span>
             <span>{hoverAttribution.username ?? hoverAttribution.clientId}</span>
           </div>
         </div>
