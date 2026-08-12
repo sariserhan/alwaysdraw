@@ -54,6 +54,8 @@ import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } from "@/lib/types";
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
+import { ShareModal } from "./ShareModal";
+import { InviteBanner } from "./InviteBanner";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -2318,9 +2320,14 @@ export function GlobalCanvas() {
 
 
 
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [activeShareUrl, setActiveShareUrl] = useState("");
+
   const handleShare = useCallback(() => {
     const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
     navigator.clipboard?.writeText(url).catch(() => {});
+    setActiveShareUrl(url);
+    setShareModalOpen(true);
     captureEvent("view_shared");
   }, []);
 
@@ -3128,6 +3135,12 @@ export function GlobalCanvas() {
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
+        />
+        <InviteBanner />
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          shareUrl={activeShareUrl}
         />
         <AdminPanelModal
           isOpen={adminOpen}
