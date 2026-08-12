@@ -3,6 +3,17 @@ import { generateAiStrokes as generateProceduralStrokes } from "@/lib/aiDrawer";
 
 export const runtime = "edge";
 
+export async function GET() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  return NextResponse.json({
+    hasApiKey: Boolean(apiKey),
+    engine: apiKey ? "gemini-2.0-flash" : "procedural",
+    statusMessage: apiKey
+      ? "🟢 Gemini 2.0 Flash Model Active (Real AI)"
+      : "🟡 Procedural Path Engine Active (Set GEMINI_API_KEY in .env.local to activate Gemini 2.0 Flash)",
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

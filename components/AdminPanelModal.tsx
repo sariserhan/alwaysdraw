@@ -89,6 +89,21 @@ export function AdminPanelModal({
   const [aiBrush, setAiBrush] = useState("neonGlow");
   const [aiColor, setAiColor] = useState("#d94626");
   const [aiImageElement, setAiImageElement] = useState<HTMLImageElement | null>(null);
+  const [aiEngineStatus, setAiEngineStatus] = useState<string>("Checking AI status...");
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetch("/api/ai-draw")
+      .then((res) => res.json())
+      .then((data) => {
+        setAiEngineStatus(data.statusMessage || "Active");
+        setHasGeminiKey(Boolean(data.hasApiKey));
+      })
+      .catch(() => {
+        setAiEngineStatus("🟡 Procedural Engine Active");
+        setHasGeminiKey(false);
+      });
+  }, []);
 
   // Protected Zone state
   const [zoneName, setZoneName] = useState("Community Mural Shield");
@@ -935,6 +950,16 @@ export function AdminPanelModal({
                 <p className="text-[10px] text-ink-dim leading-relaxed">
                   Spawn a human-simulated AI artist agent. The AI artist moves a visible remote cursor across the canvas drawing stroke-by-stroke in real time so other users watch live human-like drawing.
                 </p>
+
+                <div
+                  className={`rounded p-2 text-[10px] font-bold border leading-snug ${
+                    hasGeminiKey
+                      ? "border-accent-green/60 bg-accent-green/10 text-accent-green"
+                      : "border-accent-yellow/60 bg-accent-yellow/10 text-accent-yellow"
+                  }`}
+                >
+                  {aiEngineStatus}
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
