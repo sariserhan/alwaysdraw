@@ -2339,8 +2339,30 @@ export function GlobalCanvas() {
         brushType: brush,
       });
 
-      // Animate AI strokes onto the canvas step-by-step
-      generated.forEach((st, idx) => {
+      let totalDelay = 0;
+
+      generated.forEach((st) => {
+        // Interpolate extra smooth points for human-like fluid motion
+        const densePoints: Point[] = [];
+        for (let i = 0; i < st.points.length - 1; i++) {
+          const p1 = st.points[i];
+          const p2 = st.points[i + 1];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const steps = Math.max(4, Math.floor(dist / 4));
+          for (let step = 0; step < steps; step++) {
+            const t = step / steps;
+            densePoints.push({
+              x: p1.x + (p2.x - p1.x) * t,
+              y: p1.y + (p2.y - p1.y) * t,
+            });
+          }
+        }
+        if (st.points.length > 0) {
+          densePoints.push(st.points[st.points.length - 1]);
+        }
+
+        const strokeStartDelay = totalDelay;
+
         setTimeout(() => {
           const buffer = new StrokeBuffer(
             clientId,
@@ -2349,17 +2371,27 @@ export function GlobalCanvas() {
             st.color,
             st.width,
             st.opacity,
-            username,
-            countryCode,
+            `AI Artist (${promptText})`,
+            "AI",
             commitOwnChunk,
           );
-          for (const pt of st.points) buffer.addPoint(pt);
-          buffer.finish();
-          scheduleRedraw({ strokes: true });
-        }, idx * 180);
+
+          densePoints.forEach((pt, pIdx) => {
+            setTimeout(() => {
+              buffer.addPoint(pt);
+              scheduleRedraw({ strokes: true });
+              if (pIdx === densePoints.length - 1) {
+                buffer.finish();
+                scheduleRedraw({ strokes: true });
+              }
+            }, pIdx * 24); // ~24ms per point for natural human hand drawing speed
+          });
+        }, strokeStartDelay);
+
+        totalDelay += densePoints.length * 24 + 180; // 180ms natural pen-lift pause between lines
       });
     },
-    [clientId, username, countryCode, commitOwnChunk, scheduleRedraw],
+    [clientId, commitOwnChunk, scheduleRedraw],
   );
 
   const handleShare = useCallback(() => {
