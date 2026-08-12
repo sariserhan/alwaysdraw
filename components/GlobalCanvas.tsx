@@ -56,6 +56,9 @@ import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/
 import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
+import { GhostArtistOverlay } from "./GhostArtistOverlay";
+import { DrawingChallengeWidget } from "./DrawingChallengeWidget";
+import { generateCompanionStroke } from "@/lib/ghostArtist";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -2322,6 +2325,7 @@ export function GlobalCanvas() {
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeShareUrl, setActiveShareUrl] = useState("");
+  const [aiCoDoodlerEnabled, setAiCoDoodlerEnabled] = useState(true);
 
   const handleShare = useCallback(() => {
     const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
@@ -3137,6 +3141,19 @@ export function GlobalCanvas() {
           locale={locale}
         />
         <InviteBanner />
+        <GhostArtistOverlay
+          camera={cameraSnapshot}
+          enabled={aiCoDoodlerEnabled}
+          onToggleEnabled={() => setAiCoDoodlerEnabled((prev) => !prev)}
+        />
+        <DrawingChallengeWidget
+          onAcceptChallenge={() => {
+            setTool("brush");
+            const def = defaultCamera(viewportRef.current.width, viewportRef.current.height);
+            cameraRef.current = def;
+            setCameraSnapshot(def);
+          }}
+        />
         <ShareModal
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
