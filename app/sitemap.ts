@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const routes = [
     "",
+    "/canvas",
     "/draw-with-friends",
     "/online-whiteboard",
     "/infinite-canvas",
@@ -14,7 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return routes.map((route) => ({
     url: `${siteUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === "" ? "always" : "weekly",
-    priority: route === "" ? 1.0 : 0.8,
+    changeFrequency: route === "" || route === "/canvas" ? "always" : "weekly",
+    priority: route === "" || route === "/canvas" ? 1.0 : 0.8,
   }));
 }

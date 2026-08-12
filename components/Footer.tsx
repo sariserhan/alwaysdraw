@@ -41,7 +41,7 @@ export function Footer() {
               <span>Pages &amp; Tools</span>
             </h4>
             <nav className="flex flex-col gap-2 font-mono text-xs text-ink-dim">
-              <Link href="/" className="hover:text-accent-yellow transition-colors">
+              <Link href="/canvas" className="hover:text-accent-yellow transition-colors">
                 🎨 Live World Canvas
               </Link>
               <Link href="/draw-with-friends" className="hover:text-accent-yellow transition-colors">
@@ -80,7 +80,7 @@ export function Footer() {
               No sign-up or download needed. Jump right onto the live shared wall.
             </p>
             <Link
-              href="/"
+              href="/canvas"
               className="inline-flex items-center justify-center gap-2 rounded-sm bg-accent-crimson px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-crimson-deep transition-all"
             >
               <span>Launch Canvas</span>

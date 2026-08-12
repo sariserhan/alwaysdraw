@@ -101,7 +101,7 @@ export function SeoLandingPage({
           </nav>
 
           <Link
-            href="/"
+            href="/canvas"
             className="flex items-center gap-2 rounded-sm bg-accent-crimson px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-crimson-deep transition"
           >
             <span>Start Drawing</span>
@@ -130,7 +130,7 @@ export function SeoLandingPage({
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/"
+              href="/canvas"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-md bg-accent-crimson px-8 py-4 text-base font-mono font-bold uppercase tracking-wider text-white shadow-[0_10px_25px_rgba(217,70,38,0.35)] hover:bg-accent-crimson-deep hover:scale-[1.02] transition-all"
             >
               <span>Launch Live Canvas Now</span>
@@ -285,7 +285,7 @@ export function SeoLandingPage({
             Join thousands of artists and doodlers on the shared internet canvas right now.
           </p>
           <Link
-            href="/"
+            href="/canvas"
             className="inline-flex items-center gap-3 rounded-md bg-accent-crimson px-10 py-5 text-lg font-mono font-bold uppercase tracking-wider text-white shadow-[0_12px_30px_rgba(217,70,38,0.4)] hover:bg-accent-crimson-deep hover:scale-[1.03] transition-all"
           >
             <span>Jump Into The Live Canvas</span>

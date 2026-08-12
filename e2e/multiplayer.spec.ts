@@ -6,7 +6,7 @@ test.skip(
 );
 
 async function waitForWall(page: Page) {
-  await page.goto("/");
+  await page.goto("/canvas");
   await expect(page.getByText("loading the wall")).toBeHidden({ timeout: 30_000 });
   await expect(page.getByText("live", { exact: true })).toBeVisible({ timeout: 30_000 });
 }

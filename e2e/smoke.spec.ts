@@ -7,7 +7,7 @@ test("loads the wall and primary controls respond", async ({ page }) => {
       thirdPartyTelemetryRequests.push(request.url());
     }
   });
-  await page.goto("/");
+  await page.goto("/canvas");
 
   await expect(page).toHaveTitle(/AlwaysDraw/);
   await expect(page.getByText("AlwaysDraw", { exact: true })).toBeVisible();
@@ -26,7 +26,7 @@ test("loads the wall and primary controls respond", async ({ page }) => {
 
 test("toolbar remains operable at a mobile viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/canvas");
 
   await expect(page.getByRole("button", { name: "collapse section" }).first()).toBeVisible();
   await page.getByRole("button", { name: "collapse section" }).first().click();
