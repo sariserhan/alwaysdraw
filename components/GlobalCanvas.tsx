@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
@@ -2805,9 +2806,27 @@ export function GlobalCanvas() {
         
         {/* Left Section: Branding & Info Badges */}
         <div className="flex shrink-0 items-center gap-2 pl-1 sm:pl-4">
-          <h1 id="app-heading" className="stencil-cut font-display text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-ink uppercase whitespace-nowrap">
-            AlwaysDraw
-          </h1>
+          <Link
+            href="/"
+            title="Return to Home Landing Page"
+            className="flex items-center gap-1.5 hover:opacity-85 transition-opacity group"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-accent-crimson font-mono text-[10px] font-bold text-white shadow-sm">
+              AD
+            </span>
+            <h1 id="app-heading" className="stencil-cut font-display text-xs sm:text-sm font-bold tracking-[0.18em] sm:tracking-[0.22em] text-ink uppercase whitespace-nowrap group-hover:text-accent-yellow transition-colors">
+              AlwaysDraw
+            </h1>
+          </Link>
+
+          <Link
+            href="/"
+            title="Return to Home"
+            className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink-dim hover:text-ink hover:border-rust transition-colors shadow-sm"
+          >
+            <span>🏠</span>
+            <span className="font-bold uppercase tracking-wider hidden sm:inline">HOME</span>
+          </Link>
           <div
             className="hidden sm:flex items-center gap-1 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"
