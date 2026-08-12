@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.alwaysdraw.workers.dev";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.com";
 
   return [
     {
