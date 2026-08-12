@@ -56,10 +56,8 @@ import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/
 import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
-import { GhostArtistOverlay } from "./GhostArtistOverlay";
 import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
 import { AiDrawerModal } from "./AiDrawerModal";
-import { generateCompanionStroke } from "@/lib/ghostArtist";
 import { generateAiStrokes } from "@/lib/aiDrawer";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
@@ -2327,7 +2325,6 @@ export function GlobalCanvas() {
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeShareUrl, setActiveShareUrl] = useState("");
-  const [aiCoDoodlerEnabled, setAiCoDoodlerEnabled] = useState(true);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [activeAdminGoal, setActiveAdminGoal] = useState<ActiveGoal | null>(null);
   const [aiAgentCursors, setAiAgentCursors] = useState<
@@ -3317,11 +3314,6 @@ export function GlobalCanvas() {
           locale={locale}
         />
         <InviteBanner />
-        <GhostArtistOverlay
-          camera={cameraSnapshot}
-          enabled={aiCoDoodlerEnabled}
-          onToggleEnabled={() => setAiCoDoodlerEnabled((prev) => !prev)}
-        />
         <DrawingChallengeWidget
           activeGoal={activeAdminGoal}
           onAcceptChallenge={(goal) => {
