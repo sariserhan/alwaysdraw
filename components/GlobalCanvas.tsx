@@ -53,6 +53,7 @@ import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } from "@/lib/types";
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
+import { CanvasFooter } from "./CanvasFooter";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -3129,6 +3130,8 @@ export function GlobalCanvas() {
           onWipeArea={handleWipeArea}
         />
       </nav>
+
+      <CanvasFooter onOpenHotkeys={() => setHotkeysOpen(true)} />
 
       {textInputPos && (
         <div
