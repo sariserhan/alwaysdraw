@@ -28,9 +28,9 @@ test("toolbar remains operable at a mobile viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  await expect(page.getByRole("button", { name: "hide toolbar" })).toBeVisible();
-  await page.getByRole("button", { name: "hide toolbar" }).click();
-  await expect(page.getByRole("button", { name: "show toolbar" })).toBeVisible();
-  await page.getByRole("button", { name: "show toolbar" }).click();
-  await expect(page.getByRole("button", { name: "hide toolbar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "collapse section" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "collapse section" }).first().click();
+  await expect(page.getByRole("button", { name: "expand section" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "expand section" }).first().click();
+  await expect(page.getByRole("button", { name: "collapse section" }).first()).toBeVisible();
 });

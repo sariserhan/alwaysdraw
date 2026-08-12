@@ -24,7 +24,8 @@ export const BrushCursor = forwardRef<HTMLDivElement, { tool: Tool; brushType: B
     const isSoft = !isEraser && (brushType === "watercolor" || brushType === "highlighter");
     const isGlow = !isEraser && brushType === "neonGlow";
     const isSparkle = !isEraser && brushType === "glitter";
-    const ringColor = isEraser ? "var(--ink)" : color;
+    // Neutral dark steel ring/mark for eraser, high-contrast against concrete wall (#f0ebd9)
+    const ringColor = isEraser ? "#17181a" : color;
 
     if (isLaser) {
       return (
@@ -55,20 +56,24 @@ export const BrushCursor = forwardRef<HTMLDivElement, { tool: Tool; brushType: B
           style={{
             border: `1.5px ${isGrainy ? "dashed" : "solid"} ${ringColor}`,
             background: isEraser ? "transparent" : `color-mix(in srgb, ${color} 16%, transparent)`,
-            boxShadow: isGlow ? `0 0 10px ${color}` : undefined,
+            boxShadow: isEraser
+              ? "0 0 0 1px rgba(245, 241, 230, 0.7)"
+              : isGlow
+                ? `0 0 10px ${color}`
+                : undefined,
             filter: isSoft ? "blur(0.75px)" : undefined,
             transform: isCalligraphy ? "rotate(45deg) scaleY(0.55)" : undefined,
           }}
         />
         {isEraser ? (
           <svg
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_1px_rgba(245,241,230,0.9)]"
             width="9"
             height="9"
             viewBox="0 0 24 24"
             fill="none"
           >
-            <path d="M5 5l14 14M19 5 5 19" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M5 5l14 14M19 5 5 19" stroke="#17181a" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
         ) : isSparkle ? (
           <span

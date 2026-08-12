@@ -41,13 +41,23 @@ function DripEdge() {
   );
 }
 
-function MountBracket({ side, collapsed, onClick }: { side: "left" | "right"; collapsed: boolean; onClick: () => void }) {
+function MountBracket({
+  side,
+  collapsed,
+  onClick,
+  title,
+}: {
+  side: "left" | "right";
+  collapsed: boolean;
+  onClick: () => void;
+  title?: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={collapsed ? "expand toolbar" : "collapse toolbar"}
-      title={collapsed ? "Expand" : "Collapse"}
+      aria-label={collapsed ? "expand section" : "collapse section"}
+      title={title ?? (collapsed ? "Expand" : "Collapse")}
       aria-pressed={collapsed}
       className={`absolute -top-2.5 h-3 w-6 rounded-t-sm border border-b-0 border-chrome-border bg-chrome-bg-raised ${
         side === "left" ? "left-3" : "right-3"
@@ -225,35 +235,7 @@ function ChevronDownIcon() {
   );
 }
 
-function HideHandle({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="hide toolbar"
-      title="Hide toolbar"
-      className="absolute -top-3.5 left-1/2 flex h-3.5 w-10 -translate-x-1/2 items-center justify-center rounded-t-sm border border-b-0 border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
-    >
-      <ChevronDownIcon />
-    </button>
-  );
-}
 
-function ShowTab({ onClick }: { onClick: () => void }) {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-2">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label="show toolbar"
-        title="Show toolbar"
-        className="pointer-events-auto flex h-6 w-14 items-center justify-center rounded-sm border-2 border-chrome-border bg-chrome-bg-raised text-ink-dim shadow-[0_6px_16px_rgba(0,0,0,0.4)] hover:text-ink"
-      >
-        <ChevronUpIcon />
-      </button>
-    </div>
-  );
-}
 
 function MinusIcon() {
   return (
@@ -364,47 +346,6 @@ function BrushPicker({
   );
 }
 
-function StencilPicker({
-  selectedStencil,
-  onSelect,
-  onClose,
-}: {
-  selectedStencil: StencilType;
-  onSelect: (st: StencilType) => void;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div className="fixed inset-0 z-[1000]" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-[1001] mb-3 w-52 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
-        <div className="px-1.5 py-1 font-mono text-[11px] font-bold tracking-wide text-ink-dim uppercase">
-          Spray Stencils
-        </div>
-        <div className="grid grid-cols-2 gap-1">
-          {STENCIL_TYPES.map((st) => (
-            <button
-              key={st.id}
-              type="button"
-              onClick={() => {
-                onSelect(st.id);
-                onClose();
-              }}
-              aria-pressed={selectedStencil === st.id}
-              className={`flex items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-xs font-medium transition ${
-                selectedStencil === st.id
-                  ? "bg-accent-crimson-deep text-on-accent"
-                  : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
-              }`}
-            >
-              <span>{st.icon}</span>
-              <span className="truncate">{st.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
 
 function ShapeIcon({ type }: { type: ShapeType }) {
   switch (type) {
@@ -469,92 +410,119 @@ function ShapePicker({
   onClose: () => void;
 }) {
   return (
-    <>
-      <div className="fixed inset-0 z-[1000]" onClick={onClose} aria-hidden />
-      <div className="absolute bottom-full left-0 z-[1001] mb-3 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-[0_12px_36px_rgba(0,0,0,0.9)]">
-        <div className="flex items-center gap-1">
-          {SHAPE_CATALOG.map((s) => (
-            <button
-              key={s.type}
-              type="button"
-              onClick={() => {
-                onSelect(s.type);
-                onClose();
-              }}
-              aria-pressed={shapeType === s.type}
-              aria-label={s.label}
-              title={s.label}
-              className={`flex items-center justify-center rounded-sm p-2 transition ${
-                shapeType === s.type
-                  ? "bg-accent-crimson-deep text-on-accent"
-                  : "text-ink-dim hover:bg-chrome-bg hover:text-ink"
-              }`}
-            >
-              <ShapeIcon type={s.type} />
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
+    <div
+      className="absolute bottom-full left-0 mb-2 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-xl z-50 flex gap-1"
+      style={{
+        backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
+      }}
+    >
+      {SHAPE_CATALOG.map((s) => (
+        <button
+          key={s.type}
+          type="button"
+          onClick={() => {
+            onSelect(s.type);
+            onClose();
+          }}
+          title={s.label}
+          className={`flex h-7 w-7 items-center justify-center rounded-sm text-xs transition ${
+            shapeType === s.type
+              ? "bg-accent-crimson-deep text-on-accent"
+              : "bg-chrome-bg text-ink-dim hover:bg-chrome-border hover:text-ink"
+          }`}
+        >
+          {s.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StencilPicker({
+  selectedStencil,
+  onSelect,
+  onClose,
+}: {
+  selectedStencil: StencilType;
+  onSelect: (st: StencilType) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="absolute bottom-full left-0 mb-2 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-xl z-50 flex gap-1"
+      style={{
+        backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
+      }}
+    >
+      {STENCIL_TYPES.map((st) => (
+        <button
+          key={st.id}
+          type="button"
+          onClick={() => {
+            onSelect(st.id);
+            onClose();
+          }}
+          title={st.label}
+          className={`flex h-7 w-7 items-center justify-center rounded-sm text-xs transition ${
+            selectedStencil === st.id
+              ? "bg-accent-crimson-deep text-on-accent"
+              : "bg-chrome-bg text-ink-dim hover:bg-chrome-border hover:text-ink"
+          }`}
+        >
+          {st.icon}
+        </button>
+      ))}
+    </div>
   );
 }
 
 function PalettePicker({
   activePaletteId,
   onSelectPalette,
-  locale,
+  locale = "en",
 }: {
   activePaletteId: string;
-  onSelectPalette: (palette: Palette) => void;
-  locale: Locale;
+  onSelectPalette: (p: Palette) => void;
+  locale?: Locale;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
+  const [open, setOpen] = useState(false);
   return (
-    <div className="relative shrink-0">
+    <div className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen((v) => !v)}
-        title={t(locale, "palettes")}
-        className="flex h-7 items-center gap-1 rounded border border-chrome-border bg-chrome-bg px-2 font-mono text-[10px] font-bold text-ink-dim hover:border-rust hover:text-accent-yellow transition-colors"
+        onClick={() => setOpen((v) => !v)}
+        title={t(locale, "palette_picker_title")}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-chrome-border bg-chrome-bg text-ink-dim hover:text-ink"
       >
-        <span>🎨</span>
-        <span className="hidden sm:inline">{t(locale, "palettes").toUpperCase()}</span>
+        🎨
       </button>
-
-      {isOpen && (
+      {open && (
         <div
-          role="menu"
-          aria-label="Color Palettes"
-          className="absolute bottom-full right-0 mb-2 z-[1000] flex flex-col gap-2 rounded-sm border-2 border-rust bg-chrome-bg/95 p-3 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md w-[220px]"
+          className="absolute bottom-full right-0 mb-2 w-48 rounded-sm border-2 border-chrome-border bg-chrome-bg-raised p-2 shadow-xl z-50 space-y-1"
+          style={{
+            backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
+          }}
         >
-          <div className="border-b border-chrome-border/60 pb-1 font-mono text-xs font-bold uppercase text-accent-yellow">
-            Color Palettes
-          </div>
-          <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
-            {PALETTE_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => {
-                  onSelectPalette(p);
-                  setIsOpen(false);
-                }}
-                className={`flex flex-col gap-1 rounded border p-1.5 text-left font-mono transition-colors ${
-                  activePaletteId === p.id
-                    ? "border-rust bg-rust/30 text-accent-yellow"
-                    : "border-chrome-border bg-chrome-bg-raised text-ink-dim hover:text-ink"
-                }`}
-              >
-                <span className="text-[10px] font-bold truncate">{p.name}</span>
-                <div className="flex gap-1">
-                  {p.colors.map((c, i) => (
-                    <span key={i} className="h-3 w-3 rounded-full border border-black/40" style={{ background: c }} />
-                  ))}
-                </div>
-              </button>
-            ))}
-          </div>
+          {PALETTE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                onSelectPalette(p);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between rounded-sm px-2 py-1 text-xs transition ${
+                activePaletteId === p.id ? "bg-chrome-border text-ink" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <span>{p.name}</span>
+              <div className="flex gap-0.5">
+                {p.colors.slice(0, 4).map((c) => (
+                  <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
+                ))}
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -612,347 +580,386 @@ export function DrawingToolbar({
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
   const [stencilPickerOpen, setStencilPickerOpen] = useState(false);
   const [activePalette, setActivePalette] = useState<Palette>(PALETTE_PRESETS[0]);
-  const [collapsed, setCollapsed] = useState(false);
-  const [hidden, setHidden] = useState(false);
+  const [toolsSectionOpen, setToolsSectionOpen] = useState(true);
+  const [stylesSectionOpen, setStylesSectionOpen] = useState(true);
+
   const activeBrushLabel = t(locale ?? "en", getBrushTypeTranslationKey(brushType));
   const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 
-  if (hidden) {
-    return <ShowTab onClick={() => setHidden(false)} />;
-  }
-
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-2 pb-2 sm:px-4 max-w-full">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center items-end px-2 pb-2 sm:px-4 max-w-full z-20">
+      <div className="relative flex flex-wrap items-stretch justify-center gap-2 sm:gap-3 max-w-[98vw]">
+        {/* SECTION 1: TOOLS & CONTROLS (LEFT PANEL) */}
+        <div
+          className="pointer-events-auto relative flex self-stretch items-center justify-center gap-1.5 sm:gap-2 rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-1.5 sm:py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 max-w-[98vw] overflow-visible"
+          style={{
+            backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
+          }}
+        >
+        <MountBracket
+          side="left"
+          collapsed={!toolsSectionOpen}
+          onClick={() => setToolsSectionOpen((v) => !v)}
+          title={toolsSectionOpen ? "Hide Tools section" : "Show Tools section"}
+        />
+        {toolsSectionOpen && <DripEdge />}
+
+        {toolsSectionOpen ? (
+          <div className="relative flex max-w-full flex-wrap items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
+            <button
+              type="button"
+              onClick={() => {
+                onToolChange("brush");
+                setPickerOpen((v) => (tool !== "brush" ? true : !v));
+              }}
+              aria-pressed={tool === "brush"}
+              aria-haspopup="true"
+              aria-expanded={pickerOpen}
+              title={activeBrushLabel}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "brush" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <BrushIcon />
+              <span className="whitespace-nowrap">{activeBrushLabel}</span>
+              <ChevronUpIcon />
+            </button>
+            {pickerOpen && (
+              <BrushPicker
+                brushType={brushType}
+                onSelect={(t) => {
+                  onBrushTypeChange(t);
+                  onToolChange("brush");
+                }}
+                onClose={() => setPickerOpen(false)}
+                locale={locale}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "eraser" ? "laser" : "eraser")}
+              aria-pressed={tool === "eraser"}
+              title={t(locale ?? "en", "erase")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <EraserIcon />
+              <span className="whitespace-nowrap">{t(locale, "erase")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined" && "EyeDropper" in window) {
+                  const EyeDropperClass = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+                  const eyeDropper = new EyeDropperClass();
+                  eyeDropper
+                    .open()
+                    .then((res: { sRGBHex: string }) => {
+                      if (res.sRGBHex) onColorChange(res.sRGBHex);
+                    })
+                    .catch(() => {});
+                } else {
+                  onToolChange(tool === "eyedropper" ? "laser" : "eyedropper");
+                }
+              }}
+              aria-pressed={tool === "eyedropper"}
+              title="Eyedropper Color Picker (I)"
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "eyedropper" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <EyedropperIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "pan" ? "laser" : "pan")}
+              aria-pressed={tool === "pan"}
+              title={t(locale, "pan")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "pan" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <HandIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "magnifier" ? "laser" : "magnifier")}
+              aria-pressed={tool === "magnifier"}
+              title={t(locale, "magnifier")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "magnifier" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <MagnifierIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (tool === "shape") {
+                  onToolChange("laser");
+                  setShapePickerOpen(false);
+                } else {
+                  onToolChange("shape");
+                  setShapePickerOpen(true);
+                }
+              }}
+              aria-pressed={tool === "shape"}
+              aria-haspopup="true"
+              aria-expanded={shapePickerOpen}
+              title={activeShapeLabel}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "shape" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <ShapesIcon />
+            </button>
+            {shapePickerOpen && (
+              <ShapePicker
+                shapeType={shapeType}
+                onSelect={(s) => {
+                  onShapeTypeChange(s);
+                  onToolChange("shape");
+                }}
+                onClose={() => setShapePickerOpen(false)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "text" ? "laser" : "text")}
+              aria-pressed={tool === "text"}
+              title="Text Tool (X)"
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "text" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <TextIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "comment" ? "laser" : "comment")}
+              aria-pressed={tool === "comment"}
+              title="Post Sticky Note (C)"
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "comment" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <CommentIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (tool === "stencil") {
+                  onToolChange("laser");
+                  setStencilPickerOpen(false);
+                } else {
+                  onToolChange("stencil");
+                  setStencilPickerOpen(true);
+                }
+              }}
+              aria-pressed={tool === "stencil"}
+              aria-haspopup="true"
+              aria-expanded={stencilPickerOpen}
+              title={t(locale, "stencil")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "stencil" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <StencilIcon />
+            </button>
+            {stencilPickerOpen && (
+              <StencilPicker
+                selectedStencil={selectedStencil}
+                onSelect={(st) => {
+                  onStencilSelect(st);
+                  onToolChange("stencil");
+                }}
+                onClose={() => setStencilPickerOpen(false)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "laser" ? "laser" : "laser")}
+              aria-pressed={tool === "laser"}
+              title={t(locale, "laser")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "laser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <LaserIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "ruler" ? "laser" : "ruler")}
+              aria-pressed={tool === "ruler"}
+              title={t(locale, "ruler")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "ruler" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <RulerIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange(tool === "coordFinder" ? "laser" : "coordFinder")}
+              aria-pressed={tool === "coordFinder"}
+              title={t(locale ?? "en", "coord_finder")}
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+                tool === "coordFinder" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <CoordFinderIcon />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setToolsSectionOpen(true)}
+            className="flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold tracking-wide uppercase text-ink-dim hover:text-ink transition"
+            title="Expand Tools"
+          >
+            <BrushIcon />
+            <span className="font-mono text-xs">TOOLS</span>
+            <ChevronUpIcon />
+          </button>
+        )}
+      </div>
+
+
+
+      {/* SECTION 2: COLORS, SIZE & OPACITY (RIGHT PANEL) */}
       <div
-        className="pointer-events-auto relative flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-1.5 sm:py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 max-w-[98vw] overflow-visible"
+        className="pointer-events-auto relative flex self-stretch flex-wrap items-center justify-center gap-1.5 sm:gap-3 rounded-sm border-2 border-chrome-border px-2 sm:px-3 py-1.5 sm:py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-rust/25 max-w-[98vw] overflow-visible"
         style={{
           backgroundImage: "linear-gradient(180deg, var(--chrome-bg-raised), var(--chrome-bg-recessed))",
         }}
       >
-        <MountBracket side="left" collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
-        <MountBracket side="right" collapsed={collapsed} onClick={() => setCollapsed((v) => !v)} />
-        <HideHandle onClick={() => setHidden(true)} />
-        {!collapsed && <DripEdge />}
+        <MountBracket
+          side="right"
+          collapsed={!stylesSectionOpen}
+          onClick={() => setStylesSectionOpen((v) => !v)}
+          title={stylesSectionOpen ? "Hide Colors & Style section" : "Show Colors & Style section"}
+        />
+        {stylesSectionOpen && <DripEdge />}
 
-        <div className="relative flex max-w-full flex-wrap items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
-          <button
-            type="button"
-            onClick={() => {
-              if (tool === "brush") {
-                onToolChange("laser");
-                setPickerOpen(false);
-              } else {
-                onToolChange("brush");
-                setPickerOpen((v) => !v);
-              }
-            }}
-            aria-pressed={tool === "brush"}
-            aria-haspopup="true"
-            aria-expanded={pickerOpen}
-            title={activeBrushLabel}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "brush" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <BrushIcon />
-            <span className="hidden sm:inline">{activeBrushLabel}</span>
-            <ChevronUpIcon />
-          </button>
-          {pickerOpen && (
-            <BrushPicker
-              brushType={brushType}
-              onSelect={(t) => {
-                onBrushTypeChange(t);
-                onToolChange("brush");
-              }}
-              onClose={() => setPickerOpen(false)}
-              locale={locale}
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "eraser" ? "laser" : "eraser")}
-            aria-pressed={tool === "eraser"}
-            title={t(locale ?? "en", "erase")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <EraserIcon />
-            <span className="hidden sm:inline">{t(locale, "erase")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== "undefined" && "EyeDropper" in window) {
-                const EyeDropperClass = (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
-                const eyeDropper = new EyeDropperClass();
-                eyeDropper
-                  .open()
-                  .then((res: { sRGBHex: string }) => {
-                    if (res.sRGBHex) onColorChange(res.sRGBHex);
-                  })
-                  .catch(() => {});
-              } else {
-                onToolChange(tool === "eyedropper" ? "laser" : "eyedropper");
-              }
-            }}
-            aria-pressed={tool === "eyedropper"}
-            title="Eyedropper Color Picker (I)"
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "eyedropper" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <EyedropperIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "pan" ? "laser" : "pan")}
-            aria-pressed={tool === "pan"}
-            title={t(locale, "pan")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "pan" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <HandIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "magnifier" ? "laser" : "magnifier")}
-            aria-pressed={tool === "magnifier"}
-            title={t(locale, "magnifier")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "magnifier" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <MagnifierIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (tool === "shape") {
-                onToolChange("laser");
-                setShapePickerOpen(false);
-              } else {
-                onToolChange("shape");
-                setShapePickerOpen(true);
-              }
-            }}
-            aria-pressed={tool === "shape"}
-            aria-haspopup="true"
-            aria-expanded={shapePickerOpen}
-            title={activeShapeLabel}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "shape" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <ShapesIcon />
-          </button>
-          {shapePickerOpen && (
-            <ShapePicker
-              shapeType={shapeType}
-              onSelect={(s) => {
-                onShapeTypeChange(s);
-                onToolChange("shape");
-              }}
-              onClose={() => setShapePickerOpen(false)}
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "text" ? "laser" : "text")}
-            aria-pressed={tool === "text"}
-            title="Text Tool (X)"
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "text" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <TextIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "comment" ? "laser" : "comment")}
-            aria-pressed={tool === "comment"}
-            title="Post Sticky Note (C)"
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "comment" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <CommentIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (tool === "stencil") {
-                onToolChange("laser");
-                setStencilPickerOpen(false);
-              } else {
-                onToolChange("stencil");
-                setStencilPickerOpen(true);
-              }
-            }}
-            aria-pressed={tool === "stencil"}
-            aria-haspopup="true"
-            aria-expanded={stencilPickerOpen}
-            title={t(locale, "stencil")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "stencil" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <StencilIcon />
-          </button>
-          {stencilPickerOpen && (
-            <StencilPicker
-              selectedStencil={selectedStencil}
-              onSelect={(st) => {
-                onStencilSelect(st);
-                onToolChange("stencil");
-              }}
-              onClose={() => setStencilPickerOpen(false)}
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "laser" ? "laser" : "laser")}
-            aria-pressed={tool === "laser"}
-            title={t(locale, "laser")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "laser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <LaserIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "ruler" ? "laser" : "ruler")}
-            aria-pressed={tool === "ruler"}
-            title={t(locale, "ruler")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "ruler" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <RulerIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => onToolChange(tool === "coordFinder" ? "laser" : "coordFinder")}
-            aria-pressed={tool === "coordFinder"}
-            title={t(locale ?? "en", "coord_finder")}
-            className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
-              tool === "coordFinder" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
-            }`}
-          >
-            <CoordFinderIcon />
-          </button>
-        </div>
-
-        {!collapsed && (
-        <>
-        <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2">
-          {activePalette.colors.map((sw) => (
-            <button
-              key={sw}
-              type="button"
-              onClick={() => {
-                onColorChange(sw);
-                onToolChange("brush");
-              }}
-              aria-label={`color ${sw}`}
-              aria-pressed={color === sw}
-              className={`relative shrink-0 rounded-full ring-1 ring-black/40 transition-all ${
-                color === sw
-                  ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
-                  : "h-6 w-6"
-              }`}
-              style={{
-                background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sw} 100%, white 35%), ${sw} 60%)`,
-              }}
-            />
-          ))}
-          {(() => {
-            const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color || "") ? color : "#17181a";
-            const isCustom = !activePalette.colors.includes(color);
-            return (
-              <label
-                className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
-                  isCustom
-                    ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
-                    : "h-6 w-6"
-                }`}
-                title="Custom color"
-                style={{
-                  background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
-                }}
-              >
-                <input
-                  type="color"
-                  value={safeColor}
-                  onChange={(e) => {
-                    onColorChange(e.target.value);
+        {stylesSectionOpen ? (
+          <>
+            <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2">
+              {activePalette.colors.map((sw) => (
+                <button
+                  key={sw}
+                  type="button"
+                  onClick={() => {
+                    onColorChange(sw);
                     onToolChange("brush");
                   }}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  aria-label="custom color"
+                  aria-label={`color ${sw}`}
+                  aria-pressed={color === sw}
+                  className={`relative shrink-0 rounded-full ring-1 ring-black/40 transition-all ${
+                    color === sw
+                      ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                      : "h-6 w-6"
+                  }`}
+                  style={{
+                    background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sw} 100%, white 35%), ${sw} 60%)`,
+                  }}
                 />
-                {isCustom && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-[3px] rounded-full"
-                    style={{ background: safeColor }}
-                  />
-                )}
-              </label>
-            );
-          })()}
-          <PalettePicker
-            activePaletteId={activePalette.id}
-            locale={locale}
-            onSelectPalette={(p) => {
-              setActivePalette(p);
-              onColorChange(p.colors[0]);
-            }}
-          />
-        </div>
+              ))}
+              {(() => {
+                const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color || "") ? color : "#17181a";
+                const isCustom = !activePalette.colors.includes(color);
+                return (
+                  <label
+                    className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
+                      isCustom
+                        ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                        : "h-6 w-6"
+                    }`}
+                    title="Custom color"
+                    style={{
+                      background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={safeColor}
+                      onChange={(e) => {
+                        onColorChange(e.target.value);
+                        onToolChange("brush");
+                      }}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-label="custom color"
+                    />
+                    {isCustom && (
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-[3px] rounded-full"
+                        style={{ background: safeColor }}
+                      />
+                    )}
+                  </label>
+                );
+              })()}
+              <PalettePicker
+                activePaletteId={activePalette.id}
+                locale={locale}
+                onSelectPalette={(p) => {
+                  setActivePalette(p);
+                  onColorChange(p.colors[0]);
+                }}
+              />
+            </div>
 
-        <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
-          <span className="flex items-center gap-1 text-ink-dim">
-            <RulerIcon />
-            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "size")}</span>
-          </span>
-          <input
-            type="range"
-            min={1}
-            max={60}
-            value={width}
-            onChange={(e) => onWidthChange(Number(e.target.value))}
-            className="w-16 accent-accent-crimson sm:w-20"
-            aria-label="brush size"
-          />
-          <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
-        </div>
+            <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
+              <span className="flex items-center gap-1 text-ink-dim">
+                <RulerIcon />
+                <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "size")}</span>
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={60}
+                value={width}
+                onChange={(e) => onWidthChange(Number(e.target.value))}
+                className="w-16 accent-accent-crimson sm:w-20"
+                aria-label="brush size"
+              />
+              <span className="w-6 text-right font-mono text-xs tabular-nums text-ink">{width}</span>
+            </div>
 
-        <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
-          <span className="flex items-center gap-1 text-ink-dim">
+            <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
+              <span className="flex items-center gap-1 text-ink-dim">
+                <DropletIcon />
+                <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "opacity")}</span>
+              </span>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                value={Math.round(opacity * 100)}
+                onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
+                className="w-16 accent-accent-crimson sm:w-20"
+                aria-label="brush opacity"
+              />
+              <span className="w-9 text-right font-mono text-xs tabular-nums text-ink">
+                {Math.round(opacity * 100)}%
+              </span>
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setStylesSectionOpen(true)}
+            className="flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-semibold tracking-wide uppercase text-ink-dim hover:text-ink transition"
+            title="Expand Colors & Style"
+          >
             <DropletIcon />
-            <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "opacity")}</span>
-          </span>
-          <input
-            type="range"
-            min={5}
-            max={100}
-            value={Math.round(opacity * 100)}
-            onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
-            className="w-16 accent-accent-crimson sm:w-20"
-            aria-label="brush opacity"
-          />
-          <span className="w-9 text-right font-mono text-xs tabular-nums text-ink">
-            {Math.round(opacity * 100)}%
-          </span>
-        </div>
-
-        </>
+            <span className="font-mono text-xs">COLORS & STYLE</span>
+            <ChevronUpIcon />
+          </button>
         )}
       </div>
+    </div>
     </div>
   );
 }

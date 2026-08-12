@@ -2294,6 +2294,18 @@ export function GlobalCanvas() {
     [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw, updateRuler],
   );
 
+  const handlePointerEnter = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (e.pointerType === "mouse") {
+        const screenPt = getScreenPoint(e.clientX, e.clientY);
+        lastScreenPosRef.current = screenPt;
+        updateCursorOverlay();
+        updateMagnifier();
+      }
+    },
+    [getScreenPoint, updateCursorOverlay, updateMagnifier],
+  );
+
   const handlePointerLeave = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       hideCursorOverlay();
@@ -2426,6 +2438,7 @@ export function GlobalCanvas() {
                         : "cursor-default"
             }`}
             onPointerDown={handlePointerDown}
+            onPointerEnter={handlePointerEnter}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
