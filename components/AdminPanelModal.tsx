@@ -33,7 +33,8 @@ export interface AdminPanelModalProps {
     y: number,
     brushType: any,
     color: string,
-    countryCode?: string
+    countryCode?: string,
+    imageElement?: HTMLImageElement | null
   ) => void;
   /** Launch an active community drawing goal worldwide */
   onLaunchGoal?: (prompt: string, targetX?: number, targetY?: number) => void;
@@ -87,6 +88,7 @@ export function AdminPanelModal({
   const [aiZoneY, setAiZoneY] = useState(0);
   const [aiBrush, setAiBrush] = useState("neonGlow");
   const [aiColor, setAiColor] = useState("#d94626");
+  const [aiImageElement, setAiImageElement] = useState<HTMLImageElement | null>(null);
 
   // Protected Zone state
   const [zoneName, setZoneName] = useState("Community Mural Shield");
@@ -972,6 +974,34 @@ export function AdminPanelModal({
                   />
                 </div>
 
+                {/* Optional Image-to-Stroke AI Painting */}
+                <div className="rounded border border-chrome-border/70 bg-chrome-bg/50 p-2">
+                  <label className="block text-[10px] text-accent-yellow font-bold uppercase">🖼️ Optional: Upload Image to Live AI Paint</label>
+                  <p className="text-[9px] text-ink-dim mb-1">
+                    Upload any photo/drawing file. The AI Artist will scan and live-paint the image stroke-by-stroke!
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) {
+                        setAiImageElement(null);
+                        return;
+                      }
+                      const img = new Image();
+                      img.onload = () => setAiImageElement(img);
+                      img.src = URL.createObjectURL(file);
+                    }}
+                    className="block w-full text-xs text-ink file:mr-2 file:rounded file:border file:border-rust file:bg-rust file:px-2 file:py-0.5 file:text-xs file:font-bold file:text-on-accent hover:file:brightness-110"
+                  />
+                  {aiImageElement && (
+                    <span className="mt-1 block text-[10px] font-bold text-accent-green">
+                      ✓ Image loaded ({aiImageElement.width}x{aiImageElement.height}px). Ready for live AI stroke painting!
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[10px] text-ink-dim font-bold">Zone X Coordinate</label>
@@ -1024,8 +1054,12 @@ export function AdminPanelModal({
                   type="button"
                   onClick={() => {
                     if (!onSpawnAiAgent) return;
-                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor, aiCountry);
-                    setActionStatus(`Success! Spawned AI Artist "${aiArtistName}" (${aiCountry}) drawing "${aiPrompt}" at (${aiZoneX}, ${aiZoneY}).`);
+                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor, aiCountry, aiImageElement);
+                    setActionStatus(
+                      `Success! Spawned AI Artist "${aiArtistName}" (${aiCountry}) ${
+                        aiImageElement ? "painting uploaded image" : `drawing "${aiPrompt}"`
+                      } at (${aiZoneX}, ${aiZoneY}).`,
+                    );
                   }}
                   className="mt-2 rounded bg-accent-crimson px-3 py-2 font-mono text-xs font-bold uppercase text-white shadow-md hover:bg-accent-crimson-deep transition-all"
                 >

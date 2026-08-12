@@ -442,3 +442,100 @@ export function generateAiStrokes(options: AiDrawOptions): GeneratedAiStroke[] {
 
   return strokes;
 }
+
+/** Convert an HTMLImageElement or Image Data URL into vector stroke paths for live AI painting */
+export function convertImageToStrokes(
+  img: HTMLImageElement,
+  center: Point,
+  brushType: BrushType = "brush",
+  targetWidth: number = 240,
+): GeneratedAiStroke[] {
+  const strokes: GeneratedAiStroke[] = [];
+  const aspect = (img.height || 1) / (img.width || 1);
+  const targetHeight = targetWidth * aspect;
+
+  const sampleW = 50;
+  const sampleH = Math.max(15, Math.round(sampleW * aspect));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = sampleW;
+  canvas.height = sampleH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return strokes;
+
+  ctx.drawImage(img, 0, 0, sampleW, sampleH);
+  const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+  const data = imgData.data;
+
+  const startX = center.x - targetWidth / 2;
+  const startY = center.y - targetHeight / 2;
+  const stepX = targetWidth / sampleW;
+  const stepY = targetHeight / sampleH;
+
+  // Outer Canvas Frame Outline
+  strokes.push({
+    points: [
+      { x: startX, y: startY },
+      { x: startX + targetWidth, y: startY },
+      { x: startX + targetWidth, y: startY + targetHeight },
+      { x: startX, y: startY + targetHeight },
+      { x: startX, y: startY },
+    ],
+    color: "#ffcc00",
+    brushType: "neonGlow",
+    width: 3,
+    opacity: 1,
+  });
+
+  // Scan line stroke builder
+  for (let y = 0; y < sampleH; y += 2) {
+    let currentLine: Point[] = [];
+    let currentHex = "";
+
+    for (let x = 0; x < sampleW; x += 2) {
+      const idx = (y * sampleW + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const a = data[idx + 3];
+
+      // Skip fully transparent pixels
+      if (a < 30) {
+        if (currentLine.length > 1) {
+          strokes.push({
+            points: currentLine,
+            color: currentHex,
+            brushType,
+            width: Math.max(3, Math.round(stepY * 1.8)),
+            opacity: 1,
+          });
+          currentLine = [];
+        }
+        continue;
+      }
+
+      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      const worldX = startX + x * stepX;
+      const worldY = startY + y * stepY;
+
+      if (!currentHex) {
+        currentHex = hex;
+        currentLine = [{ x: worldX, y: worldY }];
+      } else {
+        currentLine.push({ x: worldX, y: worldY });
+      }
+    }
+
+    if (currentLine.length > 1) {
+      strokes.push({
+        points: currentLine,
+        color: currentHex,
+        brushType,
+        width: Math.max(3, Math.round(stepY * 1.8)),
+        opacity: 1,
+      });
+    }
+  }
+
+  return strokes;
+}

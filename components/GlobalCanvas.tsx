@@ -58,7 +58,7 @@ import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
 import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
 import { AiDrawerModal } from "./AiDrawerModal";
-import { generateAiStrokes } from "@/lib/aiDrawer";
+import { generateAiStrokes, convertImageToStrokes } from "@/lib/aiDrawer";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -2348,16 +2348,19 @@ export function GlobalCanvas() {
       brush: BrushType,
       strokeColor: string,
       countryCode: string = "US",
+      imageElement?: HTMLImageElement | null,
     ) => {
       const aiClientId = `ai-artist-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
       const displayName = `${name} 🎨`;
 
-      const generated = generateAiStrokes({
-        prompt: promptText,
-        center: { x: zoneX, y: zoneY },
-        color: strokeColor,
-        brushType: brush,
-      });
+      const generated = imageElement
+        ? convertImageToStrokes(imageElement, { x: zoneX, y: zoneY }, brush, 240)
+        : generateAiStrokes({
+            prompt: promptText,
+            center: { x: zoneX, y: zoneY },
+            color: strokeColor,
+            brushType: brush,
+          });
 
       let totalDelay = 0;
 
