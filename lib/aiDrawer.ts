@@ -487,10 +487,35 @@ export function convertImageToStrokes(
     opacity: 1,
   });
 
+  const toHex = (r: number, g: number, b: number) =>
+    `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+
+  // Colors within this Euclidean RGB distance are treated as "the same run" —
+  // groups near-identical shades into one stroke without averaging distinct
+  // colors together (the bug this replaced: one stroke per row used only its
+  // first pixel's color for every point, regardless of what came after).
+  const COLOR_RUN_THRESHOLD = 40;
+  const colorDistance = (r1: number, g1: number, b1: number, r2: number, g2: number, b2: number) =>
+    Math.hypot(r1 - r2, g1 - g2, b1 - b2);
+
   // Scan line stroke builder
   for (let y = 0; y < sampleH; y += 2) {
     let currentLine: Point[] = [];
-    let currentHex = "";
+    let runColor: { r: number; g: number; b: number } | null = null;
+
+    const flushRun = () => {
+      if (currentLine.length > 1 && runColor) {
+        strokes.push({
+          points: currentLine,
+          color: toHex(runColor.r, runColor.g, runColor.b),
+          brushType,
+          width: Math.max(3, Math.round(stepY * 1.8)),
+          opacity: 1,
+        });
+      }
+      currentLine = [];
+      runColor = null;
+    };
 
     for (let x = 0; x < sampleW; x += 2) {
       const idx = (y * sampleW + x) * 4;
@@ -501,40 +526,26 @@ export function convertImageToStrokes(
 
       // Skip fully transparent pixels
       if (a < 30) {
-        if (currentLine.length > 1) {
-          strokes.push({
-            points: currentLine,
-            color: currentHex,
-            brushType,
-            width: Math.max(3, Math.round(stepY * 1.8)),
-            opacity: 1,
-          });
-          currentLine = [];
-        }
+        flushRun();
         continue;
       }
 
-      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
       const worldX = startX + x * stepX;
       const worldY = startY + y * stepY;
 
-      if (!currentHex) {
-        currentHex = hex;
+      if (!runColor) {
+        runColor = { r, g, b };
+        currentLine = [{ x: worldX, y: worldY }];
+      } else if (colorDistance(r, g, b, runColor.r, runColor.g, runColor.b) > COLOR_RUN_THRESHOLD) {
+        flushRun();
+        runColor = { r, g, b };
         currentLine = [{ x: worldX, y: worldY }];
       } else {
         currentLine.push({ x: worldX, y: worldY });
       }
     }
 
-    if (currentLine.length > 1) {
-      strokes.push({
-        points: currentLine,
-        color: currentHex,
-        brushType,
-        width: Math.max(3, Math.round(stepY * 1.8)),
-        opacity: 1,
-      });
-    }
+    flushRun();
   }
 
   return strokes;
