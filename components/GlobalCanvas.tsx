@@ -2329,6 +2329,106 @@ export function GlobalCanvas() {
   const [activeShareUrl, setActiveShareUrl] = useState("");
   const [aiCoDoodlerEnabled, setAiCoDoodlerEnabled] = useState(true);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAgentCursors, setAiAgentCursors] = useState<
+    Map<string, { clientId: string; username: string; cursorX: number; cursorY: number }>
+  >(new Map());
+
+  const handleAdminSpawnAiAgent = useCallback(
+    (name: string, promptText: string, zoneX: number, zoneY: number, brush: BrushType, strokeColor: string) => {
+      const aiClientId = `ai-artist-${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+      const displayName = `${name} 🎨`;
+
+      const generated = generateAiStrokes({
+        prompt: promptText,
+        center: { x: zoneX, y: zoneY },
+        color: strokeColor,
+        brushType: brush,
+      });
+
+      let totalDelay = 0;
+
+      // Teleport camera to AI drawing zone if admin
+      const fitted = fitCameraToRegion(
+        { minX: zoneX - 300, minY: zoneY - 300, maxX: zoneX + 300, maxY: zoneY + 300 },
+        viewportRef.current.width,
+        viewportRef.current.height,
+      );
+      cameraRef.current = fitted;
+      setCameraSnapshot(fitted);
+
+      generated.forEach((st) => {
+        const densePoints: Point[] = [];
+        for (let i = 0; i < st.points.length - 1; i++) {
+          const p1 = st.points[i];
+          const p2 = st.points[i + 1];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const steps = Math.max(4, Math.floor(dist / 4));
+          for (let step = 0; step < steps; step++) {
+            const t = step / steps;
+            densePoints.push({
+              x: p1.x + (p2.x - p1.x) * t,
+              y: p1.y + (p2.y - p1.y) * t,
+            });
+          }
+        }
+        if (st.points.length > 0) {
+          densePoints.push(st.points[st.points.length - 1]);
+        }
+
+        const strokeStartDelay = totalDelay;
+
+        setTimeout(() => {
+          const buffer = new StrokeBuffer(
+            aiClientId,
+            "draw",
+            st.brushType,
+            st.color,
+            st.width,
+            st.opacity,
+            displayName,
+            "AI",
+            commitOwnChunk,
+          );
+
+          densePoints.forEach((pt, pIdx) => {
+            setTimeout(() => {
+              // Update live remote cursor position for the AI artist
+              setAiAgentCursors((prev) => {
+                const next = new Map(prev);
+                next.set(aiClientId, {
+                  clientId: aiClientId,
+                  username: displayName,
+                  cursorX: pt.x,
+                  cursorY: pt.y,
+                });
+                return next;
+              });
+
+              buffer.addPoint(pt);
+              scheduleRedraw({ strokes: true });
+
+              if (pIdx === densePoints.length - 1) {
+                buffer.finish();
+                scheduleRedraw({ strokes: true });
+              }
+            }, pIdx * 24); // ~24ms per point for human drawing speed
+          });
+        }, strokeStartDelay);
+
+        totalDelay += densePoints.length * 24 + 180; // 180ms pen lift pause
+      });
+
+      // Clear AI cursor 3 seconds after completion
+      setTimeout(() => {
+        setAiAgentCursors((prev) => {
+          const next = new Map(prev);
+          next.delete(aiClientId);
+          return next;
+        });
+      }, totalDelay + 3000);
+    },
+    [commitOwnChunk, scheduleRedraw],
+  );
 
   const handleGenerateAiStrokes = useCallback(
     (promptText: string, brush: BrushType, strokeColor: string) => {
@@ -2532,7 +2632,7 @@ export function GlobalCanvas() {
 
         <RemoteCursors
           ref={remoteCursorsRef}
-          entries={presenceList ?? []}
+          entries={[...(presenceList ?? []), ...Array.from(aiAgentCursors.values())]}
           selfClientId={clientId}
           camera={cameraSnapshot}
           viewportWidth={viewportSize.width}
@@ -2913,15 +3013,6 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
-          <button
-            type="button"
-            onClick={() => setAiModalOpen(true)}
-            className="flex items-center gap-1 rounded-sm border border-rust bg-accent-crimson px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white shadow-sm hover:bg-accent-crimson-deep transition-all"
-            title="Open AI Vector Painter to auto-generate drawings from text prompts"
-          >
-            <span>🤖</span>
-            <span>AI Draw</span>
-          </button>
         </div>
 
         {/* Right Section: Preferences & Status Controls (>= 1360px only —
@@ -3257,6 +3348,7 @@ export function GlobalCanvas() {
           }}
           onWipeRegionConsumed={() => setPendingWipeRegion(null)}
           onWipeArea={handleWipeArea}
+          onSpawnAiAgent={handleAdminSpawnAiAgent}
         />
       </nav>
 

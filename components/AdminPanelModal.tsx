@@ -24,6 +24,15 @@ export interface AdminPanelModalProps {
   onStartWipeRegionSelect: () => void;
   /** Called after a purge completes or the marked area is cleared. */
   onWipeRegionConsumed: () => void;
+  /** Spawn a live human-simulated AI artist agent at target zone coordinates */
+  onSpawnAiAgent?: (
+    name: string,
+    prompt: string,
+    x: number,
+    y: number,
+    brushType: any,
+    color: string
+  ) => void;
   /** Owned by GlobalCanvas (not this modal) so it can also drop the purged
    * strokes from the local committed-strokes cache and redraw immediately —
    * otherwise the admin who just purged an area wouldn't see it reflected
@@ -46,16 +55,25 @@ export function AdminPanelModal({
   pendingWipeRegion,
   onStartWipeRegionSelect,
   onWipeRegionConsumed,
+  onSpawnAiAgent,
   onWipeArea,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "reports" | "telemetry">("moderation");
+  const [activeTab, setActiveTab] = useState<"moderation" | "zones" | "broadcast" | "image" | "reports" | "telemetry" | "ai_agent">("moderation");
 
   // Moderation state
   const [isWiping, setIsWiping] = useState(false);
   const [targetClientId, setTargetClientId] = useState("");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+
+  // AI Agent state
+  const [aiArtistName, setAiArtistName] = useState("ArtistAlex");
+  const [aiPrompt, setAiPrompt] = useState("castle");
+  const [aiZoneX, setAiZoneX] = useState(0);
+  const [aiZoneY, setAiZoneY] = useState(0);
+  const [aiBrush, setAiBrush] = useState("neonGlow");
+  const [aiColor, setAiColor] = useState("#d94626");
 
   // Protected Zone state
   const [zoneName, setZoneName] = useState("Community Mural Shield");
@@ -444,6 +462,18 @@ export function AdminPanelModal({
               <span>📊</span>
               <span>STATS</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai_agent")}
+              className={`col-span-3 flex items-center justify-center gap-1 rounded-sm border px-1.5 py-1.5 font-bold transition-colors ${
+                activeTab === "ai_agent"
+                  ? "border-rust bg-rust/30 text-accent-yellow"
+                  : "border-chrome-border bg-chrome-bg-raised/60 text-ink-dim hover:border-rust/60 hover:text-ink"
+              }`}
+            >
+              <span>🤖</span>
+              <span>SPAWN LIVE AI ARTIST AGENT</span>
+            </button>
           </div>
 
           {/* Status Alert Banner */}
@@ -814,6 +844,100 @@ export function AdminPanelModal({
                 <span className="text-sm font-bold text-accent-blue">
                   #{telemetry?.currentSequence ?? "..."}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: Live AI Artist Agent */}
+          {activeTab === "ai_agent" && (
+            <div className="flex flex-col gap-3 text-left font-mono text-xs">
+              <div className="flex flex-col gap-2.5 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🤖 Live AI Artist Agent Dispatcher</span>
+                <p className="text-[10px] text-ink-dim leading-relaxed">
+                  Spawn a human-simulated AI artist agent. The AI artist moves a visible remote cursor across the canvas drawing stroke-by-stroke in real time so other users watch live human-like drawing.
+                </p>
+
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">Artist Display Name</label>
+                  <input
+                    type="text"
+                    value={aiArtistName}
+                    onChange={(e) => setAiArtistName(e.target.value)}
+                    placeholder="e.g. ArtistAlex, PixelMaster, NeonGhost"
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs text-ink focus:border-rust focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">Drawing Subject / Prompt</label>
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder="e.g. castle, rocket, dragon, cat, star..."
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs text-ink focus:border-rust focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Zone X Coordinate</label>
+                    <input
+                      type="number"
+                      value={aiZoneX}
+                      onChange={(e) => setAiZoneX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Zone Y Coordinate</label>
+                    <input
+                      type="number"
+                      value={aiZoneY}
+                      onChange={(e) => setAiZoneY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Brush Texture</label>
+                    <select
+                      value={aiBrush}
+                      onChange={(e) => setAiBrush(e.target.value)}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
+                    >
+                      <option value="neonGlow">Neon Glow</option>
+                      <option value="brush">Standard Brush</option>
+                      <option value="watercolor">Watercolor</option>
+                      <option value="calligraphy">Calligraphy</option>
+                      <option value="oilPaint">Oil Paint</option>
+                      <option value="pencil">Pencil</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Stroke Color</label>
+                    <input
+                      type="color"
+                      value={aiColor}
+                      onChange={(e) => setAiColor(e.target.value)}
+                      className="h-7 w-full rounded border border-chrome-border bg-chrome-bg cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!onSpawnAiAgent) return;
+                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor);
+                    setActionStatus(`Success! Spawned AI Artist "${aiArtistName}" drawing "${aiPrompt}" at (${aiZoneX}, ${aiZoneY}).`);
+                  }}
+                  className="mt-2 rounded bg-accent-crimson px-3 py-2 font-mono text-xs font-bold uppercase text-white shadow-md hover:bg-accent-crimson-deep transition-all"
+                >
+                  🚀 SPAWN LIVE AI ARTIST AGENT
+                </button>
               </div>
             </div>
           )}
