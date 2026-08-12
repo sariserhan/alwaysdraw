@@ -58,7 +58,9 @@ import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
 import { GhostArtistOverlay } from "./GhostArtistOverlay";
 import { DrawingChallengeWidget } from "./DrawingChallengeWidget";
+import { AiDrawerModal } from "./AiDrawerModal";
 import { generateCompanionStroke } from "@/lib/ghostArtist";
+import { generateAiStrokes } from "@/lib/aiDrawer";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -2326,6 +2328,39 @@ export function GlobalCanvas() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeShareUrl, setActiveShareUrl] = useState("");
   const [aiCoDoodlerEnabled, setAiCoDoodlerEnabled] = useState(true);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  const handleGenerateAiStrokes = useCallback(
+    (promptText: string, brush: BrushType, strokeColor: string) => {
+      const generated = generateAiStrokes({
+        prompt: promptText,
+        center: cameraRef.current,
+        color: strokeColor,
+        brushType: brush,
+      });
+
+      // Animate AI strokes onto the canvas step-by-step
+      generated.forEach((st, idx) => {
+        setTimeout(() => {
+          const buffer = new StrokeBuffer(
+            clientId,
+            "draw",
+            st.brushType,
+            st.color,
+            st.width,
+            st.opacity,
+            username,
+            countryCode,
+            commitOwnChunk,
+          );
+          for (const pt of st.points) buffer.addPoint(pt);
+          buffer.finish();
+          scheduleRedraw({ strokes: true });
+        }, idx * 180);
+      });
+    },
+    [clientId, username, countryCode, commitOwnChunk, scheduleRedraw],
+  );
 
   const handleShare = useCallback(() => {
     const url = `${window.location.origin}${window.location.pathname}?${cameraToSearchString(cameraRef.current)}`;
@@ -2846,6 +2881,15 @@ export function GlobalCanvas() {
             <span className="font-bold text-accent-yellow">{visibleTileCount || 1}/1600</span>
           </div>
           <OnlineCount count={onlineCount ?? 0} locale={locale} />
+          <button
+            type="button"
+            onClick={() => setAiModalOpen(true)}
+            className="flex items-center gap-1 rounded-sm border border-rust bg-accent-crimson px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-white shadow-sm hover:bg-accent-crimson-deep transition-all"
+            title="Open AI Vector Painter to auto-generate drawings from text prompts"
+          >
+            <span>🤖</span>
+            <span>AI Draw</span>
+          </button>
         </div>
 
         {/* Right Section: Preferences & Status Controls (>= 1360px only —
@@ -3158,6 +3202,11 @@ export function GlobalCanvas() {
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
           shareUrl={activeShareUrl}
+        />
+        <AiDrawerModal
+          isOpen={aiModalOpen}
+          onClose={() => setAiModalOpen(false)}
+          onGenerate={handleGenerateAiStrokes}
         />
         <AdminPanelModal
           isOpen={adminOpen}
