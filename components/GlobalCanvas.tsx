@@ -57,7 +57,7 @@ import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
 import { GhostArtistOverlay } from "./GhostArtistOverlay";
-import { DrawingChallengeWidget } from "./DrawingChallengeWidget";
+import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
 import { AiDrawerModal } from "./AiDrawerModal";
 import { generateCompanionStroke } from "@/lib/ghostArtist";
 import { generateAiStrokes } from "@/lib/aiDrawer";
@@ -2329,9 +2329,18 @@ export function GlobalCanvas() {
   const [activeShareUrl, setActiveShareUrl] = useState("");
   const [aiCoDoodlerEnabled, setAiCoDoodlerEnabled] = useState(true);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [activeAdminGoal, setActiveAdminGoal] = useState<ActiveGoal | null>(null);
   const [aiAgentCursors, setAiAgentCursors] = useState<
     Map<string, { clientId: string; username: string; cursorX: number; cursorY: number }>
   >(new Map());
+
+  const handleLaunchGoal = useCallback((promptText: string, targetX?: number, targetY?: number) => {
+    setActiveAdminGoal({ prompt: promptText, targetX, targetY });
+  }, []);
+
+  const handleClearGoal = useCallback(() => {
+    setActiveAdminGoal(null);
+  }, []);
 
   const handleAdminSpawnAiAgent = useCallback(
     (name: string, promptText: string, zoneX: number, zoneY: number, brush: BrushType, strokeColor: string) => {
@@ -3314,12 +3323,20 @@ export function GlobalCanvas() {
           onToggleEnabled={() => setAiCoDoodlerEnabled((prev) => !prev)}
         />
         <DrawingChallengeWidget
-          onAcceptChallenge={() => {
+          activeGoal={activeAdminGoal}
+          onAcceptChallenge={(goal) => {
             setTool("brush");
-            const def = defaultCamera(viewportRef.current.width, viewportRef.current.height);
-            cameraRef.current = def;
-            setCameraSnapshot(def);
+            const tx = goal.targetX ?? 0;
+            const ty = goal.targetY ?? 0;
+            const fitted = fitCameraToRegion(
+              { minX: tx - 250, minY: ty - 250, maxX: tx + 250, maxY: ty + 250 },
+              viewportRef.current.width,
+              viewportRef.current.height,
+            );
+            cameraRef.current = fitted;
+            setCameraSnapshot(fitted);
           }}
+          onDismissGoal={() => setActiveAdminGoal(null)}
         />
         <ShareModal
           isOpen={shareModalOpen}
@@ -3349,6 +3366,8 @@ export function GlobalCanvas() {
           onWipeRegionConsumed={() => setPendingWipeRegion(null)}
           onWipeArea={handleWipeArea}
           onSpawnAiAgent={handleAdminSpawnAiAgent}
+          onLaunchGoal={handleLaunchGoal}
+          onClearGoal={handleClearGoal}
         />
       </nav>
 

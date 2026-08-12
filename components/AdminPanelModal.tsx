@@ -33,6 +33,9 @@ export interface AdminPanelModalProps {
     brushType: any,
     color: string
   ) => void;
+  /** Launch an active community drawing goal worldwide */
+  onLaunchGoal?: (prompt: string, targetX?: number, targetY?: number) => void;
+  onClearGoal?: () => void;
   /** Owned by GlobalCanvas (not this modal) so it can also drop the purged
    * strokes from the local committed-strokes cache and redraw immediately —
    * otherwise the admin who just purged an area wouldn't see it reflected
@@ -56,6 +59,8 @@ export function AdminPanelModal({
   onStartWipeRegionSelect,
   onWipeRegionConsumed,
   onSpawnAiAgent,
+  onLaunchGoal,
+  onClearGoal,
   onWipeArea,
 }: AdminPanelModalProps) {
   const [inputPasscode, setInputPasscode] = useState("");
@@ -66,6 +71,11 @@ export function AdminPanelModal({
   const [isWiping, setIsWiping] = useState(false);
   const [targetClientId, setTargetClientId] = useState("");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
+
+  // Drawing Goal state
+  const [goalPrompt, setGoalPrompt] = useState("Draw an 8-bit retro gaming character near Origin Plaza!");
+  const [goalTargetX, setGoalTargetX] = useState(0);
+  const [goalTargetY, setGoalTargetY] = useState(0);
 
   // AI Agent state
   const [aiArtistName, setAiArtistName] = useState("ArtistAlex");
@@ -726,6 +736,70 @@ export function AdminPanelModal({
                     className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink hover:text-accent-crimson"
                   >
                     CLEAR BANNER
+                  </button>
+                </div>
+              </div>
+
+              {/* ADMIN DRAWING GOAL DISPATCHER */}
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-yellow uppercase">🎯 Admin Drawing Goal Dispatcher</span>
+                <p className="text-[10px] text-ink-dim leading-relaxed">
+                  Launch a community drawing goal worldwide. Displays an interactive floating goal prompt card for all live canvas visitors.
+                </p>
+
+                <div>
+                  <label className="block text-[10px] text-ink-dim font-bold">Goal Prompt Text</label>
+                  <input
+                    type="text"
+                    value={goalPrompt}
+                    onChange={(e) => setGoalPrompt(e.target.value)}
+                    placeholder="e.g. Help finish this 8-bit space rocket!"
+                    className="w-full rounded border border-chrome-border bg-chrome-bg px-2.5 py-1.5 text-xs text-ink focus:border-rust focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Target X</label>
+                    <input
+                      type="number"
+                      value={goalTargetX}
+                      onChange={(e) => setGoalTargetX(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-ink-dim font-bold">Target Y</label>
+                    <input
+                      type="number"
+                      value={goalTargetY}
+                      onChange={(e) => setGoalTargetY(Number(e.target.value))}
+                      className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!onLaunchGoal || !goalPrompt.trim()) return;
+                      onLaunchGoal(goalPrompt, goalTargetX, goalTargetY);
+                      setActionStatus(`Success! Launched Drawing Goal "${goalPrompt}" worldwide.`);
+                    }}
+                    className="flex-1 rounded bg-accent-crimson px-3 py-1.5 font-bold uppercase text-white hover:bg-accent-crimson-deep transition-all"
+                  >
+                    🎯 LAUNCH GOAL WORLDWIDE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearGoal?.();
+                      setActionStatus("Success! Cleared active drawing goal.");
+                    }}
+                    className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink-dim hover:text-ink"
+                  >
+                    CLEAR
                   </button>
                 </div>
               </div>

@@ -1,25 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { GHOST_PROMPTS } from "@/lib/ghostArtist";
 import { ChromeRivet } from "./ChromeRivet";
 
-export interface DrawingChallengeWidgetProps {
-  onAcceptChallenge?: (prompt: string) => void;
+export interface ActiveGoal {
+  prompt: string;
+  targetX?: number;
+  targetY?: number;
 }
 
-export function DrawingChallengeWidget({ onAcceptChallenge }: DrawingChallengeWidgetProps) {
-  const [promptIndex, setPromptIndex] = useState(0);
+export interface DrawingChallengeWidgetProps {
+  activeGoal: ActiveGoal | null;
+  onAcceptChallenge?: (goal: ActiveGoal) => void;
+  onDismissGoal?: () => void;
+}
+
+export function DrawingChallengeWidget({
+  activeGoal,
+  onAcceptChallenge,
+  onDismissGoal,
+}: DrawingChallengeWidgetProps) {
   const [minimized, setMinimized] = useState(false);
 
-  const currentPrompt = GHOST_PROMPTS[promptIndex];
-
-  const handleNextPrompt = () => {
-    setPromptIndex((prev) => (prev + 1) % GHOST_PROMPTS.length);
-  };
+  if (!activeGoal) return null;
 
   const handleAccept = () => {
-    onAcceptChallenge?.(currentPrompt);
+    onAcceptChallenge?.(activeGoal);
   };
 
   if (minimized) {
@@ -31,7 +37,7 @@ export function DrawingChallengeWidget({ onAcceptChallenge }: DrawingChallengeWi
           className="flex items-center gap-1.5 rounded-full border-2 border-rust/70 bg-chrome-bg-raised/95 px-3 py-1 font-mono text-xs font-bold uppercase text-accent-yellow shadow-md backdrop-blur-md hover:border-rust hover:text-white transition-colors"
         >
           <ChromeRivet className="relative" />
-          <span>🎯 Daily Challenge</span>
+          <span>🎯 Active Goal</span>
         </button>
       </div>
     );
@@ -45,38 +51,32 @@ export function DrawingChallengeWidget({ onAcceptChallenge }: DrawingChallengeWi
       <div className="flex items-center justify-between border-b border-chrome-border/70 pb-2 mb-2.5 font-mono text-xs font-bold uppercase text-accent-yellow">
         <div className="flex items-center gap-1.5">
           <span>🎯</span>
-          <span>Drawing Goal</span>
+          <span>Community Drawing Goal</span>
         </div>
         <button
           type="button"
-          onClick={() => setMinimized(true)}
+          onClick={() => {
+            setMinimized(true);
+            onDismissGoal?.();
+          }}
           className="text-ink-dim hover:text-ink text-xs font-bold px-1"
-          title="Minimize challenge widget"
+          title="Minimize drawing goal widget"
         >
           ✕
         </button>
       </div>
 
       <div className="font-display text-sm font-bold text-ink mb-3 leading-snug">
-        {currentPrompt}
+        {activeGoal.prompt}
       </div>
 
       <div className="flex items-center gap-2 font-mono text-xs">
         <button
           type="button"
           onClick={handleAccept}
-          className="flex-1 rounded-sm bg-accent-crimson px-3 py-1.5 font-bold uppercase tracking-wider text-white shadow-sm hover:bg-accent-crimson-deep transition-colors"
+          className="w-full rounded-sm bg-accent-crimson px-3 py-2 font-bold uppercase tracking-wider text-white shadow-sm hover:bg-accent-crimson-deep transition-colors"
         >
-          🎨 Draw Here
-        </button>
-
-        <button
-          type="button"
-          onClick={handleNextPrompt}
-          className="rounded-sm border border-chrome-border bg-chrome-bg px-2.5 py-1.5 font-bold text-ink-dim hover:text-ink transition-colors"
-          title="Switch to next drawing prompt"
-        >
-          🎲 Next
+          🎨 Teleport &amp; Draw Goal
         </button>
       </div>
     </div>
