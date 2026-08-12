@@ -1,6 +1,7 @@
 const STORAGE_KEY = "alwaysdraw:clientId";
 const USERNAME_KEY = "alwaysdraw:username";
 const COUNTRY_CODE_KEY = "alwaysdraw:countryCode";
+const WELCOME_HINT_SEEN_KEY = "alwaysdraw:welcomeHintSeen";
 
 function randomSuffix(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -43,4 +44,17 @@ export function getCachedCountryCode(): string | undefined {
 export function setCachedCountryCode(code: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(COUNTRY_CODE_KEY, code);
+}
+
+/** Whether this browser has already been shown the first-visit welcome
+ * hint — set once, on that first appearance, so it never comes back even
+ * if the visitor never explicitly dismissed it (reload shouldn't re-nag). */
+export function getHasSeenWelcomeHint(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(WELCOME_HINT_SEEN_KEY) === "1";
+}
+
+export function setHasSeenWelcomeHint(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(WELCOME_HINT_SEEN_KEY, "1");
 }

@@ -35,7 +35,15 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
-import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
+import {
+  getClientId,
+  getUsername,
+  setUsername,
+  getCachedCountryCode,
+  setCachedCountryCode,
+  getHasSeenWelcomeHint,
+  setHasSeenWelcomeHint,
+} from "@/lib/identity";
 import { countryCodeToFlag } from "@/lib/flags";
 import { type ShapeType, buildShapePoints } from "@/lib/shapes";
 import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontStyle } from "@/lib/textToPoints";
@@ -66,6 +74,7 @@ import { LanguagePicker } from "./LanguagePicker";
 import { HotkeysModal } from "./HotkeysModal";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
+import { WelcomeHint } from "./WelcomeHint";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
 import { ProtectedZonesOverlay, type ProtectedZonesOverlayHandle } from "./ProtectedZonesOverlay";
 import { t, type Locale } from "@/lib/i18n";
@@ -407,6 +416,7 @@ export function GlobalCanvas() {
     clientId: string;
     countryCode: string | undefined;
   } | null>(null);
+  const [showWelcomeHint, setShowWelcomeHint] = useState(false);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -414,6 +424,13 @@ export function GlobalCanvas() {
       document.documentElement.lang = locale;
     }
   }, [locale]);
+
+  useEffect(() => {
+    if (!getHasSeenWelcomeHint()) {
+      setShowWelcomeHint(true);
+      setHasSeenWelcomeHint();
+    }
+  }, []);
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -1367,6 +1384,7 @@ export function GlobalCanvas() {
       if (!firstMarkTrackedRef.current) {
         firstMarkTrackedRef.current = true;
         captureEvent("first_mark", { mode: chunk.mode, brush: chunk.brushType });
+        setShowWelcomeHint(false);
       }
       rateLimitTracker.recordSubmission();
       pendingRef.current.set(chunk.clientStrokeId, chunk);
@@ -2737,6 +2755,8 @@ export function GlobalCanvas() {
 
       {/* Admin Broadcast Announcement Ticker */}
       <AdminBroadcastBanner />
+
+      <WelcomeHint visible={showWelcomeHint} onDismiss={() => setShowWelcomeHint(false)} locale={locale} />
 
       {/* Sticky Floating Admin Status Badge */}
       {adminPasscode && (
