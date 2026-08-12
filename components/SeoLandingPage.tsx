@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Footer } from "./Footer";
 
 export interface FaqItem {
   question: string;
@@ -296,28 +297,7 @@ export function SeoLandingPage({
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-chrome-border bg-chrome-bg px-4 sm:px-8 py-10 text-xs text-ink-dim">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="font-mono">
-            &copy; {new Date().getFullYear()} AlwaysDraw. All rights reserved. One World. One Canvas.
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 font-mono font-bold uppercase tracking-wider">
-            <Link href="/" className="hover:text-ink transition">
-              Live Canvas
-            </Link>
-            <Link href="/draw-with-friends" className="hover:text-ink transition">
-              Draw With Friends
-            </Link>
-            <Link href="/online-whiteboard" className="hover:text-ink transition">
-              Online Whiteboard
-            </Link>
-            <Link href="/infinite-canvas" className="hover:text-ink transition">
-              Infinite Canvas
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
