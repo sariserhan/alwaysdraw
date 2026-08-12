@@ -2418,7 +2418,7 @@ export function GlobalCanvas() {
   }, []);
 
   return (
-    <div className="relative h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
+    <div className="fixed inset-0 h-dvh w-dvw touch-none overflow-hidden select-none bg-chrome-bg">
       <main id="canvas-main" className="absolute inset-0" aria-label="Shared 10,000x10,000 Drawing Canvas">
         <div ref={containerRef} className="absolute inset-0">
           <canvas ref={worldCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />

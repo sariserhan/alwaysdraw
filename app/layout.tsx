@@ -172,7 +172,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${spaceGroteskExt.variable} ${spaceMonoExt.variable} h-full overscroll-none antialiased`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${spaceGroteskExt.variable} ${spaceMonoExt.variable} min-h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -189,7 +189,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="h-full overflow-hidden overscroll-none">
+      <body className="min-h-full bg-chrome-bg text-ink font-sans antialiased">
         {/* Visually hidden semantic text for crawlers and screen readers */}
         <noscript>
           <div style={{ padding: "20px", color: "#ffffff", backgroundColor: "#121315" }}>
