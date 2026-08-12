@@ -104,7 +104,7 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     images: [
       {
-        url: "/og-image.jpg",
+        url: "/api/og",
         width: 1200,
         height: 630,
         alt: "AlwaysDraw — The World's Shared Real-Time Drawing Canvas",
@@ -115,7 +115,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/og-image.jpg"],
+    images: ["/api/og"],
     creator: "@alwaysdraw",
   },
   robots: {

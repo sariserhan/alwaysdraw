@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { ChromeRivet } from "@/components/ChromeRivet";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.com";
 
@@ -209,6 +210,109 @@ export default function Home() {
         </div>
       </section>
 
+      {/* LIVE CANVAS HOTSPOTS & PREVIEW SHOWCASE */}
+      <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent-crimson mb-2 flex items-center justify-center gap-1.5">
+            <ChromeRivet className="relative" />
+            <span>Popular Canvas Hotspots</span>
+          </h2>
+          <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
+            Explore Active Drawing Districts
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Link
+            href="/canvas?x=0&y=0&z=1"
+            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
+          >
+            <div>
+              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
+                <span>📍 Tile (0, 0)</span>
+                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
+              </div>
+              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
+                Origin Plaza
+              </h4>
+              <p className="text-xs text-ink-dim leading-relaxed mb-4">
+                The central birthplace of the global canvas wall where artists gather.
+              </p>
+            </div>
+            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
+              <span>Teleport Here</span>
+              <span className="group-hover:translate-x-1 transition-transform">➔</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/canvas?x=1200&y=-600&z=1.5"
+            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
+          >
+            <div>
+              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
+                <span>👾 Tile (1200, -600)</span>
+                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
+              </div>
+              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
+                Pixel Art Boulevard
+              </h4>
+              <p className="text-xs text-ink-dim leading-relaxed mb-4">
+                Cooperative 8-bit grid murals, game sprites, and retro character art.
+              </p>
+            </div>
+            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
+              <span>Teleport Here</span>
+              <span className="group-hover:translate-x-1 transition-transform">➔</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/canvas?x=-2400&y=1800&z=1"
+            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
+          >
+            <div>
+              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
+                <span>🌆 Tile (-2400, 1800)</span>
+                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
+              </div>
+              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
+                Cyberpunk Haven
+              </h4>
+              <p className="text-xs text-ink-dim leading-relaxed mb-4">
+                Neon glow calligraphy, high-tech sketches, and vibrant street art.
+              </p>
+            </div>
+            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
+              <span>Teleport Here</span>
+              <span className="group-hover:translate-x-1 transition-transform">➔</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/canvas?x=3500&y=-1200&z=1"
+            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
+          >
+            <div>
+              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
+                <span>🎨 Tile (3500, -1200)</span>
+                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
+              </div>
+              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
+                Watercolor Garden
+              </h4>
+              <p className="text-xs text-ink-dim leading-relaxed mb-4">
+                Expressive painterly washes, oil blendings, and soft pastel sketches.
+              </p>
+            </div>
+            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
+              <span>Teleport Here</span>
+              <span className="group-hover:translate-x-1 transition-transform">➔</span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* FEATURE CARDS GRID */}
       <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
@@ -352,6 +456,7 @@ export default function Home() {
 
       {/* SITE FOOTER */}
       <Footer />
+      <PwaInstallPrompt />
     </div>
   );
 }
