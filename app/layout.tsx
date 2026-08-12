@@ -129,6 +129,11 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // Google Search Console's meta-tag verification method — set once you've
+  // created a property for the site; see .env.example. Unset renders no tag.
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {
