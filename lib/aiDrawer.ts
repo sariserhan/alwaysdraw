@@ -25,6 +25,25 @@ function hashString(str: string): number {
   return Math.abs(hash);
 }
 
+/** Fetch dynamic vector strokes from real Gemini AI API with procedural fallback */
+export async function fetchRealAiStrokes(options: AiDrawOptions): Promise<GeneratedAiStroke[]> {
+  try {
+    const res = await fetch("/api/ai-draw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+    if (!res.ok) throw new Error("API call failed");
+    const data = await res.json();
+    if (Array.isArray(data.strokes) && data.strokes.length > 0) {
+      return data.strokes;
+    }
+  } catch (err) {
+    console.warn("Falling back to local vector synthesis", err);
+  }
+  return generateAiStrokes(options);
+}
+
 /** Generate procedural vector stroke paths based on text prompt */
 export function generateAiStrokes(options: AiDrawOptions): GeneratedAiStroke[] {
   const { prompt, center, color, brushType, scale = 1 } = options;

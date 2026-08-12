@@ -57,8 +57,7 @@ import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
 import { InviteBanner } from "./InviteBanner";
 import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
-import { AiDrawerModal } from "./AiDrawerModal";
-import { generateAiStrokes, convertImageToStrokes } from "@/lib/aiDrawer";
+import { generateAiStrokes, convertImageToStrokes, fetchRealAiStrokes } from "@/lib/aiDrawer";
 import { OnlineCount } from "./OnlineCount";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { RemoteCursors, type RemoteCursorsHandle } from "./RemoteCursors";
@@ -2325,7 +2324,6 @@ export function GlobalCanvas() {
 
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeShareUrl, setActiveShareUrl] = useState("");
-  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [activeAdminGoal, setActiveAdminGoal] = useState<ActiveGoal | null>(null);
   const [aiAgentCursors, setAiAgentCursors] = useState<
     Map<string, { clientId: string; username: string; countryCode?: string; cursorX: number; cursorY: number }>
@@ -2340,7 +2338,7 @@ export function GlobalCanvas() {
   }, []);
 
   const handleAdminSpawnAiAgent = useCallback(
-    (
+    async (
       name: string,
       promptText: string,
       zoneX: number,
@@ -2355,7 +2353,7 @@ export function GlobalCanvas() {
 
       const generated = imageElement
         ? convertImageToStrokes(imageElement, { x: zoneX, y: zoneY }, brush, 240)
-        : generateAiStrokes({
+        : await fetchRealAiStrokes({
             prompt: promptText,
             center: { x: zoneX, y: zoneY },
             color: strokeColor,
@@ -2446,70 +2444,6 @@ export function GlobalCanvas() {
       }, totalDelay + 3000);
     },
     [commitOwnChunk, scheduleRedraw],
-  );
-
-  const handleGenerateAiStrokes = useCallback(
-    (promptText: string, brush: BrushType, strokeColor: string) => {
-      const generated = generateAiStrokes({
-        prompt: promptText,
-        center: cameraRef.current,
-        color: strokeColor,
-        brushType: brush,
-      });
-
-      let totalDelay = 0;
-
-      generated.forEach((st) => {
-        // Interpolate extra smooth points for human-like fluid motion
-        const densePoints: Point[] = [];
-        for (let i = 0; i < st.points.length - 1; i++) {
-          const p1 = st.points[i];
-          const p2 = st.points[i + 1];
-          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-          const steps = Math.max(4, Math.floor(dist / 4));
-          for (let step = 0; step < steps; step++) {
-            const t = step / steps;
-            densePoints.push({
-              x: p1.x + (p2.x - p1.x) * t,
-              y: p1.y + (p2.y - p1.y) * t,
-            });
-          }
-        }
-        if (st.points.length > 0) {
-          densePoints.push(st.points[st.points.length - 1]);
-        }
-
-        const strokeStartDelay = totalDelay;
-
-        setTimeout(() => {
-          const buffer = new StrokeBuffer(
-            clientId,
-            "draw",
-            st.brushType,
-            st.color,
-            st.width,
-            st.opacity,
-            `AI Artist (${promptText})`,
-            "AI",
-            commitOwnChunk,
-          );
-
-          densePoints.forEach((pt, pIdx) => {
-            setTimeout(() => {
-              buffer.addPoint(pt);
-              scheduleRedraw({ strokes: true });
-              if (pIdx === densePoints.length - 1) {
-                buffer.finish();
-                scheduleRedraw({ strokes: true });
-              }
-            }, pIdx * 24); // ~24ms per point for natural human hand drawing speed
-          });
-        }, strokeStartDelay);
-
-        totalDelay += densePoints.length * 24 + 180; // 180ms natural pen-lift pause between lines
-      });
-    },
-    [clientId, commitOwnChunk, scheduleRedraw],
   );
 
   const handleShare = useCallback(() => {
@@ -3346,11 +3280,6 @@ export function GlobalCanvas() {
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
           shareUrl={activeShareUrl}
-        />
-        <AiDrawerModal
-          isOpen={aiModalOpen}
-          onClose={() => setAiModalOpen(false)}
-          onGenerate={handleGenerateAiStrokes}
         />
         <AdminPanelModal
           isOpen={adminOpen}
