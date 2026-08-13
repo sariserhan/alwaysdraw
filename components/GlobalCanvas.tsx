@@ -156,7 +156,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export function GlobalCanvas() {
+export interface GlobalCanvasProps {
+  /** Hides the header, minimap, and sidebar for a lightweight iframe-embed
+   * view — just the canvas and the drawing toolbar. See app/embed/page.tsx. */
+  embedded?: boolean;
+}
+
+export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const worldCanvasRef = useRef<HTMLCanvasElement>(null);
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -2591,13 +2597,15 @@ export function GlobalCanvas() {
           viewportHeight={viewportSize.height}
         />
 
-        <aside id="minimap-panel" aria-label="Canvas Minimap Overview">
-          <MiniMap
-            canvasRef={miniMapCanvasRef}
-            viewportRectRef={miniMapViewportRectRef}
-            onJump={handleMiniMapJump}
-          />
-        </aside>
+        {!embedded && (
+          <aside id="minimap-panel" aria-label="Canvas Minimap Overview">
+            <MiniMap
+              canvasRef={miniMapCanvasRef}
+              viewportRectRef={miniMapViewportRectRef}
+              onJump={handleMiniMapJump}
+            />
+          </aside>
+        )}
 
         {/* Desktop Sidebar (>= 1360px) — every control that used to live in
             the header row, stacked vertically and docked directly under the
@@ -2607,7 +2615,7 @@ export function GlobalCanvas() {
             expands the full sidebar back out rather than trying to open its
             control's own dropdown directly from the collapsed state, since
             that would mean duplicating every control's open/close logic. */}
-        {sidebarCollapsed ? (
+        {!embedded && (sidebarCollapsed ? (
           <div
             aria-label="Canvas Tools & Controls (collapsed)"
             className="pointer-events-auto hidden min-[1360px]:flex flex-col items-center gap-1.5 overflow-y-auto rounded-sm border-2 border-chrome-border bg-chrome-bg/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-sm absolute right-3 sm:right-4 z-20"
@@ -2862,7 +2870,7 @@ export function GlobalCanvas() {
           </div>
 
         </aside>
-        )}
+        ))}
 
         <ProtectedZonesOverlay
           ref={protectedZonesOverlayRef}
@@ -2927,6 +2935,7 @@ export function GlobalCanvas() {
       )}
 
       {/* Top Header Bar */}
+      {!embedded && (
       <header
         id="header-bar"
         role="banner"
@@ -3126,6 +3135,7 @@ export function GlobalCanvas() {
         )}
         <ChromeRivet className="top-1/2 right-2 -translate-y-1/2 hidden sm:block" />
       </header>
+      )}
 
       {submitError && (
         <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2">
@@ -3259,7 +3269,7 @@ export function GlobalCanvas() {
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
         />
-        <InviteBanner />
+        {!embedded && <InviteBanner />}
         <DrawingChallengeWidget
           activeGoal={activeAdminGoal}
           onAcceptChallenge={(goal) => {

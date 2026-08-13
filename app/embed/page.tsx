@@ -26,7 +26,7 @@ export default function EmbedPage() {
         </Link>
       </div>
 
-      <GlobalCanvas />
+      <GlobalCanvas embedded />
     </div>
   );
 }
