@@ -1,24 +1,54 @@
 import { NextResponse } from "next/server";
 import { generateAiStrokes as generateProceduralStrokes } from "@/lib/aiDrawer";
+import type { BrushType, Point } from "@/lib/types";
 
 export const runtime = "edge";
+
+const GEMINI_TIMEOUT_MS = 10_000;
+
+// Per-isolate sliding window — no caller identity is passed in the request
+// body, so this limits by IP. Edge isolates aren't shared across regions, so
+// this is a soft cap, not a hard distributed limit.
+// ponytail: in-memory limiter, good enough for an admin-only feature; move
+// to the Convex-backed limiter (convex/abuse.ts) if this needs real
+// cross-region enforcement.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const requestLog = new Map<string, number[]>();
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const timestamps = (requestLog.get(key) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestLog.set(key, timestamps);
+    return true;
+  }
+  timestamps.push(now);
+  requestLog.set(key, timestamps);
+  return false;
+}
 
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   return NextResponse.json({
     hasApiKey: Boolean(apiKey),
-    engine: apiKey ? "gemini-2.0-flash" : "procedural",
+    engine: apiKey ? "gemini-flash-latest" : "procedural",
     statusMessage: apiKey
-      ? "🟢 Gemini 2.0 Flash Model Active (Real AI)"
-      : "🟡 Procedural Path Engine Active (Set GEMINI_API_KEY in .env.local to activate Gemini 2.0 Flash)",
+      ? "🟢 Gemini Flash Model Active (Real AI)"
+      : "🟡 Procedural Path Engine Active (Set GEMINI_API_KEY in .env.local to activate Gemini)",
   });
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { prompt, center = { x: 0, y: 0 }, color = "#d94626", brushType = "neonGlow" } = body;
+  const body = await request.json().catch(() => ({}) as Record<string, unknown>);
+  const { prompt, center = { x: 0, y: 0 }, color = "#d94626", brushType = "neonGlow" } = body as {
+    prompt: string;
+    center?: Point;
+    color?: string;
+    brushType?: BrushType;
+  };
 
+  try {
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -27,66 +57,81 @@ export async function POST(request: Request) {
       return NextResponse.json({ strokes, source: "procedural" });
     }
 
-    const systemPrompt = `You are a real-time vector path artist for an online canvas. 
+    const clientKey = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
+    if (isRateLimited(clientKey)) {
+      const strokes = generateProceduralStrokes({ prompt, center, color, brushType });
+      return NextResponse.json({ strokes, source: "rate-limited" });
+    }
+
+    const systemPrompt = `You are a real-time vector path artist for an online canvas.
 Your task is to draw the requested subject "${prompt}" centered around coordinate (${center.x}, ${center.y}).
 Generate 4 to 8 smooth vector stroke paths. Each stroke must contain 5 to 20 coordinate points ({x, y}) detailing the contours and shapes.
 Keep points within 150 units of center coordinate (${center.x}, ${center.y}).
 Use vibrant hex colors (e.g. #d94626, #39c07a, #2f9fe0, #ffcc00, #c14fd6).
 Valid brushType values: "neonGlow", "brush", "watercolor", "calligraphy", "oilPaint", "pencil".`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
-    const res = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `Draw: ${prompt}` }],
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: systemPrompt }],
           },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              strokes: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    points: {
-                      type: "ARRAY",
-                      items: {
-                        type: "OBJECT",
-                        properties: {
-                          x: { type: "NUMBER" },
-                          y: { type: "NUMBER" },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `Draw: ${prompt}` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                strokes: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      points: {
+                        type: "ARRAY",
+                        items: {
+                          type: "OBJECT",
+                          properties: {
+                            x: { type: "NUMBER" },
+                            y: { type: "NUMBER" },
+                          },
+                          required: ["x", "y"],
                         },
-                        required: ["x", "y"],
                       },
+                      color: { type: "STRING" },
+                      width: { type: "NUMBER" },
+                      brushType: { type: "STRING" },
                     },
-                    color: { type: "STRING" },
-                    width: { type: "NUMBER" },
-                    brushType: { type: "STRING" },
+                    required: ["points", "color"],
                   },
-                  required: ["points", "color"],
                 },
               },
+              required: ["strokes"],
             },
-            required: ["strokes"],
           },
-        },
-      }),
-    });
+        }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!res.ok) {
-      console.warn("Gemini API call failed, using procedural fallback");
+      const errBody = await res.text().catch(() => "");
+      console.warn("Gemini API call failed, using procedural fallback", res.status, errBody.slice(0, 500));
       const strokes = generateProceduralStrokes({ prompt, center, color, brushType });
       return NextResponse.json({ strokes, source: "procedural-fallback" });
     }
@@ -113,16 +158,16 @@ Valid brushType values: "neonGlow", "brush", "watercolor", "calligraphy", "oilPa
       return NextResponse.json({ strokes: fallbackStrokes, source: "procedural-fallback" });
     }
 
-    return NextResponse.json({ strokes, source: "gemini-2.0-flash" });
+    return NextResponse.json({ strokes, source: "gemini-flash-latest" });
   } catch (error) {
-    console.error("AI Draw API error:", error);
-    const body = await request.json().catch(() => ({}));
+    const isTimeout = error instanceof Error && error.name === "AbortError";
+    console.error("AI Draw API error:", isTimeout ? "Gemini request timed out" : error);
     const strokes = generateProceduralStrokes({
-      prompt: body.prompt || "artwork",
-      center: body.center || { x: 0, y: 0 },
-      color: body.color || "#d94626",
-      brushType: body.brushType || "neonGlow",
+      prompt: prompt || "artwork",
+      center: center || { x: 0, y: 0 },
+      color: color || "#d94626",
+      brushType: brushType || "neonGlow",
     });
-    return NextResponse.json({ strokes, source: "procedural-error-fallback" });
+    return NextResponse.json({ strokes, source: isTimeout ? "procedural-timeout-fallback" : "procedural-error-fallback" });
   }
 }
