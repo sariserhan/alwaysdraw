@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SKETCHBOOK_PAGES } from "@/lib/sketchbookPages";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl =
@@ -11,12 +12,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/online-whiteboard",
     "/infinite-canvas",
     "/sketchbook",
+    ...Object.keys(SKETCHBOOK_PAGES).map((id) => `/sketchbook/${id}`),
   ];
 
   return routes.map((route) => ({
     url: `${siteUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === "" || route === "/canvas" || route === "/sketchbook" ? "always" : "weekly",
-    priority: route === "" || route === "/canvas" || route === "/sketchbook" ? 1.0 : 0.8,
+    changeFrequency: route === "" || route === "/canvas" || route.startsWith("/sketchbook") ? "always" : "weekly",
+    priority: route === "" || route === "/canvas" || route.startsWith("/sketchbook") ? 1.0 : 0.8,
   }));
 }
