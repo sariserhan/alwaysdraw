@@ -18,6 +18,8 @@ import type * as crons from "../crons.js";
 import type * as presence from "../presence.js";
 import type * as profanity from "../profanity.js";
 import type * as reports from "../reports.js";
+import type * as sketchbookMetadata from "../sketchbookMetadata.js";
+import type * as sketchbookStrokes from "../sketchbookStrokes.js";
 import type * as snapshots from "../snapshots.js";
 import type * as strokes from "../strokes.js";
 
@@ -38,6 +40,8 @@ declare const fullApi: ApiFromModules<{
   presence: typeof presence;
   profanity: typeof profanity;
   reports: typeof reports;
+  sketchbookMetadata: typeof sketchbookMetadata;
+  sketchbookStrokes: typeof sketchbookStrokes;
   snapshots: typeof snapshots;
   strokes: typeof strokes;
 }>;
