@@ -20,18 +20,23 @@ export default function SketchbookGalleryPage() {
             href={`/sketchbook/${page.id}`}
             className="flex flex-col items-center gap-2 rounded-lg bg-white/60 p-4 transition hover:bg-white"
           >
-            <svg viewBox={`0 0 ${page.width} ${page.height}`} className="h-32 w-32">
-              {page.regions.map((region) => (
-                <path
-                  key={region.id}
-                  d={regionPathData(region)}
-                  fill="none"
-                  stroke="#1a1a1a"
-                  strokeWidth={3}
-                  strokeLinejoin="round"
-                />
-              ))}
-            </svg>
+            {page.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={page.imageUrl} alt="" className="h-32 w-32 object-contain" />
+            ) : (
+              <svg viewBox={`0 0 ${page.width} ${page.height}`} className="h-32 w-32">
+                {page.regions.map((region) => (
+                  <path
+                    key={region.id}
+                    d={regionPathData(region)}
+                    fill="none"
+                    stroke="#1a1a1a"
+                    strokeWidth={3}
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </svg>
+            )}
             <span className="text-sm font-medium text-[#1a1a1a]">{page.title}</span>
           </Link>
         ))}

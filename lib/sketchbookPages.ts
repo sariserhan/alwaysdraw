@@ -8,6 +8,14 @@ export type SketchbookPage = {
   width: number;
   height: number;
   regions: SketchbookRegion[];
+  // When set, this image (a static file under public/) renders as the
+  // page's visible artwork instead of region-derived outline paths — see
+  // SketchbookCanvas.tsx. Pairs with a single full-canvas rectangle
+  // region below so painting is unrestricted (free-form) rather than
+  // clipped to hand-picked shapes; the region machinery itself is
+  // unchanged, "one region covering everything" just means "paint
+  // anywhere."
+  imageUrl?: string;
 };
 
 function ellipsePolygon(cx: number, cy: number, rx: number, ry: number, sides = 16): Point[] {
@@ -56,6 +64,26 @@ export const SKETCHBOOK_PAGES: Record<string, SketchbookPage | undefined> = {
     width: 400,
     height: 400,
     regions: [{ id: "circle", points: ellipsePolygon(200, 200, 150, 150) }],
+  },
+  geisha: {
+    id: "geisha",
+    title: "Geisha",
+    // Matches public/sketchbook/geisha.svg's own viewBox exactly, so the
+    // image renders at native scale with no coordinate conversion.
+    width: 159.007,
+    height: 476.917,
+    regions: [
+      {
+        id: "canvas",
+        points: [
+          { x: 0, y: 0 },
+          { x: 159.007, y: 0 },
+          { x: 159.007, y: 476.917 },
+          { x: 0, y: 476.917 },
+        ],
+      },
+    ],
+    imageUrl: "/sketchbook/geisha.svg",
   },
 };
 

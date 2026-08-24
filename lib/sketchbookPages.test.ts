@@ -39,6 +39,29 @@ describe("sketchbookPages region hit-testing — circle", () => {
   });
 });
 
+describe("sketchbookPages region hit-testing — geisha (free-form)", () => {
+  const page = SKETCHBOOK_PAGES.geisha!;
+
+  it("has imageUrl set and exactly one full-canvas region", () => {
+    expect(page.imageUrl).toBe("/sketchbook/geisha.svg");
+    expect(page.regions).toHaveLength(1);
+  });
+
+  it("resolves any interior point within the page bounds to the single region", () => {
+    // Insets, not exact corners: ray-casting point-in-polygon is only
+    // reliably defined for strictly interior/exterior points, not ones
+    // sitting exactly on a boundary vertex.
+    expect(findRegionAt(page.regions, 1, 1)?.id).toBe("canvas");
+    expect(findRegionAt(page.regions, page.width - 1, page.height - 1)?.id).toBe("canvas");
+    expect(findRegionAt(page.regions, page.width / 2, page.height / 2)?.id).toBe("canvas");
+  });
+
+  it("returns null outside the page bounds", () => {
+    expect(findRegionAt(page.regions, -10, -10)).toBeNull();
+    expect(findRegionAt(page.regions, page.width + 10, page.height + 10)).toBeNull();
+  });
+});
+
 describe("sketchbookPages registry invariants", () => {
   const allPages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);
 

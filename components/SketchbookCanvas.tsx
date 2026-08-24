@@ -334,15 +334,27 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         onPointerLeave={handlePointerUp}
         onPointerCancel={handlePointerUp}
       />
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${page.width} ${page.height}`}
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {outlinePaths.map((p) => (
-          <path key={p.id} d={p.d} fill="none" stroke="#1a1a1a" strokeWidth={3} strokeLinejoin="round" />
-        ))}
-      </svg>
+      {page.imageUrl ? (
+        // Free-form page: a single full-canvas region (see lib/sketchbookPages.ts)
+        // means painting is unrestricted, so there's no meaningful region
+        // boundary to draw — the real artwork is the visible guide instead.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={page.imageUrl}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+        />
+      ) : (
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox={`0 0 ${page.width} ${page.height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {outlinePaths.map((p) => (
+            <path key={p.id} d={p.d} fill="none" stroke="#1a1a1a" strokeWidth={3} strokeLinejoin="round" />
+          ))}
+        </svg>
+      )}
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/90 px-4 py-2 shadow-lg">
         {PALETTE_PRESETS[0].colors.map((swatch) => (
           <button
