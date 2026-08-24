@@ -192,8 +192,12 @@ export default defineSchema({
     username: v.optional(v.string()),
     countryCode: v.optional(v.string()),
     mode: v.union(v.literal("draw"), v.literal("erase")),
-    // Which SketchbookRegion (lib/sketchbookOutline.ts) this stroke is
-    // clipped to — validated server-side against that same region list.
+    // Which SketchbookPage (lib/sketchbookPages.ts) this stroke belongs
+    // to. Optional for backward compatibility with rows written before
+    // multi-page support — see convex/migrations.ts's one-time backfill.
+    pageId: v.optional(v.string()),
+    // Which region within that page this stroke is clipped to —
+    // validated server-side against that page's own region list.
     regionId: v.string(),
     color: v.string(),
     width: v.number(),
@@ -205,7 +209,8 @@ export default defineSchema({
     deleted: v.optional(v.boolean()),
   })
     .index("by_sequence", ["sequence"])
-    .index("by_clientStrokeId", ["clientStrokeId"]),
+    .index("by_clientStrokeId", ["clientStrokeId"])
+    .index("by_pageId_and_sequence", ["pageId", "sequence"]),
 
   sketchbookMetadata: defineTable({
     currentSequence: v.number(),

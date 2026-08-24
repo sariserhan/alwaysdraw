@@ -15,6 +15,7 @@ import type * as canvasMetadata from "../canvasMetadata.js";
 import type * as comments from "../comments.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
+import type * as migrations from "../migrations.js";
 import type * as presence from "../presence.js";
 import type * as profanity from "../profanity.js";
 import type * as reports from "../reports.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   constants: typeof constants;
   crons: typeof crons;
+  migrations: typeof migrations;
   presence: typeof presence;
   profanity: typeof profanity;
   reports: typeof reports;
