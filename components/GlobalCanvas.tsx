@@ -306,7 +306,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const [shapeMetricsLabel, setShapeMetricsLabel] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
-  const [tool, setTool] = useState<Tool>("laser");
+  const [tool, setTool] = useState<Tool>("pan");
   const [brushType, setBrushType] = useState<BrushType>("brush");
   const [shapeType, setShapeType] = useState<ShapeType>("line");
   const [selectedStencil, setSelectedStencil] = useState<StencilType>("biohazard");
