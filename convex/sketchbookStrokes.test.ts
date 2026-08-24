@@ -48,7 +48,7 @@ describe("sketchbookStrokes.submit — validation boundaries", () => {
   it("rejects an Object.prototype key as pageId (e.g. 'constructor')", async () => {
     await expect(
       t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "bad-proto-page", pageId: "constructor" })),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/unknown pageId/);
   });
 
   it("rejects an unknown regionId", async () => {
