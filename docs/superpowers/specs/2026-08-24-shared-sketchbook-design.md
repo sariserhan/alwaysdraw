@@ -51,7 +51,11 @@ online colors it together in real time, like the main canvas, but:
 ### The outline-lock mechanic
 
 New file `lib/sketchbookOutline.ts` defining the one hardcoded outline for
-v1:
+v1 — **pure data only** (no `Path2D`, no DOM APIs), so it's safely
+importable from both the browser and Convex's server runtime (which has
+no DOM and would throw on `new Path2D(...)` at module scope). This
+mirrors the existing cross-import pattern already in the codebase
+(`lib/types.ts` imports `BRUSH_TYPES` from `@/convex/constants`):
 
 ```ts
 export type SketchbookRegion = { id: string; path: string }; // SVG path `d`
@@ -59,6 +63,11 @@ export const SKETCHBOOK_PAGE_WIDTH = 800;
 export const SKETCHBOOK_PAGE_HEIGHT = 1000;
 export const SKETCHBOOK_REGIONS: SketchbookRegion[] = [ /* flower: petals x5, center, stem, 2 leaves */ ];
 ```
+
+`convex/sketchbookStrokes.ts` imports `SKETCHBOOK_REGIONS` from this same
+module for server-side `regionId` validation (see Data model below) —
+there is exactly one definition of the region list, never a
+server-mirrored copy that could drift from the client's.
 
 Rendering order (paint below, line art on top, exactly like a real
 coloring book):
@@ -73,7 +82,10 @@ coloring book):
 
 Clipping paint to a region:
 
-- Build one `Path2D` per region from `SKETCHBOOK_REGIONS` once (memoized).
+- In `SketchbookCanvas.tsx` (client-only), build one `Path2D` per region
+  from `SKETCHBOOK_REGIONS` in a `useMemo` — this is the one place
+  `Path2D` gets constructed; small enough to live inline rather than its
+  own module.
 - On `pointerdown`, convert the event's screen coordinates to page-local
   coordinates via `lib/coordinates.ts`'s `screenToWorld` (reused as-is,
   fed the same scale-to-fit `Camera` described below) and find the
@@ -151,9 +163,10 @@ sketchbookMetadata: defineTable({
 
 No `tiles` field (fixed small page, no spatial sharding needed) and no
 `brushType` field (no texture catalog in scope). `regionId` is new,
-validated server-side against the known `SKETCHBOOK_REGIONS` id list
-(mirrored server-side as a plain constant array, not read from the client
-blindly).
+validated server-side by importing `SKETCHBOOK_REGIONS` directly from
+`lib/sketchbookOutline.ts` (see above) and rejecting any id not in that
+list — a single source of truth shared with the client, not a
+server-side copy that could drift.
 
 New file `convex/sketchbookMetadata.ts`, mirroring
 `convex/canvasMetadata.ts`'s `claimNextSequence` exactly (transactional
@@ -217,4 +230,7 @@ appear as their strokes sync in.
   inside/outside sample points resolve to the expected region (or no
   region) via `isPointInPath` — this is the core "can't color outside the
   lines" guarantee, so it gets a direct test rather than relying only on
-  manual verification.
+  manual verification. (This test runs in a DOM-enabled test environment
+  for `Path2D`/`isPointInPath`, same as any other browser-API test in
+  this codebase — it exercises the data from `lib/sketchbookOutline.ts`,
+  not a `Path2D` embedded in the module itself.)
