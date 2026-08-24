@@ -60,3 +60,6 @@ next-env.d.ts
 !.dev.vars.example
 
 !.env.example
+
+# git worktrees for isolated task/feature work
+.worktrees
