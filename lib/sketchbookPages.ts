@@ -2,8 +2,13 @@ import type { Point } from "./types";
 
 export type SketchbookRegion = { id: string; points: Point[] };
 
-export const SKETCHBOOK_PAGE_WIDTH = 800;
-export const SKETCHBOOK_PAGE_HEIGHT = 1000;
+export type SketchbookPage = {
+  id: string;
+  title: string;
+  width: number;
+  height: number;
+  regions: SketchbookRegion[];
+};
 
 function ellipsePolygon(cx: number, cy: number, rx: number, ry: number, sides = 16): Point[] {
   const pts: Point[] = [];
@@ -14,29 +19,50 @@ function ellipsePolygon(cx: number, cy: number, rx: number, ry: number, sides = 
   return pts;
 }
 
-// v1 placeholder art: a simple 5-petal flower with a stem and two leaves.
+// v1 placeholder art: a simple 5-petal flower with a stem and two leaves,
+// plus a minimal one-region circle proving a second page works end to end.
 // Every consumer (server validation, SVG render, canvas clip, hit test)
-// reads only this array, so swapping in real outline art later only
-// means editing this one list.
-export const SKETCHBOOK_REGIONS: SketchbookRegion[] = [
-  { id: "center", points: ellipsePolygon(400, 400, 50, 50) },
-  { id: "petal-1", points: ellipsePolygon(400, 285, 55, 55) },
-  { id: "petal-2", points: ellipsePolygon(509.4, 364.5, 55, 55) },
-  { id: "petal-3", points: ellipsePolygon(467.6, 493, 55, 55) },
-  { id: "petal-4", points: ellipsePolygon(332.4, 493, 55, 55) },
-  { id: "petal-5", points: ellipsePolygon(290.6, 364.5, 55, 55) },
-  {
-    id: "stem",
-    points: [
-      { x: 390, y: 450 },
-      { x: 410, y: 450 },
-      { x: 410, y: 850 },
-      { x: 390, y: 850 },
+// reads only this registry, so adding real outline art later only means
+// adding another entry here.
+export const SKETCHBOOK_PAGES: Record<string, SketchbookPage> = {
+  flower: {
+    id: "flower",
+    title: "Flower",
+    width: 800,
+    height: 1000,
+    regions: [
+      { id: "center", points: ellipsePolygon(400, 400, 50, 50) },
+      { id: "petal-1", points: ellipsePolygon(400, 285, 55, 55) },
+      { id: "petal-2", points: ellipsePolygon(509.4, 364.5, 55, 55) },
+      { id: "petal-3", points: ellipsePolygon(467.6, 493, 55, 55) },
+      { id: "petal-4", points: ellipsePolygon(332.4, 493, 55, 55) },
+      { id: "petal-5", points: ellipsePolygon(290.6, 364.5, 55, 55) },
+      {
+        id: "stem",
+        points: [
+          { x: 390, y: 450 },
+          { x: 410, y: 450 },
+          { x: 410, y: 850 },
+          { x: 390, y: 850 },
+        ],
+      },
+      { id: "leaf-left", points: ellipsePolygon(330, 650, 50, 25) },
+      { id: "leaf-right", points: ellipsePolygon(470, 650, 50, 25) },
     ],
   },
-  { id: "leaf-left", points: ellipsePolygon(330, 650, 50, 25) },
-  { id: "leaf-right", points: ellipsePolygon(470, 650, 50, 25) },
-];
+  circle: {
+    id: "circle",
+    title: "Circle",
+    width: 400,
+    height: 400,
+    regions: [{ id: "circle", points: ellipsePolygon(200, 200, 150, 150) }],
+  },
+};
+
+// Legacy sketchbookStrokes rows written before multi-page support have no
+// pageId — the one-time backfill migration (convex/migrations.ts) assigns
+// them here, since this was the only page that existed at the time.
+export const DEFAULT_SKETCHBOOK_PAGE_ID = "flower";
 
 /** Ray-casting point-in-polygon test — pure arithmetic, no DOM/canvas APIs,
  * so it runs identically in the browser and in Convex's server runtime. */
