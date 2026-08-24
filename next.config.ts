@@ -17,3 +17,5 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: { disable: !hasSourceMapUpload },
   widenClientFileUpload: hasSourceMapUpload,
 });
+
+import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
