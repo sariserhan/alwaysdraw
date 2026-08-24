@@ -51,18 +51,36 @@ online colors it together in real time, like the main canvas, but:
 ### The outline-lock mechanic
 
 New file `lib/sketchbookOutline.ts` defining the one hardcoded outline for
-v1 — **pure data only** (no `Path2D`, no DOM APIs), so it's safely
-importable from both the browser and Convex's server runtime (which has
-no DOM and would throw on `new Path2D(...)` at module scope). This
-mirrors the existing cross-import pattern already in the codebase
-(`lib/types.ts` imports `BRUSH_TYPES` from `@/convex/constants`):
+v1 — **pure data and pure functions only** (no `Path2D`, no DOM APIs), so
+it's safely importable from both the browser and Convex's server runtime
+(which has no DOM and would throw on `new Path2D(...)` at module scope,
+and whose test environment — this repo has no jsdom/`canvas` polyfill —
+can't construct one either). This mirrors the existing cross-import
+pattern already in the codebase (`convex/strokes.ts` already imports
+`lib/tiling.ts`):
 
 ```ts
-export type SketchbookRegion = { id: string; path: string }; // SVG path `d`
+export type SketchbookRegion = { id: string; points: Point[] }; // polygon vertices, page-space
 export const SKETCHBOOK_PAGE_WIDTH = 800;
 export const SKETCHBOOK_PAGE_HEIGHT = 1000;
 export const SKETCHBOOK_REGIONS: SketchbookRegion[] = [ /* flower: petals x5, center, stem, 2 leaves */ ];
+
+export function isPointInRegion(region: SketchbookRegion, x: number, y: number): boolean; // ray casting
+export function findRegionAt(regions: SketchbookRegion[], x: number, y: number): SketchbookRegion | null;
+export function regionPathData(region: SketchbookRegion): string; // "M x,y L x,y ... Z" for <path d> / Path2D
 ```
+
+Each region is a polygon (a plain list of `{x, y}` vertices in page
+space) rather than an arbitrary SVG path string — round shapes (the
+flower's petals/center) are approximated with a 16-sided polygon, which
+reads as smoothly rounded at this size and needs no curve math. Region
+containment (`isPointInRegion`/`findRegionAt`) is a standard ray-casting
+point-in-polygon test over the vertex list — plain arithmetic, no `Path2D`
+involved, so it runs identically and is directly unit-testable in Node.
+`regionPathData` turns the same vertex list into an SVG/`Path2D`-flavor
+path string (`M x0,y0 L x1,y1 ... Z`) for the two browser-only rendering
+uses below — building a `Path2D` from that string still only happens in
+the browser, never in this module or in a test.
 
 `convex/sketchbookStrokes.ts` imports `SKETCHBOOK_REGIONS` from this same
 module for server-side `regionId` validation (see Data model below) —
@@ -83,16 +101,21 @@ coloring book):
 Clipping paint to a region:
 
 - In `SketchbookCanvas.tsx` (client-only), build one `Path2D` per region
-  from `SKETCHBOOK_REGIONS` in a `useMemo` — this is the one place
-  `Path2D` gets constructed; small enough to live inline rather than its
-  own module.
+  from `regionPathData(region)`, in **screen space** (each region's
+  points run through `worldToScreen` against the current camera first,
+  see Coordinates below) — rebuilt whenever the camera changes (i.e. on
+  resize), not just once, since a `Path2D`'s coordinates are fixed at
+  construction time and `drawStroke` independently converts world points
+  to screen space on every draw. Building the clip path in the same space
+  `drawStroke` renders into is what keeps the two aligned.
 - On `pointerdown`, convert the event's screen coordinates to page-local
-  coordinates via `lib/coordinates.ts`'s `screenToWorld` (reused as-is,
-  fed the same scale-to-fit `Camera` described below) and find the
-  containing region via `ctx.isPointInPath(path2D, x, y)`, checked
-  against each region in order. If no region contains the point, the pointer-down is ignored
-  (no stroke starts) — this covers taps outside the flower entirely and
-  taps on outline gaps/lines.
+  (world) coordinates via `lib/coordinates.ts`'s `screenToWorld` (reused
+  as-is, fed the same scale-to-fit `Camera` described below) and find the
+  containing region via `findRegionAt(SKETCHBOOK_REGIONS, x, y)` — plain
+  arithmetic against the region's world-space polygon, unrelated to the
+  screen-space `Path2D` used for clipping. If no region contains the
+  point, the pointer-down is ignored (no stroke starts) — this covers
+  taps outside the flower entirely and taps on outline gaps/lines.
 - The region found at pointer-down is fixed for that whole drag (a
   physical marker doesn't teleport to a new area mid-stroke either).
   Store it as `activeRegionId` for the duration of the drag.
@@ -225,12 +248,11 @@ appear as their strokes sync in.
   `clientStrokeId` is idempotent; out-of-bounds point rejected; unknown
   `regionId` rejected; invalid color rejected; rate limit enforced;
   `listSince` returns only strokes after the given sequence.
-- `lib/sketchbookOutline.test.ts`: each region's `Path2D` is constructable
-  from its `d` string without throwing, and a handful of known
-  inside/outside sample points resolve to the expected region (or no
-  region) via `isPointInPath` — this is the core "can't color outside the
-  lines" guarantee, so it gets a direct test rather than relying only on
-  manual verification. (This test runs in a DOM-enabled test environment
-  for `Path2D`/`isPointInPath`, same as any other browser-API test in
-  this codebase — it exercises the data from `lib/sketchbookOutline.ts`,
-  not a `Path2D` embedded in the module itself.)
+- `lib/sketchbookOutline.test.ts`: a handful of known inside/outside
+  sample points resolve to the expected region (or no region) via
+  `findRegionAt`/`isPointInRegion`, region ids are unique, and
+  `regionPathData` produces well-formed path strings for every region —
+  this is the core "can't color outside the lines" guarantee, so it gets
+  a direct test rather than relying only on manual verification. Runs
+  under this repo's default Node test environment — no DOM needed, since
+  region containment is plain ray-casting arithmetic, not `Path2D`.
