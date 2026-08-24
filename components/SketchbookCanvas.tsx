@@ -199,9 +199,11 @@ export function SketchbookCanvas() {
       const rect = canvas.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
-      const worldPt = clampToPage(screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height));
-      const region = findRegionAt(SKETCHBOOK_REGIONS, worldPt.x, worldPt.y);
+      const rawWorldPt = screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height);
+      const region = findRegionAt(SKETCHBOOK_REGIONS, rawWorldPt.x, rawWorldPt.y);
       if (!region) return;
+
+      const worldPt = clampToPage(rawWorldPt);
 
       canvas.setPointerCapture(e.pointerId);
       activeRegionRef.current = region;
