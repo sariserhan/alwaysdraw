@@ -24,6 +24,16 @@ import {
 const DEFAULT_WIDTH = 16;
 const DEFAULT_COLOR = PALETTE_PRESETS[0].colors[2];
 
+// ponytail: server rejects a whole chunk if any point falls outside the page
+// rect, so clamp here (not lib/coordinates' clampToWorld — that's the main
+// canvas's 20000x20000 world, wrong bounds for this fixed-size page).
+function clampToPage(pt: Point): Point {
+  return {
+    x: Math.min(SKETCHBOOK_PAGE_WIDTH, Math.max(0, pt.x)),
+    y: Math.min(SKETCHBOOK_PAGE_HEIGHT, Math.max(0, pt.y)),
+  };
+}
+
 type SketchbookStroke = {
   clientStrokeId: string;
   sequence: number;
@@ -189,7 +199,7 @@ export function SketchbookCanvas() {
       const rect = canvas.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
-      const worldPt = screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height);
+      const worldPt = clampToPage(screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height));
       const region = findRegionAt(SKETCHBOOK_REGIONS, worldPt.x, worldPt.y);
       if (!region) return;
 
@@ -236,7 +246,7 @@ export function SketchbookCanvas() {
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
-    const worldPt = screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height);
+    const worldPt = clampToPage(screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height));
 
     const from = lastWorldPointRef.current ?? worldPt;
     const path2d = regionPathsRef.current.get(region.id);
