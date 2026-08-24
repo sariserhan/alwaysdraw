@@ -10,12 +10,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/draw-with-friends",
     "/online-whiteboard",
     "/infinite-canvas",
+    "/sketchbook",
   ];
 
   return routes.map((route) => ({
     url: `${siteUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === "" || route === "/canvas" ? "always" : "weekly",
-    priority: route === "" || route === "/canvas" ? 1.0 : 0.8,
+    changeFrequency: route === "" || route === "/canvas" || route === "/sketchbook" ? "always" : "weekly",
+    priority: route === "" || route === "/canvas" || route === "/sketchbook" ? 1.0 : 0.8,
   }));
 }

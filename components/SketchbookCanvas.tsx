@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import { MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH } from "@/convex/constants";
 import type { StrokeMode, Point } from "@/lib/types";
@@ -132,10 +133,29 @@ export function SketchbookCanvas() {
     };
 
     resize();
-    const observer = new ResizeObserver(resize);
+    // ponytail: rAF-debounce so a window-edge drag (many ResizeObserver
+    // callbacks per second) only replays the full stroke history once per
+    // frame instead of once per callback.
+    let rafId: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        resize();
+      });
+    });
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [replayAll]);
+
+  useEffect(() => {
+    if (!errorMessage) return;
+    const id = setTimeout(() => setErrorMessage(null), 4000);
+    return () => clearTimeout(id);
+  }, [errorMessage]);
 
   // Apply newly synced strokes as they arrive.
   useEffect(() => {
@@ -186,10 +206,18 @@ export function SketchbookCanvas() {
         clientTimestamp: Date.now(),
       }).catch((err) => {
         console.error("sketchbook stroke submit rejected", err);
-        setErrorMessage("a mark didn't stick — try again");
+        renderedIdsRef.current.delete(clientStrokeId);
+        allStrokesRef.current = allStrokesRef.current.filter((s) => s.clientStrokeId !== clientStrokeId);
+        const ctx = ctxRef.current;
+        if (ctx) {
+          const { width: vw, height: vh } = viewportRef.current;
+          ctx.clearRect(0, 0, vw, vh);
+          replayAll();
+        }
+        setErrorMessage(err instanceof ConvexError ? "drawing too fast — pace yourself a sec" : "a mark didn't stick — try again");
       });
     },
-    [submitStroke],
+    [submitStroke, replayAll],
   );
 
   const handlePointerDown = useCallback(
@@ -287,6 +315,7 @@ export function SketchbookCanvas() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       />
       <svg
         className="pointer-events-none absolute inset-0 h-full w-full"
@@ -313,6 +342,7 @@ export function SketchbookCanvas() {
         ))}
         <input
           type="range"
+          aria-label="brush width"
           min={MIN_BRUSH_WIDTH}
           max={MAX_BRUSH_WIDTH}
           value={width}
@@ -321,6 +351,7 @@ export function SketchbookCanvas() {
         />
         <button
           type="button"
+          aria-pressed={tool === "erase"}
           onClick={() => setTool((t) => (t === "erase" ? "draw" : "erase"))}
           className={`rounded-full px-3 py-1 text-sm font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
         >

@@ -136,6 +136,9 @@ export default function Home() {
             <Link href="/infinite-canvas" className="hover:text-ink transition">
               🌌 Infinite Canvas
             </Link>
+            <Link href="/sketchbook" className="hover:text-ink transition">
+              📖 Sketchbook
+            </Link>
           </nav>
 
           <Link

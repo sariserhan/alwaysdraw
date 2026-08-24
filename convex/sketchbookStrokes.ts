@@ -147,6 +147,12 @@ export const submit = mutation({
   },
 });
 
+// ponytail: no pruning/snapshot mechanism — every visitor replays the full
+// stroke history from afterSequence: 0, so this table grows unbounded
+// forever. Fine while stroke counts stay in the thousands; upgrade path if
+// it becomes a real problem is either a prune cron keeping only the newest
+// N sequences, or a snapshot mechanism like the main canvas's
+// snapshots.ts/GlobalCanvas.tsx's snapshots.getLatest seeding pattern.
 export const listSince = query({
   args: {
     afterSequence: v.number(),

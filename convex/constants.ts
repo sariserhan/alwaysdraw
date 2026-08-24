@@ -30,8 +30,8 @@ export const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 // server-enforced cost boundary. Limits are generous enough for normal fast
 // drawing while making a single spoofed client or a global flood finite.
 export const RATE_LIMIT_WINDOW_MS = 10_000;
-// A single continuous drag flushes a new stroke chunk every ~40ms (see
-// lib/strokeBuffer.ts's FLUSH_INTERVAL_MS) — up to ~25/sec. The old 120
+// A single continuous drag flushes a new stroke chunk every ~60ms (see
+// lib/strokeBuffer.ts's FLUSH_INTERVAL_MS) — up to ~16-17/sec. The old 120
 // (12/sec average) meant just drawing one long, fast stroke for a few
 // seconds — completely normal use, no abuse involved — could trip the
 // limit. This covers a full window of continuous drawing at that real
@@ -41,7 +41,7 @@ export const STROKES_GLOBAL_WINDOW = 2_000;
 // Separate budget from the main canvas's strokes:* buckets, so heavy
 // sketchbook use can't starve main-canvas writes or vice versa. Same
 // values as STROKES_PER_CLIENT_WINDOW/STROKES_GLOBAL_WINDOW — sketchbook
-// drawing uses the same StrokeBuffer flush cadence (~25 chunks/sec
+// drawing uses the same StrokeBuffer flush cadence (~16-17 chunks/sec
 // worst case), so the same headroom reasoning applies.
 export const SKETCHBOOK_STROKES_PER_CLIENT_WINDOW = 300;
 export const SKETCHBOOK_STROKES_GLOBAL_WINDOW = 2_000;
