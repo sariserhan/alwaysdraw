@@ -1,3 +1,5 @@
+import Script from "next/script";
+
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
@@ -201,6 +203,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <WebVitals />
+        <Script
+          src="https://cdn.visitorping.com/site/vp_AZDRYS4L.js"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
       </body>
     </html>
   );
