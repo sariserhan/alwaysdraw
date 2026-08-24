@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { SKETCHBOOK_PAGES, regionPathData } from "@/lib/sketchbookPages";
+import { SKETCHBOOK_PAGES, regionPathData, type SketchbookPage } from "@/lib/sketchbookPages";
 
 export const metadata: Metadata = {
   title: "Sketchbook — alwaysdraw",
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function SketchbookGalleryPage() {
-  const pages = Object.values(SKETCHBOOK_PAGES);
+  const pages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);
 
   return (
     <div className="min-h-dvh bg-[#f0ebd9] px-6 py-12">

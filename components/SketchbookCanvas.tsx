@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
@@ -45,7 +46,9 @@ type SketchbookStroke = {
 };
 
 export function SketchbookCanvas({ pageId }: { pageId: string }) {
-  const page = SKETCHBOOK_PAGES[pageId];
+  // Non-null: the route (app/sketchbook/[pageId]/page.tsx) already calls
+  // getSketchbookPage(pageId) and notFound()s before this ever mounts.
+  const page = SKETCHBOOK_PAGES[pageId]!;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -316,6 +319,12 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden bg-[#f0ebd9]">
+      <Link
+        href="/sketchbook"
+        className="absolute top-4 left-4 z-10 rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-[#1a1a1a] shadow-lg"
+      >
+        ← Sketchbook
+      </Link>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 touch-none"

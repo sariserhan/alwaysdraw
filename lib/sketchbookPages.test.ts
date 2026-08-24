@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { SKETCHBOOK_PAGES, findRegionAt, isPointInRegion, regionPathData } from "./sketchbookPages";
+import { SKETCHBOOK_PAGES, findRegionAt, isPointInRegion, regionPathData, type SketchbookPage } from "./sketchbookPages";
 
 describe("sketchbookPages region hit-testing — flower", () => {
-  const regions = SKETCHBOOK_PAGES.flower.regions;
+  const regions = SKETCHBOOK_PAGES.flower!.regions;
 
   it("resolves a point inside the center region to 'center'", () => {
     expect(findRegionAt(regions, 400, 400)?.id).toBe("center");
@@ -28,7 +28,7 @@ describe("sketchbookPages region hit-testing — flower", () => {
 });
 
 describe("sketchbookPages region hit-testing — circle", () => {
-  const regions = SKETCHBOOK_PAGES.circle.regions;
+  const regions = SKETCHBOOK_PAGES.circle!.regions;
 
   it("resolves the page center to 'circle'", () => {
     expect(findRegionAt(regions, 200, 200)?.id).toBe("circle");
@@ -40,15 +40,17 @@ describe("sketchbookPages region hit-testing — circle", () => {
 });
 
 describe("sketchbookPages registry invariants", () => {
+  const allPages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);
+
   it("every page has unique region ids within that page", () => {
-    for (const page of Object.values(SKETCHBOOK_PAGES)) {
+    for (const page of allPages) {
       const ids = page.regions.map((r) => r.id);
       expect(new Set(ids).size).toBe(ids.length);
     }
   });
 
   it("builds well-formed SVG/Path2D path data for every region on every page", () => {
-    for (const page of Object.values(SKETCHBOOK_PAGES)) {
+    for (const page of allPages) {
       for (const region of page.regions) {
         const d = regionPathData(region);
         expect(d.startsWith("M ")).toBe(true);
@@ -58,7 +60,7 @@ describe("sketchbookPages registry invariants", () => {
   });
 
   it("isPointInRegion agrees with findRegionAt for a known-inside point", () => {
-    const center = SKETCHBOOK_PAGES.flower.regions.find((r) => r.id === "center")!;
+    const center = SKETCHBOOK_PAGES.flower!.regions.find((r) => r.id === "center")!;
     expect(isPointInRegion(center, 400, 400)).toBe(true);
   });
 });

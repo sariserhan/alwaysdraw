@@ -22,7 +22,7 @@ import {
 import { assertBoundedIdentifier, assertWritesEnabled, consumeRateLimit } from "./abuse";
 import { containsProfanity } from "./profanity";
 import { claimNextSequence } from "./sketchbookMetadata";
-import { SKETCHBOOK_PAGES } from "../lib/sketchbookPages";
+import { getSketchbookPage } from "../lib/sketchbookPages";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
 
@@ -82,7 +82,7 @@ export const submit = mutation({
       throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
     }
 
-    const page = SKETCHBOOK_PAGES[args.pageId];
+    const page = getSketchbookPage(args.pageId);
     if (!page) {
       throw new Error(`unknown pageId: ${args.pageId}`);
     }
@@ -167,7 +167,7 @@ export const listSince = query({
   },
   returns: v.array(sketchbookStrokeReturnFields),
   handler: async (ctx, args) => {
-    if (!SKETCHBOOK_PAGES[args.pageId]) {
+    if (!getSketchbookPage(args.pageId)) {
       throw new Error(`unknown pageId: ${args.pageId}`);
     }
     const limit = Math.min(Math.max(1, args.limit ?? DEFAULT_LIST_LIMIT), MAX_LIST_LIMIT);

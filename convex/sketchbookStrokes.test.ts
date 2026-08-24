@@ -45,6 +45,12 @@ describe("sketchbookStrokes.submit — validation boundaries", () => {
     ).rejects.toThrow();
   });
 
+  it("rejects an Object.prototype key as pageId (e.g. 'constructor')", async () => {
+    await expect(
+      t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "bad-proto-page", pageId: "constructor" })),
+    ).rejects.toThrow();
+  });
+
   it("rejects an unknown regionId", async () => {
     await expect(
       t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "bad-region", regionId: "not-a-region" })),
@@ -76,7 +82,7 @@ describe("sketchbookStrokes.submit — validation boundaries", () => {
   });
 
   it("rejects coordinates outside the page bounds", async () => {
-    const { width, height } = SKETCHBOOK_PAGES.flower;
+    const { width, height } = SKETCHBOOK_PAGES.flower!;
     await expect(
       t.mutation(
         api.sketchbookStrokes.submit,

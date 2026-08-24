@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { notFound, useParams } from "next/navigation";
-import { SKETCHBOOK_PAGES } from "@/lib/sketchbookPages";
+import { getSketchbookPage } from "@/lib/sketchbookPages";
 
 // Skip SSR, same reason as app/canvas/page.tsx: avoid hydrating against
 // browser-only state (canvas/localStorage-backed identity).
@@ -15,7 +15,7 @@ export default function SketchbookPageRoute() {
   const params = useParams<{ pageId: string }>();
   const pageId = params.pageId;
 
-  if (!(pageId in SKETCHBOOK_PAGES)) {
+  if (!getSketchbookPage(pageId)) {
     notFound();
   }
 

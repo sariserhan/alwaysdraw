@@ -24,7 +24,7 @@ function ellipsePolygon(cx: number, cy: number, rx: number, ry: number, sides = 
 // Every consumer (server validation, SVG render, canvas clip, hit test)
 // reads only this registry, so adding real outline art later only means
 // adding another entry here.
-export const SKETCHBOOK_PAGES: Record<string, SketchbookPage> = {
+export const SKETCHBOOK_PAGES: Record<string, SketchbookPage | undefined> = {
   flower: {
     id: "flower",
     title: "Flower",
@@ -63,6 +63,14 @@ export const SKETCHBOOK_PAGES: Record<string, SketchbookPage> = {
 // pageId — the one-time backfill migration (convex/migrations.ts) assigns
 // them here, since this was the only page that existed at the time.
 export const DEFAULT_SKETCHBOOK_PAGE_ID = "flower";
+
+/** The only sound way to check a pageId: `in` and plain truthy lookups on
+ * SKETCHBOOK_PAGES both pass for inherited Object.prototype keys like
+ * "constructor" or "__proto__", which are not real pages. Object.hasOwn
+ * rules those out. Every validating call site must go through this. */
+export function getSketchbookPage(pageId: string): SketchbookPage | undefined {
+  return Object.hasOwn(SKETCHBOOK_PAGES, pageId) ? SKETCHBOOK_PAGES[pageId] : undefined;
+}
 
 /** Ray-casting point-in-polygon test — pure arithmetic, no DOM/canvas APIs,
  * so it runs identically in the browser and in Convex's server runtime. */
