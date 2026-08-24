@@ -22,10 +22,9 @@ import {
 import { assertBoundedIdentifier, assertWritesEnabled, consumeRateLimit } from "./abuse";
 import { containsProfanity } from "./profanity";
 import { claimNextSequence } from "./sketchbookMetadata";
-import { SKETCHBOOK_PAGE_WIDTH, SKETCHBOOK_PAGE_HEIGHT, SKETCHBOOK_REGIONS } from "../lib/sketchbookOutline";
+import { SKETCHBOOK_PAGES } from "../lib/sketchbookPages";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
-const SKETCHBOOK_REGION_IDS = new Set(SKETCHBOOK_REGIONS.map((r) => r.id));
 
 const sketchbookStrokeReturnFields = v.object({
   _id: v.id("sketchbookStrokes"),
@@ -35,6 +34,7 @@ const sketchbookStrokeReturnFields = v.object({
   username: v.optional(v.string()),
   countryCode: v.optional(v.string()),
   mode: v.union(v.literal("draw"), v.literal("erase")),
+  pageId: v.optional(v.string()),
   regionId: v.string(),
   color: v.string(),
   width: v.number(),
@@ -53,6 +53,7 @@ export const submit = mutation({
     username: v.optional(v.string()),
     countryCode: v.optional(v.string()),
     mode: v.union(v.literal("draw"), v.literal("erase")),
+    pageId: v.string(),
     regionId: v.string(),
     color: v.string(),
     width: v.number(),
@@ -80,8 +81,13 @@ export const submit = mutation({
     if (args.countryCode !== undefined && !COUNTRY_CODE_PATTERN.test(args.countryCode)) {
       throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
     }
-    if (!SKETCHBOOK_REGION_IDS.has(args.regionId)) {
-      throw new Error(`unknown regionId: ${args.regionId}`);
+
+    const page = SKETCHBOOK_PAGES[args.pageId];
+    if (!page) {
+      throw new Error(`unknown pageId: ${args.pageId}`);
+    }
+    if (!page.regions.some((r) => r.id === args.regionId)) {
+      throw new Error(`unknown regionId: ${args.regionId} for page ${args.pageId}`);
     }
     if (!Number.isFinite(args.width) || args.width < MIN_BRUSH_WIDTH || args.width > MAX_BRUSH_WIDTH) {
       throw new Error(`width must be in [${MIN_BRUSH_WIDTH}, ${MAX_BRUSH_WIDTH}]`);
@@ -93,10 +99,8 @@ export const submit = mutation({
       if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
         throw new Error("point coordinates must be finite numbers");
       }
-      if (p.x < 0 || p.x > SKETCHBOOK_PAGE_WIDTH || p.y < 0 || p.y > SKETCHBOOK_PAGE_HEIGHT) {
-        throw new Error(
-          `point coordinates must be within [0, ${SKETCHBOOK_PAGE_WIDTH}] x [0, ${SKETCHBOOK_PAGE_HEIGHT}]`,
-        );
+      if (p.x < 0 || p.x > page.width || p.y < 0 || p.y > page.height) {
+        throw new Error(`point coordinates must be within [0, ${page.width}] x [0, ${page.height}]`);
       }
     }
     if (!COLOR_PATTERN.test(args.color)) {
@@ -133,6 +137,7 @@ export const submit = mutation({
       username: args.username,
       countryCode: args.countryCode,
       mode: args.mode,
+      pageId: args.pageId,
       regionId: args.regionId,
       color: args.color,
       width: args.width,
@@ -148,22 +153,29 @@ export const submit = mutation({
 });
 
 // ponytail: no pruning/snapshot mechanism — every visitor replays the full
-// stroke history from afterSequence: 0, so this table grows unbounded
-// forever. Fine while stroke counts stay in the thousands; upgrade path if
-// it becomes a real problem is either a prune cron keeping only the newest
-// N sequences, or a snapshot mechanism like the main canvas's
-// snapshots.ts/GlobalCanvas.tsx's snapshots.getLatest seeding pattern.
+// per-page stroke history from afterSequence: 0, so this table grows
+// unbounded forever. Fine while stroke counts stay in the thousands per
+// page; upgrade path if it becomes a real problem is either a prune cron
+// keeping only the newest N sequences per page, or a snapshot mechanism
+// like the main canvas's snapshots.ts/GlobalCanvas.tsx's
+// snapshots.getLatest seeding pattern.
 export const listSince = query({
   args: {
+    pageId: v.string(),
     afterSequence: v.number(),
     limit: v.optional(v.number()),
   },
   returns: v.array(sketchbookStrokeReturnFields),
   handler: async (ctx, args) => {
+    if (!SKETCHBOOK_PAGES[args.pageId]) {
+      throw new Error(`unknown pageId: ${args.pageId}`);
+    }
     const limit = Math.min(Math.max(1, args.limit ?? DEFAULT_LIST_LIMIT), MAX_LIST_LIMIT);
     const rows = await ctx.db
       .query("sketchbookStrokes")
-      .withIndex("by_sequence", (q) => q.gt("sequence", args.afterSequence))
+      .withIndex("by_pageId_and_sequence", (q) =>
+        q.eq("pageId", args.pageId).gt("sequence", args.afterSequence),
+      )
       .order("asc")
       .take(limit);
     return rows;
