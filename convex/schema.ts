@@ -185,4 +185,29 @@ export default defineSchema({
   })
     .index("by_status_and_createdAt", ["status", "createdAt"])
     .index("by_reporter", ["reporterId"]),
+
+  sketchbookStrokes: defineTable({
+    clientStrokeId: v.string(),
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    mode: v.union(v.literal("draw"), v.literal("erase")),
+    // Which SketchbookRegion (lib/sketchbookOutline.ts) this stroke is
+    // clipped to — validated server-side against that same region list.
+    regionId: v.string(),
+    color: v.string(),
+    width: v.number(),
+    opacity: v.optional(v.number()),
+    points: v.array(v.object({ x: v.number(), y: v.number() })),
+    clientTimestamp: v.number(),
+    sequence: v.number(),
+    serverTimestamp: v.number(),
+    deleted: v.optional(v.boolean()),
+  })
+    .index("by_sequence", ["sequence"])
+    .index("by_clientStrokeId", ["clientStrokeId"]),
+
+  sketchbookMetadata: defineTable({
+    currentSequence: v.number(),
+  }),
 });

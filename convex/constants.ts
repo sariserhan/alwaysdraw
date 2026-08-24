@@ -38,6 +38,13 @@ export const RATE_LIMIT_WINDOW_MS = 10_000;
 // worst-case flush rate with headroom to spare.
 export const STROKES_PER_CLIENT_WINDOW = 300;
 export const STROKES_GLOBAL_WINDOW = 2_000;
+// Separate budget from the main canvas's strokes:* buckets, so heavy
+// sketchbook use can't starve main-canvas writes or vice versa. Same
+// values as STROKES_PER_CLIENT_WINDOW/STROKES_GLOBAL_WINDOW — sketchbook
+// drawing uses the same StrokeBuffer flush cadence (~25 chunks/sec
+// worst case), so the same headroom reasoning applies.
+export const SKETCHBOOK_STROKES_PER_CLIENT_WINDOW = 300;
+export const SKETCHBOOK_STROKES_GLOBAL_WINDOW = 2_000;
 export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
 export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
 // Bookmark rows are permanent (unlike presence/snapshots), so both a
