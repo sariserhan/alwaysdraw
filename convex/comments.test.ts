@@ -3,7 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
-import { MAX_COMMENT_LENGTH, COMMENTS_PER_CLIENT_WINDOW } from "./constants";
+import type { Id } from "./_generated/dataModel";
+import { MAX_COMMENT_LENGTH, COMMENTS_PER_CLIENT_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -122,6 +123,40 @@ describe("comments.remove — self-service", () => {
     ).rejects.toThrow(/can only delete your own/);
     const list = await t.query(api.comments.list, {});
     expect(list).toHaveLength(1);
+  });
+
+  it("rate limits excessive delete attempts from a single client", async () => {
+    // create and remove are separate buckets (canvasComments:client:X vs
+    // canvasComments:remove:client:X), but creating COMMENTS_PER_CLIENT_WINDOW+1
+    // comments up front would itself trip the CREATE bucket — advance fake
+    // time past RATE_LIMIT_WINDOW_MS between creates so only the later,
+    // real-time-clustered remove calls exercise the remove bucket's own cap.
+    vi.useFakeTimers();
+    const ids: Id<"canvasComments">[] = [];
+    try {
+      for (let i = 0; i < COMMENTS_PER_CLIENT_WINDOW + 1; i++) {
+        const { id } = await t.mutation(api.comments.create, {
+          clientId: "delete-spammer",
+          text: `comment ${i}`,
+          x: 0,
+          y: 0,
+        });
+        ids.push(id);
+        vi.advanceTimersByTime(RATE_LIMIT_WINDOW_MS + 1000);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+
+    for (let i = 0; i < COMMENTS_PER_CLIENT_WINDOW; i++) {
+      await t.mutation(api.comments.remove, { commentId: ids[i], clientId: "delete-spammer" });
+    }
+    await expect(
+      t.mutation(api.comments.remove, {
+        commentId: ids[COMMENTS_PER_CLIENT_WINDOW],
+        clientId: "delete-spammer",
+      }),
+    ).rejects.toThrow(/rate limit/);
   });
 });
 

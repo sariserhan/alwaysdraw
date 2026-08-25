@@ -39,8 +39,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}) as Record<string, unknown>);
-  const { prompt, center = { x: 0, y: 0 }, color = "#d94626", brushType = "neonGlow" } = body as {
-    prompt: string;
+  const { prompt = "artwork", center = { x: 0, y: 0 }, color = "#d94626", brushType = "neonGlow" } = body as {
+    prompt?: string;
     center?: Point;
     color?: string;
     brushType?: BrushType;
