@@ -23,6 +23,12 @@ try {
   await page.getByTitle("Pan").click();
   const panPressed = await page.getByTitle("Pan").getAttribute("aria-pressed");
   if (panPressed !== "true") throw new Error("Pan tool did not become active");
+
+  const sketchbookUrl = new URL("/sketchbook", target).toString();
+  const sketchbookResponse = await page.goto(sketchbookUrl, { waitUntil: "networkidle", timeout: 30_000 });
+  if (!sketchbookResponse?.ok()) throw new Error(`/sketchbook: HTTP ${sketchbookResponse?.status() ?? "no response"}`);
+  await page.getByText("Sketchbook", { exact: true }).waitFor({ state: "visible" });
+
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join(" | ")}`);
 
   console.log(JSON.stringify({ ok: true, url: page.url(), title: await page.title() }));

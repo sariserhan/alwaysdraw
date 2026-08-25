@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Cloudflare/OpenNext build output — not source, and lint was choking
+    // on ~29,500 problems in here before this was added.
+    ".open-next/**",
   ]),
 ]);
 
