@@ -343,6 +343,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const [textSize, setTextSize] = useState<number>(32);
   const [commentInputPos, setCommentInputPos] = useState<{ world: Point; screen: { x: number; y: number } } | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const verifyAdminPasscode = useMutation(api.admin.verifyPasscode);
   const rollbackClient = useMutation(api.admin.rollbackClient);
@@ -419,7 +420,6 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   // height changes (it wraps to 1-3 rows depending on viewport width).
   const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
     screenY: number;
@@ -1345,7 +1345,14 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap]);
 
   const lastCursorWorldRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
-  const lastActivityAtRef = useRef(Date.now());
+  // Date.now() is impure and can't run during render (not even guarded, per
+  // the react-compiler lint rule) — set the initial value in an effect
+  // instead. Only read inside other effects/callbacks below, all of which
+  // run after this one, so the pre-effect `null` is never observed.
+  const lastActivityAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    lastActivityAtRef.current ??= Date.now();
+  }, []);
   useEffect(() => {
     if (!presenceList) return;
     const now = Date.now();
@@ -1381,7 +1388,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         cursorY: lastCursorWorldRef.current.y,
         laserTrail: myTrail ? myTrail.points : undefined,
       }).catch(() => {});
-      const idleFor = Date.now() - lastActivityAtRef.current;
+      const idleFor = Date.now() - (lastActivityAtRef.current ?? Date.now());
       const nextDelay =
         idleFor > HEARTBEAT_IDLE_THRESHOLD_MS ? HEARTBEAT_IDLE_INTERVAL_MS : HEARTBEAT_ACTIVE_INTERVAL_MS;
       timeoutId = setTimeout(send, nextDelay);

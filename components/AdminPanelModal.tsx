@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { WorldRect } from "@/lib/types";
+import type { WorldRect, BrushType } from "@/lib/types";
 import { ChromeRivet } from "./ChromeRivet";
 import { POPULAR_COUNTRIES } from "@/lib/flags";
 
@@ -31,7 +31,7 @@ export interface AdminPanelModalProps {
     prompt: string,
     x: number,
     y: number,
-    brushType: any,
+    brushType: BrushType,
     color: string,
     countryCode?: string,
     imageElement?: HTMLImageElement | null
@@ -86,7 +86,7 @@ export function AdminPanelModal({
   const [aiCountry, setAiCountry] = useState("US");
   const [aiZoneX, setAiZoneX] = useState(0);
   const [aiZoneY, setAiZoneY] = useState(0);
-  const [aiBrush, setAiBrush] = useState("neonGlow");
+  const [aiBrush, setAiBrush] = useState<BrushType>("neonGlow");
   const [aiColor, setAiColor] = useState("#d94626");
   const [aiImageElement, setAiImageElement] = useState<HTMLImageElement | null>(null);
   const [aiEngineStatus, setAiEngineStatus] = useState<string>("Checking AI status...");
@@ -1053,7 +1053,7 @@ export function AdminPanelModal({
                     <label className="block text-[10px] text-ink-dim font-bold">Brush Texture</label>
                     <select
                       value={aiBrush}
-                      onChange={(e) => setAiBrush(e.target.value)}
+                      onChange={(e) => setAiBrush(e.target.value as BrushType)}
                       className="w-full rounded border border-chrome-border bg-chrome-bg px-2 py-1 text-xs text-ink"
                     >
                       <option value="neonGlow">Neon Glow</option>
@@ -1079,7 +1079,7 @@ export function AdminPanelModal({
                   type="button"
                   onClick={() => {
                     if (!onSpawnAiAgent) return;
-                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush as any, aiColor, aiCountry, aiImageElement);
+                    onSpawnAiAgent(aiArtistName, aiPrompt, aiZoneX, aiZoneY, aiBrush, aiColor, aiCountry, aiImageElement);
                     setActionStatus(
                       `Success! Spawned AI Artist "${aiArtistName}" (${aiCountry}) ${
                         aiImageElement ? "painting uploaded image" : `drawing "${aiPrompt}"`
