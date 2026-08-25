@@ -7,6 +7,7 @@ import type { Camera } from "@/lib/camera";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import { t, type Locale } from "@/lib/i18n";
 import type { Point } from "@/lib/types";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface SpatialCompassProps {
   camera: Camera;
@@ -17,14 +18,10 @@ export interface SpatialCompassProps {
 
 export function SpatialCompass({ camera, onTeleport, locale, iconOnly = false }: SpatialCompassProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

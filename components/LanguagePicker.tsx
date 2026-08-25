@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SUPPORTED_LOCALES, t, type Locale, type LocaleInfo } from "@/lib/i18n";
 import { ChromeRivet } from "./ChromeRivet";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface LanguagePickerProps {
   currentLocale: Locale;
@@ -12,17 +13,13 @@ export interface LanguagePickerProps {
 
 export function LanguagePicker({ currentLocale, onLocaleChange }: LanguagePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
 
   const activeLocaleInfo =
     SUPPORTED_LOCALES.find((l) => l.code === currentLocale) ?? SUPPORTED_LOCALES[0];
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

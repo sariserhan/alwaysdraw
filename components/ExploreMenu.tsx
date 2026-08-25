@@ -6,6 +6,7 @@ import { ChromeRivet } from "./ChromeRivet";
 import type { Point } from "@/lib/types";
 import { WORLD_WIDTH, WORLD_HEIGHT } from "@/convex/constants";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface ExploreMenuProps {
   onJumpToPoint: (point: Point, label: string) => void;
@@ -29,14 +30,10 @@ export function ExploreMenu({
   iconOnly = false,
 }: ExploreMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

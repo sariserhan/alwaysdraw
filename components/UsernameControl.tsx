@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
 import { MAX_USERNAME_LENGTH } from "@/convex/constants";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface UsernameControlProps {
   username: string | undefined;
@@ -15,15 +16,11 @@ export interface UsernameControlProps {
 
 export function UsernameControl({ username, onUsernameChange, locale, iconOnly = false }: UsernameControlProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const [draft, setDraft] = useState(username ?? "");
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

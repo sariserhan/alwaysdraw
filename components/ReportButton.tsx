@@ -8,6 +8,7 @@ import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
 import type { WorldRect } from "@/lib/types";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface ReportButtonProps {
   currentCamera: Camera;
@@ -40,7 +41,7 @@ export function ReportButton({
   onRegionConsumed,
 }: ReportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -50,10 +51,6 @@ export function ReportButton({
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
 
   const createReport = useMutation(api.reports.create);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const positionPopover = () => {
     if (!buttonRef.current) return;

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { GridConfig, GridMode } from "@/lib/grid";
 import { ChromeRivet } from "./ChromeRivet";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface GridToggleProps {
   config: GridConfig;
@@ -15,14 +16,10 @@ export interface GridToggleProps {
 
 export function GridToggle({ config, onChange, locale, iconOnly = false }: GridToggleProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChromeRivet } from "./ChromeRivet";
 import { HOTKEY_MAP } from "@/lib/hotkeys";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface HotkeysModalProps {
   isOpen: boolean;
@@ -13,14 +14,10 @@ export interface HotkeysModalProps {
 }
 
 export function HotkeysModal({ isOpen, onToggle, locale }: HotkeysModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -1,33 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChromeRivet } from "./ChromeRivet";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface InviteBannerProps {
   onDismiss?: () => void;
 }
 
 export function InviteBanner({ onDismiss }: InviteBannerProps) {
-  const [visible, setVisible] = useState(false);
-  const [inviter, setInviter] = useState<string | null>(null);
+  const mounted = useHasMounted();
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref") || params.get("from");
-      const hasCoords = params.has("x") && params.has("y");
+  // window.location.search doesn't exist during SSR — only read it once
+  // mounted. Query params don't change without a full navigation here, so a
+  // one-time derive-on-mount is equivalent to the old effect-based version.
+  const inviter = useMemo(() => {
+    if (!mounted) return null;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref") || params.get("from");
+    const hasCoords = params.has("x") && params.has("y");
+    return ref || hasCoords ? ref || "A friend" : null;
+  }, [mounted]);
 
-      if (ref || hasCoords) {
-        setInviter(ref || "A friend");
-        setVisible(true);
-      }
-    }
-  }, []);
-
-  if (!visible) return null;
+  if (!inviter || dismissed) return null;
 
   const handleClose = () => {
-    setVisible(false);
+    setDismissed(true);
     onDismiss?.();
   };
 

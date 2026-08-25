@@ -9,6 +9,7 @@ import { ChromeRivet } from "./ChromeRivet";
 import type { Camera } from "@/lib/camera";
 import type { Point } from "@/lib/types";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface BookmarkMenuProps {
   currentCamera: Camera;
@@ -20,7 +21,7 @@ export interface BookmarkMenuProps {
 
 export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, iconOnly = false }: BookmarkMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const [titleInput, setTitleInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -31,10 +32,6 @@ export function BookmarkMenu({ currentCamera, clientId, onTeleport, locale, icon
 
   const bookmarks = useQuery(api.bookmarks.list, { limit: 20 }) ?? [];
   const createBookmark = useMutation(api.bookmarks.create);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -8,6 +8,7 @@ import { strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import type { ServerStroke, WorldRect } from "@/lib/types";
 import type { Camera } from "@/lib/camera";
 import { t, type Locale } from "@/lib/i18n";
+import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface ExportModalProps {
   getCanvasLayers: () => (HTMLCanvasElement | null)[];
@@ -37,16 +38,12 @@ export function ExportModal({
   iconOnly = false,
 }: ExportModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
