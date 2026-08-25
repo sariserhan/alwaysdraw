@@ -771,45 +771,43 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             Eraser
           </button>
         </div>
-
-        <div className="h-4 w-px bg-black/15" />
-
-        <div className="flex items-center gap-1 rounded-full bg-black/[0.06] px-1.5 py-1">
-          <button
-            type="button"
-            aria-pressed={panMode}
-            title="Drag to move around the page"
-            onClick={() => setPanMode((v) => !v)}
-            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/[0.08] text-[#1a1a1a]"}`}
-          >
-            ✋ Pan
-          </button>
-          <button
-            type="button"
-            aria-label="recenter on the page"
-            title="Lost? Recenter on the page"
-            onClick={recenter}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs text-[#1a1a1a]"
-          >
-            🎯
-          </button>
-          <button
-            type="button"
-            aria-label="zoom out"
-            onClick={() => zoomButton(0.8)}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs font-bold text-[#1a1a1a]"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            aria-label="zoom in"
-            onClick={() => zoomButton(1.25)}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs font-bold text-[#1a1a1a]"
-          >
-            +
-          </button>
-        </div>
+      </div>
+      <div className="absolute top-1/2 right-4 z-10 flex -translate-y-1/2 flex-col items-center gap-2 rounded-full border border-black/10 bg-white px-2 py-3 shadow-xl">
+        <button
+          type="button"
+          aria-pressed={panMode}
+          title="Drag to move around the page"
+          onClick={() => setPanMode((v) => !v)}
+          className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/[0.08] text-[#1a1a1a]"}`}
+        >
+          ✋
+        </button>
+        <button
+          type="button"
+          aria-label="recenter on the page"
+          title="Lost? Recenter on the page"
+          onClick={recenter}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/[0.08] text-base text-[#1a1a1a]"
+        >
+          🎯
+        </button>
+        <div className="h-px w-5 bg-black/15" />
+        <button
+          type="button"
+          aria-label="zoom in"
+          onClick={() => zoomButton(1.25)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/[0.08] text-lg font-bold text-[#1a1a1a]"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="zoom out"
+          onClick={() => zoomButton(0.8)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/[0.08] text-lg font-bold text-[#1a1a1a]"
+        >
+          −
+        </button>
       </div>
       <div className="absolute top-4 right-4 z-10">
         {editingName ? (
