@@ -29,6 +29,12 @@ import {
 const DEFAULT_WIDTH = 16;
 const DEFAULT_COLOR = PALETTE_PRESETS[0].colors[2];
 const DEFAULT_BRUSH: BrushType = "brush";
+// ponytail: half of the server's MAX_BRUSH_WIDTH (100) — that ceiling is
+// shared with the main canvas's much bigger world, where a 100px stroke
+// reads as normal; on a page a few hundred units across it's a paint
+// roller. Only the slider's local max moves — server validation is
+// unchanged and still accepts up to MAX_BRUSH_WIDTH.
+const MAX_SKETCHBOOK_WIDTH = MAX_BRUSH_WIDTH / 2;
 
 // Zoom is a multiplier of the fit-to-viewport zoom, not an absolute value —
 // the main canvas's MIN_ZOOM/MAX_ZOOM are tuned for its 20000-unit world and
@@ -662,76 +668,89 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
       />
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-wrap items-center justify-center gap-3 rounded-full bg-white/90 px-4 py-2 shadow-lg">
-        {activePalette.colors.map((swatch) => (
+      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2.5 rounded-2xl bg-white/90 px-3 py-2.5 shadow-lg backdrop-blur-sm">
+        <div className="flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2 py-1">
+          {activePalette.colors.map((swatch) => (
+            <button
+              key={swatch}
+              type="button"
+              aria-label={`color ${swatch}`}
+              onClick={() => {
+                setColor(swatch);
+                setTool("draw");
+                setPanMode(false);
+              }}
+              className="h-7 w-7 rounded-full border-2 transition-transform hover:scale-110"
+              style={{ backgroundColor: swatch, borderColor: color === swatch && tool === "draw" ? "#1a1a1a" : "transparent" }}
+            />
+          ))}
           <button
-            key={swatch}
             type="button"
-            aria-label={`color ${swatch}`}
+            aria-label={`switch color palette (currently ${activePalette.name})`}
+            title={`Palette: ${activePalette.name}`}
             onClick={() => {
-              setColor(swatch);
-              setTool("draw");
+              const i = PALETTE_PRESETS.findIndex((p) => p.id === activePalette.id);
+              setActivePalette(PALETTE_PRESETS[(i + 1) % PALETTE_PRESETS.length]);
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-sm"
+          >
+            🎨
+          </button>
+        </div>
+
+        <div className="h-6 w-px bg-black/10" />
+
+        <div className="flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1">
+          <select
+            aria-label="brush texture"
+            value={brushType}
+            onChange={(e) => setBrushType(e.target.value as BrushType)}
+            disabled={tool === "erase"}
+            className="rounded-full bg-black/10 px-2 py-1 text-xs font-medium text-[#1a1a1a] disabled:opacity-40"
+          >
+            {BRUSH_CATALOG.map((b) => (
+              <option key={b.type} value={b.type}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="range"
+            aria-label="brush width"
+            title={`Brush size: ${width}`}
+            min={MIN_BRUSH_WIDTH}
+            max={MAX_SKETCHBOOK_WIDTH}
+            value={width}
+            onChange={(e) => setWidth(Number(e.target.value))}
+            className="w-20"
+          />
+          <span className="w-5 text-center text-xs tabular-nums text-[#1a1a1a]/50">{width}</span>
+          <button
+            type="button"
+            aria-pressed={tool === "erase"}
+            title="Eraser"
+            onClick={() => {
+              setTool((t) => (t === "erase" ? "draw" : "erase"));
               setPanMode(false);
             }}
-            className="h-7 w-7 rounded-full border-2"
-            style={{ backgroundColor: swatch, borderColor: color === swatch && tool === "draw" ? "#1a1a1a" : "transparent" }}
-          />
-        ))}
-        <button
-          type="button"
-          aria-label={`switch color palette (currently ${activePalette.name})`}
-          title={`Palette: ${activePalette.name}`}
-          onClick={() => {
-            const i = PALETTE_PRESETS.findIndex((p) => p.id === activePalette.id);
-            setActivePalette(PALETTE_PRESETS[(i + 1) % PALETTE_PRESETS.length]);
-          }}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-sm"
-        >
-          🎨
-        </button>
-        <select
-          aria-label="brush texture"
-          value={brushType}
-          onChange={(e) => setBrushType(e.target.value as BrushType)}
-          disabled={tool === "erase"}
-          className="rounded-full bg-black/10 px-2 py-1 text-xs font-medium text-[#1a1a1a] disabled:opacity-40"
-        >
-          {BRUSH_CATALOG.map((b) => (
-            <option key={b.type} value={b.type}>
-              {b.label}
-            </option>
-          ))}
-        </select>
-        <input
-          type="range"
-          aria-label="brush width"
-          min={MIN_BRUSH_WIDTH}
-          max={MAX_BRUSH_WIDTH}
-          value={width}
-          onChange={(e) => setWidth(Number(e.target.value))}
-          className="w-24"
-        />
-        <button
-          type="button"
-          aria-pressed={tool === "erase"}
-          onClick={() => {
-            setTool((t) => (t === "erase" ? "draw" : "erase"));
-            setPanMode(false);
-          }}
-          className={`rounded-full px-3 py-1 text-sm font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
-        >
-          Eraser
-        </button>
-        <button
-          type="button"
-          aria-pressed={panMode}
-          title="Drag to move around the page"
-          onClick={() => setPanMode((v) => !v)}
-          className={`rounded-full px-3 py-1 text-sm font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
-        >
-          ✋ Pan
-        </button>
-        <div className="flex items-center gap-1">
+            className={`rounded-full px-3 py-1 text-sm font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
+          >
+            Eraser
+          </button>
+        </div>
+
+        <div className="h-6 w-px bg-black/10" />
+
+        <div className="flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2 py-1">
+          <button
+            type="button"
+            aria-pressed={panMode}
+            title="Drag to move around the page"
+            onClick={() => setPanMode((v) => !v)}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
+          >
+            ✋ Pan
+          </button>
           <button
             type="button"
             aria-label="zoom out"
@@ -749,6 +768,9 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             +
           </button>
         </div>
+
+        <div className="h-6 w-px bg-black/10" />
+
         {editingName ? (
           <form
             className="flex items-center gap-1"
