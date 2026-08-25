@@ -8,9 +8,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     "",
     "/canvas",
-    "/draw-with-friends",
-    "/online-whiteboard",
-    "/infinite-canvas",
     "/sketchbook",
     ...Object.keys(SKETCHBOOK_PAGES).map((id) => `/sketchbook/${id}`),
   ];

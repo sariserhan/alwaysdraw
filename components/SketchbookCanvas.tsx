@@ -606,12 +606,15 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
 
   return (
     <div ref={containerRef} className="relative h-dvh w-full overflow-hidden bg-[#f0ebd9]">
-      <Link
-        href="/sketchbook"
-        className="absolute top-4 left-4 z-10 rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-[#1a1a1a] shadow-lg"
-      >
-        ← Sketchbook
-      </Link>
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-[#1a1a1a] shadow-lg">
+        <Link href="/" className="hover:opacity-70">
+          ← Home
+        </Link>
+        <span className="text-[#1a1a1a]/30">/</span>
+        <Link href="/sketchbook" className="hover:opacity-70">
+          Sketchbook
+        </Link>
+      </div>
       <canvas
         ref={canvasRef}
         className={`absolute inset-0 touch-none ${panMode ? "cursor-grab active:cursor-grabbing" : "cursor-none"}`}

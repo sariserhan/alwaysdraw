@@ -127,15 +127,6 @@ export default function Home() {
             <Link href="/canvas" className="text-accent-yellow hover:text-ink transition">
               🎨 Live Canvas
             </Link>
-            <Link href="/draw-with-friends" className="hover:text-ink transition">
-              👥 Draw With Friends
-            </Link>
-            <Link href="/online-whiteboard" className="hover:text-ink transition">
-              📐 Whiteboard
-            </Link>
-            <Link href="/infinite-canvas" className="hover:text-ink transition">
-              🌌 Infinite Canvas
-            </Link>
             <Link href="/sketchbook" className="hover:text-ink transition">
               📖 Sketchbook
             </Link>
@@ -184,10 +175,10 @@ export default function Home() {
             </Link>
 
             <Link
-              href="/draw-with-friends"
+              href="/sketchbook"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-chrome-border bg-chrome-bg-raised px-6 py-4.5 text-base font-mono font-bold uppercase tracking-wider text-ink hover:bg-chrome-border transition"
             >
-              <span>Draw With Friends</span>
+              <span>Open Sketchbook</span>
             </Link>
           </div>
 
@@ -357,54 +348,37 @@ export default function Home() {
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-6 shadow-md">
             <div>
-              <div className="text-4xl mb-4">👥</div>
-              <h4 className="font-display text-2xl font-bold text-ink mb-3">Draw With Friends</h4>
+              <div className="text-4xl mb-4">🎨</div>
+              <h4 className="font-display text-2xl font-bold text-ink mb-3">Live World Canvas</h4>
               <p className="text-sm text-ink-dim leading-relaxed mb-6">
-                Host instant multiplayer doodle sessions, play drawing games, and sketch together live with zero setup.
+                Paint on one endless, shared canvas with everyone on the internet, live in real time — draw with friends, brainstorm, or just doodle.
               </p>
             </div>
             <Link
-              href="/draw-with-friends"
+              href="/canvas"
               className="inline-flex items-center justify-center gap-2 rounded-sm border border-rust/40 bg-rust/10 px-4 py-2 font-mono text-xs font-bold uppercase text-accent-yellow hover:bg-rust hover:text-white transition"
             >
-              <span>Explore Draw With Friends</span>
+              <span>Explore Live Canvas</span>
               <span>➔</span>
             </Link>
           </div>
 
           <div className="flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-6 shadow-md">
             <div>
-              <div className="text-4xl mb-4">📐</div>
-              <h4 className="font-display text-2xl font-bold text-ink mb-3">Online Whiteboard</h4>
+              <div className="text-4xl mb-4">📖</div>
+              <h4 className="font-display text-2xl font-bold text-ink mb-3">Sketchbook</h4>
               <p className="text-sm text-ink-dim leading-relaxed mb-6">
-                Brainstorm diagrams, place sticky note comments, draw flowcharts, and map out concepts with precision tools.
+                Color in a shared gallery of illustrated pages with friends and strangers, one stroke at a time.
               </p>
             </div>
             <Link
-              href="/online-whiteboard"
+              href="/sketchbook"
               className="inline-flex items-center justify-center gap-2 rounded-sm border border-rust/40 bg-rust/10 px-4 py-2 font-mono text-xs font-bold uppercase text-accent-yellow hover:bg-rust hover:text-white transition"
             >
-              <span>Explore Online Whiteboard</span>
-              <span>➔</span>
-            </Link>
-          </div>
-
-          <div className="flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-6 shadow-md">
-            <div>
-              <div className="text-4xl mb-4">🌌</div>
-              <h4 className="font-display text-2xl font-bold text-ink mb-3">Infinite Canvas</h4>
-              <p className="text-sm text-ink-dim leading-relaxed mb-6">
-                Paint micro-art inside macro murals on an endless, boundless canvas shared by creators worldwide.
-              </p>
-            </div>
-            <Link
-              href="/infinite-canvas"
-              className="inline-flex items-center justify-center gap-2 rounded-sm border border-rust/40 bg-rust/10 px-4 py-2 font-mono text-xs font-bold uppercase text-accent-yellow hover:bg-rust hover:text-white transition"
-            >
-              <span>Explore Infinite Canvas</span>
+              <span>Explore Sketchbook</span>
               <span>➔</span>
             </Link>
           </div>

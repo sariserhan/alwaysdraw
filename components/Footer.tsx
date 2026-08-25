@@ -44,14 +44,8 @@ export function Footer() {
               <Link href="/canvas" className="hover:text-accent-yellow transition-colors">
                 🎨 Live World Canvas
               </Link>
-              <Link href="/draw-with-friends" className="hover:text-accent-yellow transition-colors">
-                👥 Draw With Friends
-              </Link>
-              <Link href="/online-whiteboard" className="hover:text-accent-yellow transition-colors">
-                📐 Online Whiteboard
-              </Link>
-              <Link href="/infinite-canvas" className="hover:text-accent-yellow transition-colors">
-                🌌 Infinite Canvas
+              <Link href="/sketchbook" className="hover:text-accent-yellow transition-colors">
+                📖 Sketchbook
               </Link>
             </nav>
           </div>
