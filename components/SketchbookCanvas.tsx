@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
-import { MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH, MAX_USERNAME_LENGTH } from "@/convex/constants";
+import { MIN_BRUSH_WIDTH, MAX_USERNAME_LENGTH } from "@/convex/constants";
 import type { StrokeMode, Point, BrushType } from "@/lib/types";
 import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
 import { getCountryFlagEmoji } from "@/lib/flags";
@@ -26,15 +26,15 @@ import {
   type SketchbookRegion,
 } from "@/lib/sketchbookPages";
 
-const DEFAULT_WIDTH = 16;
 const DEFAULT_COLOR = PALETTE_PRESETS[0].colors[2];
 const DEFAULT_BRUSH: BrushType = "brush";
-// ponytail: half of the server's MAX_BRUSH_WIDTH (100) — that ceiling is
-// shared with the main canvas's much bigger world, where a 100px stroke
-// reads as normal; on a page a few hundred units across it's a paint
+// ponytail: the server's MAX_BRUSH_WIDTH (100) is shared with the main
+// canvas's much bigger world, where a thick stroke reads as normal; on a
+// page a few hundred units across even a fraction of that is a paint
 // roller. Only the slider's local max moves — server validation is
 // unchanged and still accepts up to MAX_BRUSH_WIDTH.
-const MAX_SKETCHBOOK_WIDTH = MAX_BRUSH_WIDTH / 2;
+const MAX_SKETCHBOOK_WIDTH = 5;
+const DEFAULT_WIDTH = MAX_SKETCHBOOK_WIDTH;
 
 // Zoom is a multiplier of the fit-to-viewport zoom, not an absolute value —
 // the main canvas's MIN_ZOOM/MAX_ZOOM are tuned for its 20000-unit world and
@@ -671,8 +671,8 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
       />
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2.5 rounded-2xl bg-white/90 px-3 py-2.5 shadow-lg backdrop-blur-sm">
-        <div className="flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2 py-1">
+      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-full border border-black/10 bg-white px-2 py-1.5 shadow-xl">
+        <div className="flex items-center gap-1 rounded-full bg-black/[0.06] px-1.5 py-1">
           {activePalette.colors.map((swatch) => (
             <button
               key={swatch}
@@ -683,7 +683,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
                 setTool("draw");
                 setPanMode(false);
               }}
-              className="h-7 w-7 rounded-full border-2 transition-transform hover:scale-110"
+              className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
               style={{ backgroundColor: swatch, borderColor: color === swatch && tool === "draw" ? "#1a1a1a" : "transparent" }}
             />
           ))}
@@ -695,21 +695,21 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
               const i = PALETTE_PRESETS.findIndex((p) => p.id === activePalette.id);
               setActivePalette(PALETTE_PRESETS[(i + 1) % PALETTE_PRESETS.length]);
             }}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-sm"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs"
           >
             🎨
           </button>
         </div>
 
-        <div className="h-6 w-px bg-black/10" />
+        <div className="h-4 w-px bg-black/15" />
 
-        <div className="flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1">
+        <div className="flex items-center gap-1.5 rounded-full bg-black/[0.06] px-1.5 py-1">
           <select
             aria-label="brush texture"
             value={brushType}
             onChange={(e) => setBrushType(e.target.value as BrushType)}
             disabled={tool === "erase"}
-            className="rounded-full bg-black/10 px-2 py-1 text-xs font-medium text-[#1a1a1a] disabled:opacity-40"
+            className="rounded-full bg-black/[0.08] px-1.5 py-0.5 text-[11px] font-medium text-[#1a1a1a] disabled:opacity-40"
           >
             {BRUSH_CATALOG.map((b) => (
               <option key={b.type} value={b.type}>
@@ -725,9 +725,9 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             max={MAX_SKETCHBOOK_WIDTH}
             value={width}
             onChange={(e) => setWidth(Number(e.target.value))}
-            className="w-20"
+            className="w-14"
           />
-          <span className="w-5 text-center text-xs tabular-nums text-[#1a1a1a]/50">{width}</span>
+          <span className="w-4 text-center text-[10px] tabular-nums text-[#1a1a1a]/60">{width}</span>
           <button
             type="button"
             aria-pressed={tool === "erase"}
@@ -736,21 +736,21 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
               setTool((t) => (t === "erase" ? "draw" : "erase"));
               setPanMode(false);
             }}
-            className={`rounded-full px-3 py-1 text-sm font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/[0.08] text-[#1a1a1a]"}`}
           >
             Eraser
           </button>
         </div>
 
-        <div className="h-6 w-px bg-black/10" />
+        <div className="h-4 w-px bg-black/15" />
 
-        <div className="flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2 py-1">
+        <div className="flex items-center gap-1 rounded-full bg-black/[0.06] px-1.5 py-1">
           <button
             type="button"
             aria-pressed={panMode}
             title="Drag to move around the page"
             onClick={() => setPanMode((v) => !v)}
-            className={`rounded-full px-3 py-1 text-sm font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/[0.08] text-[#1a1a1a]"}`}
           >
             ✋ Pan
           </button>
@@ -758,7 +758,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             type="button"
             aria-label="zoom out"
             onClick={() => zoomButton(0.8)}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-sm font-bold"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs font-bold text-[#1a1a1a]"
           >
             −
           </button>
@@ -766,13 +766,13 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             type="button"
             aria-label="zoom in"
             onClick={() => zoomButton(1.25)}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-sm font-bold"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs font-bold text-[#1a1a1a]"
           >
             +
           </button>
         </div>
 
-        <div className="h-6 w-px bg-black/10" />
+        <div className="h-4 w-px bg-black/15" />
 
         {editingName ? (
           <form
@@ -794,7 +794,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
                 handleUsernameChange(nameDraft);
                 setEditingName(false);
               }}
-              className="w-28 rounded-full bg-black/10 px-3 py-1 text-xs font-medium text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none"
+              className="w-24 rounded-full bg-black/[0.08] px-2 py-0.5 text-[11px] font-medium text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none"
             />
           </form>
         ) : (
@@ -805,7 +805,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
               setNameDraft(username ?? "");
               setEditingName(true);
             }}
-            className="max-w-[140px] truncate rounded-full bg-black/10 px-3 py-1 text-xs font-medium text-[#1a1a1a]"
+            className="max-w-[110px] truncate rounded-full bg-black/[0.08] px-2 py-0.5 text-[11px] font-medium text-[#1a1a1a]"
           >
             {getCountryFlagEmoji(countryCode)} {username ?? "Anonymous"}
           </button>
