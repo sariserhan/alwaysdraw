@@ -492,6 +492,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     () =>
       (canvasCommentRows ?? []).map((c) => ({
         id: c._id,
+        clientId: c.clientId,
         author: c.username ?? c.clientId,
         countryCode: c.countryCode,
         text: c.text,
@@ -3228,6 +3229,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
         locale={locale}
+        viewerClientId={clientId}
         onDeleteComment={handleDeleteComment}
         onReportComment={handleReportComment}
         onAdminDeleteComment={handleAdminDeleteComment}

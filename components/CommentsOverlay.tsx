@@ -9,6 +9,7 @@ import { t, type Locale } from "@/lib/i18n";
 
 export interface CanvasComment {
   id: string;
+  clientId: string;
   author: string;
   countryCode?: string;
   text: string;
@@ -23,6 +24,11 @@ export interface CommentsOverlayProps {
   viewportWidth: number;
   viewportHeight: number;
   locale?: Locale;
+  /** The viewer's own clientId — gates the Delete button to comments they
+   * authored. The server rejects deleting someone else's comment anyway
+   * (see convex/comments.ts's remove), but showing Delete on every comment
+   * invited clicking it on ones that were never deletable. */
+  viewerClientId?: string;
   onDeleteComment?: (id: string) => void;
   onReportComment?: (id: string) => void;
   onAdminDeleteComment?: (id: string) => void;
@@ -45,7 +51,7 @@ export interface CommentsOverlayHandle {
 
 export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlayProps>(
   function CommentsOverlay(
-    { comments, camera, viewportWidth, viewportHeight, locale, onDeleteComment, onReportComment, onAdminDeleteComment, isAdmin },
+    { comments, camera, viewportWidth, viewportHeight, locale, viewerClientId, onDeleteComment, onReportComment, onAdminDeleteComment, isAdmin },
     ref,
   ) {
     const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -127,10 +133,10 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                   <p className="whitespace-pre-wrap text-ink text-[11px] leading-relaxed">
                     {comment.text}
                   </p>
-                  <div className="flex flex-col gap-1 pt-1 text-[9px] text-ink-dim">
+                  <div className="mt-auto flex flex-col gap-1 pt-1 text-[9px] text-ink-dim">
                     <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleDateString()}</span>
-                    <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleTimeString()}</span>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleTimeString()}</span>
                       {onReportComment && (
                         reportedIds.has(comment.id) ? (
                           <span className="text-accent-green">{t(locale ?? "en", "report_comment_submitted")}</span>
@@ -147,7 +153,7 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                           </button>
                         )
                       )}
-                      {onDeleteComment && (
+                      {onDeleteComment && comment.clientId === viewerClientId && (
                         <button
                           type="button"
                           onClick={() => onDeleteComment(comment.id)}
