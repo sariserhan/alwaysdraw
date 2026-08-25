@@ -6,9 +6,10 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
-import { MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH } from "@/convex/constants";
+import { MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH, MAX_USERNAME_LENGTH } from "@/convex/constants";
 import type { StrokeMode, Point, BrushType } from "@/lib/types";
-import { getClientId, getUsername, getCachedCountryCode } from "@/lib/identity";
+import { getClientId, getUsername, setUsername, getCachedCountryCode, setCachedCountryCode } from "@/lib/identity";
+import { getCountryFlagEmoji } from "@/lib/flags";
 import { drawStroke, drawSegment } from "@/lib/drawing";
 import { renderBrushStroke, BRUSH_CATALOG } from "@/lib/brushes";
 import { screenToWorld, worldToScreen } from "@/lib/coordinates";
@@ -74,23 +75,27 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
   const remoteCursorsRef = useRef<RemoteCursorsHandle>(null);
 
   const [tool, setTool] = useState<StrokeMode>("draw");
+  const [panMode, setPanMode] = useState(false);
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [brushType, setBrushType] = useState<BrushType>(DEFAULT_BRUSH);
   const [activePalette, setActivePalette] = useState<Palette>(PALETTE_PRESETS[0]);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [afterSequence, setAfterSequence] = useState(0);
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>({ x: page.width / 2, y: page.height / 2, zoom: 1 });
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
-  // clientId is read during render (RemoteCursors' selfClientId prop) as
-  // well as inside handlers — a plain state value (setter unused, it never
-  // changes post-mount) is safe to read in both places; a ref is not safe
-  // to read during render.
+  // clientId/username/countryCode are all read during render (the identity
+  // control below, RemoteCursors' selfClientId prop) as well as inside
+  // handlers — plain state is safe in both places; a ref is not safe to
+  // read during render.
   const [clientId] = useState(() => getClientId());
-  const usernameRef = useRef(getUsername());
-  const countryCodeRef = useRef(getCachedCountryCode());
+  const [username, setUsernameState] = useState(() => getUsername());
+  const [countryCode, setCountryCodeState] = useState(() => getCachedCountryCode());
   const lastCursorWorldRef = useRef<Point>({ x: page.width / 2, y: page.height / 2 });
+  const panStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // ponytail: replay (after a resize) draws strokes in arrival order, not
   // true server sequence — own in-flight strokes are appended before their
@@ -108,6 +113,32 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
 
   const heartbeat = useMutation(api.sketchbookPresence.heartbeat);
   const presenceList = useQuery(api.sketchbookPresence.list, { pageId });
+
+  const handleUsernameChange = useCallback((name: string) => {
+    setUsername(name);
+    setUsernameState(getUsername());
+  }, []);
+
+  // Resolve once per browser (cached to localStorage), same as
+  // GlobalCanvas's identical effect — a visitor landing directly on
+  // /sketchbook without ever visiting /canvas first would otherwise never
+  // get a country code resolved, and no flag would ever show for them.
+  useEffect(() => {
+    if (countryCode) return;
+    let cancelled = false;
+    fetch("/api/geo")
+      .then((res) => res.json())
+      .then((data: { countryCode: string | null }) => {
+        if (cancelled || !data.countryCode) return;
+        setCachedCountryCode(data.countryCode);
+        setCountryCodeState(data.countryCode);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const drawStrokeClipped = useCallback((stroke: SketchbookStroke) => {
     const ctx = ctxRef.current;
@@ -303,8 +334,8 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       heartbeat({
         clientId,
         pageId,
-        username: usernameRef.current,
-        countryCode: countryCodeRef.current,
+        username,
+        countryCode,
         cursorX: lastCursorWorldRef.current.x,
         cursorY: lastCursorWorldRef.current.y,
       }).catch(() => {});
@@ -312,7 +343,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
     send();
     const id = setInterval(send, HEARTBEAT_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [heartbeat, pageId, clientId]);
+  }, [heartbeat, pageId, clientId, username, countryCode]);
 
   // Continuously advance RemoteCursors' glide-to-latest-position animation,
   // independent of paint/resize events — nothing else drives a per-frame
@@ -353,8 +384,8 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       submitStroke({
         clientStrokeId,
         clientId,
-        username: usernameRef.current,
-        countryCode: countryCodeRef.current,
+        username,
+        countryCode,
         mode,
         pageId,
         regionId,
@@ -377,7 +408,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         setErrorMessage(err instanceof ConvexError ? "drawing too fast — pace yourself a sec" : "a mark didn't stick — try again");
       });
     },
-    [submitStroke, replayAll, pageId, clientId],
+    [submitStroke, replayAll, pageId, clientId, username, countryCode],
   );
 
   const updateBrushCursor = useCallback((screenX: number | null, screenY: number | null) => {
@@ -402,6 +433,13 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       const rect = canvas.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
+
+      if (panMode) {
+        canvas.setPointerCapture(e.pointerId);
+        panStartRef.current = { x: screenX, y: screenY };
+        return;
+      }
+
       const rawWorldPt = screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height);
       lastCursorWorldRef.current = rawWorldPt;
       const region = findRegionAt(page.regions, rawWorldPt.x, rawWorldPt.y);
@@ -425,8 +463,8 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         chunkColor,
         chunkWidth,
         1,
-        usernameRef.current,
-        countryCodeRef.current,
+        username,
+        countryCode,
         (chunk) => commitChunk(chunk.points, mode, regionId, chunkBrushType, chunkColor, chunkWidth, chunk.clientStrokeId),
       );
       bufferRef.current.addPoint(worldPt);
@@ -453,7 +491,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         ctx.restore();
       }
     },
-    [tool, brushType, color, width, commitChunk, page, clientId],
+    [tool, brushType, color, width, commitChunk, page, clientId, panMode, username, countryCode],
   );
 
   const handlePointerMove = useCallback(
@@ -463,6 +501,16 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       const rect = canvas.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
+
+      if (panMode) {
+        updateBrushCursor(null, null);
+        const start = panStartRef.current;
+        if (!start) return;
+        applyCamera(panBy(cameraRef.current, screenX - start.x, screenY - start.y));
+        panStartRef.current = { x: screenX, y: screenY };
+        return;
+      }
+
       updateBrushCursor(screenX, screenY);
 
       const rawWorldPt = screenToWorld(screenX, screenY, cameraRef.current, viewportRef.current.width, viewportRef.current.height);
@@ -499,7 +547,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       lastWorldPointRef.current = worldPt;
       buffer.addPoint(worldPt);
     },
-    [page, updateBrushCursor],
+    [page, updateBrushCursor, panMode, applyCamera],
   );
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -507,6 +555,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
     bufferRef.current = null;
     activeRegionRef.current = null;
     lastWorldPointRef.current = null;
+    panStartRef.current = null;
     const canvas = canvasRef.current;
     if (canvas && canvas.hasPointerCapture(e.pointerId)) {
       canvas.releasePointerCapture(e.pointerId);
@@ -548,7 +597,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       </Link>
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 touch-none cursor-none"
+        className={`absolute inset-0 touch-none ${panMode ? "cursor-grab active:cursor-grabbing" : "cursor-none"}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -591,7 +640,9 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
           ))}
         </svg>
       )}
-      <BrushCursor ref={brushCursorElRef} tool={tool === "erase" ? "eraser" : "brush"} brushType={brushType} color={color} />
+      {!panMode && (
+        <BrushCursor ref={brushCursorElRef} tool={tool === "erase" ? "eraser" : "brush"} brushType={brushType} color={color} />
+      )}
       <RemoteCursors
         ref={remoteCursorsRef}
         entries={presenceList ?? []}
@@ -609,6 +660,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             onClick={() => {
               setColor(swatch);
               setTool("draw");
+              setPanMode(false);
             }}
             className="h-7 w-7 rounded-full border-2"
             style={{ backgroundColor: swatch, borderColor: color === swatch && tool === "draw" ? "#1a1a1a" : "transparent" }}
@@ -651,10 +703,22 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         <button
           type="button"
           aria-pressed={tool === "erase"}
-          onClick={() => setTool((t) => (t === "erase" ? "draw" : "erase"))}
+          onClick={() => {
+            setTool((t) => (t === "erase" ? "draw" : "erase"));
+            setPanMode(false);
+          }}
           className={`rounded-full px-3 py-1 text-sm font-medium ${tool === "erase" ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
         >
           Eraser
+        </button>
+        <button
+          type="button"
+          aria-pressed={panMode}
+          title="Drag to move around the page"
+          onClick={() => setPanMode((v) => !v)}
+          className={`rounded-full px-3 py-1 text-sm font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/10"}`}
+        >
+          ✋ Pan
         </button>
         <div className="flex items-center gap-1">
           <button
@@ -674,6 +738,42 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             +
           </button>
         </div>
+        {editingName ? (
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUsernameChange(nameDraft);
+              setEditingName(false);
+            }}
+          >
+            <input
+              type="text"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder="Anonymous"
+              maxLength={MAX_USERNAME_LENGTH}
+              autoFocus
+              onBlur={() => {
+                handleUsernameChange(nameDraft);
+                setEditingName(false);
+              }}
+              className="w-28 rounded-full bg-black/10 px-3 py-1 text-xs font-medium text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none"
+            />
+          </form>
+        ) : (
+          <button
+            type="button"
+            title="Change your display name"
+            onClick={() => {
+              setNameDraft(username ?? "");
+              setEditingName(true);
+            }}
+            className="max-w-[140px] truncate rounded-full bg-black/10 px-3 py-1 text-xs font-medium text-[#1a1a1a]"
+          >
+            {getCountryFlagEmoji(countryCode)} {username ?? "Anonymous"}
+          </button>
+        )}
       </div>
       {errorMessage && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded bg-black/80 px-3 py-1 text-sm text-white">
