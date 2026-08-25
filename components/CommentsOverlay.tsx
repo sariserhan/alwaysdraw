@@ -128,7 +128,8 @@ export const CommentsOverlay = forwardRef<CommentsOverlayHandle, CommentsOverlay
                     {comment.text}
                   </p>
                   <div className="flex flex-col gap-1 pt-1 text-[9px] text-ink-dim">
-                    <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleString()}</span>
+                    <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                    <span className="whitespace-nowrap">{new Date(comment.createdAt).toLocaleTimeString()}</span>
                     <div className="flex items-center justify-end gap-2">
                       {onReportComment && (
                         reportedIds.has(comment.id) ? (
