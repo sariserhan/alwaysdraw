@@ -136,6 +136,7 @@ const SNAPSHOT_SIZE_PX = 2048;
 const HEARTBEAT_ACTIVE_INTERVAL_MS = 3000;
 const HEARTBEAT_IDLE_INTERVAL_MS = 15000;
 const HEARTBEAT_IDLE_THRESHOLD_MS = 10000;
+const WELCOME_HINT_AUTO_DISMISS_MS = 8000;
 // Remote cursors subscribe per-tile instead of globally (presence.listByTiles)
 // so a cursor move somewhere off-screen never re-pushes to a viewer who
 // can't see it. That only pays off when "visible tiles" is a small fraction
@@ -437,11 +438,22 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     }
   }, [locale]);
 
+  // Auto-dismisses after a while, in addition to the first-stroke dismiss
+  // (commitOwnChunk, below) and the explicit close button — otherwise a
+  // visitor who doesn't draw right away (reading the page, exploring the
+  // toolbar) sees it linger indefinitely, contradicting its own "non-
+  // blocking" design intent (see WelcomeHint.tsx's doc comment): its fixed,
+  // pointer-events-auto footprint can sit over other controls near the
+  // bottom of the viewport, e.g. the mobile toolbar's expand/collapse
+  // button, until something dismisses it.
   useEffect(() => {
-    if (!getHasSeenWelcomeHint()) {
+    if (getHasSeenWelcomeHint()) return;
+    queueMicrotask(() => {
       setShowWelcomeHint(true);
       setHasSeenWelcomeHint();
-    }
+    });
+    const timeoutId = setTimeout(() => setShowWelcomeHint(false), WELCOME_HINT_AUTO_DISMISS_MS);
+    return () => clearTimeout(timeoutId);
   }, []);
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -1343,7 +1355,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       }
       setLiveTailCursor(lastSeq);
     });
-  }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap]);
+  }, [liveTail, replayDone, scheduleRedraw, redrawHeatmap, addToTileIndex, removeFromTileIndex]);
 
   const lastCursorWorldRef = useRef<Point>({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 });
   // Date.now() is impure and can't run during render (not even guarded, per
@@ -1543,7 +1555,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     } finally {
       setIsStampingImage(false);
     }
-  }, [imagePlacement, submitStroke, scheduleRedraw]);
+  }, [imagePlacement, submitStroke, scheduleRedraw, adminPasscode]);
 
   // Admin deletes are soft-deletes under the hood (see the schema comment
   // on strokes.deleted) — the server patches a fresh sequence number onto
@@ -2040,6 +2052,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       scheduleRedraw,
       stampStencilAt,
       tool,
+      updateCoordFinder,
       updateRuler,
     ],
   );
@@ -2219,7 +2232,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
 
       continueDraw(worldPt);
     },
-    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler, stampStencilAt],
+    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler, updateCoordFinder, stampStencilAt],
   );
 
   const handlePointerUp = useCallback(
@@ -2312,7 +2325,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         lastPanScreenRef.current = remaining;
       }
     },
-    [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw, updateRuler],
+    [endDraw, tool, shapeType, color, brushWidth, opacity, clientId, username, countryCode, commitOwnChunk, scheduleRedraw, updateRuler, updateCoordFinder],
   );
 
   const handlePointerEnter = useCallback(
