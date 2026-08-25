@@ -125,6 +125,12 @@ export const remove = mutation({
     if (comment.clientId !== args.clientId) {
       throw new Error("can only delete your own comment");
     }
+    await consumeRateLimit(
+      ctx,
+      `canvasComments:remove:client:${args.clientId}`,
+      COMMENTS_PER_CLIENT_WINDOW,
+      RATE_LIMIT_WINDOW_MS,
+    );
     await ctx.db.delete(args.commentId);
     return null;
   },

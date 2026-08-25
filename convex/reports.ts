@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import {
   WORLD_WIDTH,
@@ -11,6 +11,7 @@ import {
 } from "./constants";
 import { assertBoundedIdentifier, assertWritesEnabled, consumeRateLimit } from "./abuse";
 import { isPasscodeValid, verifyAdminPasscode } from "./admin";
+import { containsProfanity } from "./profanity";
 
 const reportReturnFields = v.object({
   _id: v.id("contentReports"),
@@ -60,8 +61,13 @@ export const create = mutation({
     assertWritesEnabled();
     assertBoundedIdentifier(args.reporterId, "reporterId", MAX_CLIENT_ID_LENGTH);
 
-    if (args.reason !== undefined && args.reason.length > MAX_REPORT_REASON_LENGTH) {
-      throw new Error(`reason must not exceed ${MAX_REPORT_REASON_LENGTH} characters`);
+    if (args.reason !== undefined) {
+      if (args.reason.length > MAX_REPORT_REASON_LENGTH) {
+        throw new Error(`reason must not exceed ${MAX_REPORT_REASON_LENGTH} characters`);
+      }
+      if (containsProfanity(args.reason)) {
+        throw new ConvexError("PROFANITY_BLOCKED: reason contains a blocked word — please rephrase");
+      }
     }
 
     const hasRect =

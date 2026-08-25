@@ -18,6 +18,13 @@ crons.interval(
 );
 
 crons.interval(
+  "clear stale sketchbook presence",
+  { minutes: 1 },
+  internal.sketchbookPresence.clearStale,
+  {},
+);
+
+crons.interval(
   "clear expired write rate limits",
   { minutes: 1 },
   internal.abuse.clearExpiredRateLimits,

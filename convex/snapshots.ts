@@ -5,6 +5,10 @@ import { assertWritesEnabled, consumeRateLimit } from "./abuse";
 
 const IMAGE_DATA_URL_PATTERN = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
 
+// Only getLatest ever reads this table — older rows exist purely for a
+// manual rollback safety margin, not because anything queries them.
+const SNAPSHOTS_TO_KEEP = 3;
+
 const snapshotReturnFields = v.object({
   _id: v.id("snapshots"),
   _creationTime: v.number(),
@@ -71,11 +75,22 @@ export const submit = mutation({
       return existing._id;
     }
 
-    return await ctx.db.insert("snapshots", {
+    const inserted = await ctx.db.insert("snapshots", {
       sequence: args.sequence,
       imageData: args.imageData,
       strokeCount: args.strokeCount,
       createdAt: Date.now(),
     });
+
+    const overflow = await ctx.db
+      .query("snapshots")
+      .withIndex("by_sequence")
+      .order("desc")
+      .collect();
+    for (const row of overflow.slice(SNAPSHOTS_TO_KEEP)) {
+      await ctx.db.delete(row._id);
+    }
+
+    return inserted;
   },
 });

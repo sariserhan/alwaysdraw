@@ -232,5 +232,6 @@ export default defineSchema({
     lastSeenAt: v.number(),
   })
     .index("by_clientId", ["clientId"])
-    .index("by_pageId_and_lastSeenAt", ["pageId", "lastSeenAt"]),
+    .index("by_pageId_and_lastSeenAt", ["pageId", "lastSeenAt"])
+    .index("by_lastSeenAt", ["lastSeenAt"]),
 });
