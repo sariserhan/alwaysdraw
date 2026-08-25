@@ -93,6 +93,26 @@ describe("convex/admin — protected zones & moderation", () => {
       });
       expect(ok.success).toBe(true);
     });
+
+    it("never rate-limits a real admin's own bulk operations, no matter how many calls they need", async () => {
+      // wipeArea re-verifies the passcode on every paginated batch — a
+      // large-enough area clear can need far more calls than
+      // ADMIN_VERIFY_GLOBAL_WINDOW allows in one window. With the correct
+      // passcode, none of that should matter: verifyAdminPasscode checks
+      // validity before touching either rate limit, so a real admin is
+      // never throttled by their own bulk work.
+      const callCount = ADMIN_VERIFY_GLOBAL_WINDOW * 3;
+      for (let i = 0; i < callCount; i++) {
+        const res = await t.mutation(api.admin.wipeArea, {
+          passcode: PASSCODE,
+          minX: 0,
+          minY: 0,
+          maxX: 1,
+          maxY: 1,
+        });
+        expect(res.success).toBe(true);
+      }
+    });
   });
 
   describe("protected zones (mural shield)", () => {

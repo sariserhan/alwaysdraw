@@ -62,6 +62,15 @@ export async function verifyAdminPasscode(
   ctx: MutationCtx,
   passcode: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Correct passcode short-circuits before either rate limit below — both
+  // exist to slow down someone *guessing* the passcode, not to cap how much
+  // an admin who already has it can do. Checking validity first means a
+  // real admin's own bulk operations (wipeArea/rollbackClient's paginated
+  // batches, each re-verifying) are never throttled, no matter how many
+  // calls one operation needs.
+  if (isPasscodeValid(passcode)) {
+    return { ok: true };
+  }
   const generalOk = await tryConsumeRateLimit(
     ctx,
     "admin:verify:global",
@@ -71,26 +80,21 @@ export async function verifyAdminPasscode(
   if (!generalOk) {
     return { ok: false, error: "ADMIN_RATE_LIMITED: Too many admin requests — try again shortly." };
   }
-  if (!isPasscodeValid(passcode)) {
-    // A separate, much stricter budget than the general one above — a
-    // legitimate admin who already has the right passcode never fails this
-    // check, so this only ever throttles someone actually guessing, on top
-    // of (not instead of) the general per-10s cap.
-    const failedOk = await tryConsumeRateLimit(
-      ctx,
-      "admin:verify:failed:global",
-      ADMIN_FAILED_VERIFY_WINDOW,
-      ADMIN_FAILED_VERIFY_WINDOW_MS,
-    );
-    if (!failedOk) {
-      return {
-        ok: false,
-        error: "ADMIN_RATE_LIMITED: Too many incorrect passcode attempts — try again in a minute.",
-      };
-    }
-    return { ok: false, error: "INVALID_ADMIN_PASSCODE: Unauthorized administrative operation." };
+  // A separate, much stricter budget than the general one above — this is
+  // the actual brute-force defense, independent of the general per-10s cap.
+  const failedOk = await tryConsumeRateLimit(
+    ctx,
+    "admin:verify:failed:global",
+    ADMIN_FAILED_VERIFY_WINDOW,
+    ADMIN_FAILED_VERIFY_WINDOW_MS,
+  );
+  if (!failedOk) {
+    return {
+      ok: false,
+      error: "ADMIN_RATE_LIMITED: Too many incorrect passcode attempts — try again in a minute.",
+    };
   }
-  return { ok: true };
+  return { ok: false, error: "INVALID_ADMIN_PASSCODE: Unauthorized administrative operation." };
 }
 
 /**
