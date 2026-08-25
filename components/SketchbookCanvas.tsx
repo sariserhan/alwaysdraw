@@ -671,7 +671,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
         viewportWidth={viewportSize.width}
         viewportHeight={viewportSize.height}
       />
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-full border border-black/10 bg-white px-2 py-1.5 shadow-xl">
+      <div className="absolute bottom-3 left-1/2 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-1.5 overflow-x-auto rounded-full border border-black/10 bg-white px-2 py-1.5 shadow-xl">
         <div className="flex items-center gap-1 rounded-full bg-black/[0.06] px-1.5 py-1">
           {activePalette.colors.map((swatch) => (
             <button
@@ -797,12 +797,11 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             +
           </button>
         </div>
-
-        <div className="h-4 w-px bg-black/15" />
-
+      </div>
+      <div className="absolute top-4 right-4 z-10">
         {editingName ? (
           <form
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 shadow-lg"
             onSubmit={(e) => {
               e.preventDefault();
               handleUsernameChange(nameDraft);
@@ -820,7 +819,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
                 handleUsernameChange(nameDraft);
                 setEditingName(false);
               }}
-              className="w-24 rounded-full bg-black/[0.08] px-2 py-0.5 text-[11px] font-medium text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none"
+              className="w-28 rounded-full bg-black/[0.08] px-2 py-1 text-sm font-medium text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none"
             />
           </form>
         ) : (
@@ -831,7 +830,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
               setNameDraft(username ?? "");
               setEditingName(true);
             }}
-            className="max-w-[110px] truncate rounded-full bg-black/[0.08] px-2 py-0.5 text-[11px] font-medium text-[#1a1a1a]"
+            className="max-w-[160px] truncate rounded-full bg-white/90 px-3 py-1 text-sm font-medium text-[#1a1a1a] shadow-lg"
           >
             {getCountryFlagEmoji(countryCode)} {username ?? "Anonymous"}
           </button>
