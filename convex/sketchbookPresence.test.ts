@@ -29,47 +29,47 @@ describe("sketchbookPresence.heartbeat / list", () => {
   it("appears in list for the page it heartbeat on, not other pages", async () => {
     await t.mutation(api.sketchbookPresence.heartbeat, {
       clientId: "anon-a",
-      pageId: "flower",
+      pageId: "geisha",
       username: "artist-a",
-      cursorX: 400,
-      cursorY: 400,
+      cursorX: 100,
+      cursorY: 100,
     });
 
-    const flowerList = await t.query(api.sketchbookPresence.list, { pageId: "flower" });
-    const circleList = await t.query(api.sketchbookPresence.list, { pageId: "circle" });
+    const geishaList = await t.query(api.sketchbookPresence.list, { pageId: "geisha" });
+    const chessList = await t.query(api.sketchbookPresence.list, { pageId: "chess" });
 
-    expect(flowerList.map((p) => p.clientId)).toEqual(["anon-a"]);
-    expect(circleList).toHaveLength(0);
+    expect(geishaList.map((p) => p.clientId)).toEqual(["anon-a"]);
+    expect(chessList).toHaveLength(0);
   });
 
   it("upserts by clientId — a second heartbeat updates position instead of adding a row", async () => {
     await t.mutation(api.sketchbookPresence.heartbeat, {
       clientId: "anon-b",
-      pageId: "flower",
-      cursorX: 100,
-      cursorY: 100,
+      pageId: "geisha",
+      cursorX: 50,
+      cursorY: 50,
     });
     await t.mutation(api.sketchbookPresence.heartbeat, {
       clientId: "anon-b",
-      pageId: "flower",
-      cursorX: 200,
-      cursorY: 200,
+      pageId: "geisha",
+      cursorX: 100,
+      cursorY: 100,
     });
 
-    const rows = await t.query(api.sketchbookPresence.list, { pageId: "flower" });
+    const rows = await t.query(api.sketchbookPresence.list, { pageId: "geisha" });
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ clientId: "anon-b", cursorX: 200, cursorY: 200 });
+    expect(rows[0]).toMatchObject({ clientId: "anon-b", cursorX: 100, cursorY: 100 });
   });
 
   it("clamps cursor coordinates to the page's own bounds", async () => {
     await t.mutation(api.sketchbookPresence.heartbeat, {
       clientId: "anon-c",
-      pageId: "circle",
+      pageId: "geisha",
       cursorX: -50,
       cursorY: 999999,
     });
-    const rows = await t.query(api.sketchbookPresence.list, { pageId: "circle" });
+    const rows = await t.query(api.sketchbookPresence.list, { pageId: "geisha" });
     expect(rows[0].cursorX).toBe(0);
-    expect(rows[0].cursorY).toBe(400); // circle page height
+    expect(rows[0].cursorY).toBe(476.917); // geisha page height
   });
 });

@@ -15,12 +15,12 @@ const modules = Object.fromEntries(
 const baseArgs = {
   clientId: "anon-tester",
   mode: "draw" as StrokeMode,
-  pageId: "flower",
-  regionId: "center",
+  pageId: "geisha",
+  regionId: "canvas",
   color: "#e0432b",
   width: 8,
   opacity: 1,
-  points: [{ x: 400, y: 400 }] as Point[],
+  points: [{ x: 100, y: 100 }] as Point[],
   clientTimestamp: 0,
 };
 
@@ -59,14 +59,11 @@ describe("sketchbookStrokes.submit — validation boundaries", () => {
     ).rejects.toThrow();
   });
 
-  it("rejects a regionId that belongs to a different page", async () => {
-    await expect(
-      t.mutation(
-        api.sketchbookStrokes.submit,
-        strokeArgs({ clientStrokeId: "cross-page-region", pageId: "circle", regionId: "petal-1" }),
-      ),
-    ).rejects.toThrow();
-  });
+  // ponytail: every current page is free-form with a single region id
+  // ("canvas"), so there's no longer a real regionId that's valid on one
+  // page but not another to construct this case with — the "unknown
+  // regionId" test above already covers the underlying check
+  // (page.regions.some(...)), which is inherently scoped per page.
 
   it("rejects width below the minimum, accepts width at the minimum", async () => {
     await expect(
@@ -84,7 +81,7 @@ describe("sketchbookStrokes.submit — validation boundaries", () => {
   });
 
   it("rejects coordinates outside the page bounds", async () => {
-    const { width, height } = SKETCHBOOK_PAGES.flower!;
+    const { width, height } = SKETCHBOOK_PAGES.geisha!;
     await expect(
       t.mutation(
         api.sketchbookStrokes.submit,
@@ -123,7 +120,7 @@ describe("sketchbookStrokes.submit — idempotency and sequencing", () => {
     const second = await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "dup-1" }));
     expect(second.sequence).toBe(first.sequence);
 
-    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: 0 });
     expect(rows.filter((r) => r.clientStrokeId === "dup-1")).toHaveLength(1);
   });
 });
@@ -137,7 +134,7 @@ describe("sketchbookStrokes.listSince", () => {
   it("returns only strokes after the given sequence", async () => {
     const first = await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "seq-1" }));
     await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "seq-2" }));
-    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: first.sequence });
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: first.sequence });
     expect(rows.map((r) => r.clientStrokeId)).toEqual(["seq-2"]);
   });
 
@@ -148,17 +145,17 @@ describe("sketchbookStrokes.listSince", () => {
   });
 
   it("never returns strokes submitted under a different pageId", async () => {
-    await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "flower-1" }));
+    await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "geisha-1" }));
     await t.mutation(
       api.sketchbookStrokes.submit,
-      strokeArgs({ clientStrokeId: "circle-1", pageId: "circle", regionId: "circle" }),
+      strokeArgs({ clientStrokeId: "chess-1", pageId: "chess" }),
     );
 
-    const flowerRows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
-    const circleRows = await t.query(api.sketchbookStrokes.listSince, { pageId: "circle", afterSequence: 0 });
+    const geishaRows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: 0 });
+    const chessRows = await t.query(api.sketchbookStrokes.listSince, { pageId: "chess", afterSequence: 0 });
 
-    expect(flowerRows.map((r) => r.clientStrokeId)).toEqual(["flower-1"]);
-    expect(circleRows.map((r) => r.clientStrokeId)).toEqual(["circle-1"]);
+    expect(geishaRows.map((r) => r.clientStrokeId)).toEqual(["geisha-1"]);
+    expect(chessRows.map((r) => r.clientStrokeId)).toEqual(["chess-1"]);
   });
 });
 
@@ -170,7 +167,7 @@ describe("sketchbookStrokes.submit — brushType", () => {
 
   it("defaults brushType to 'brush' for a draw stroke when omitted", async () => {
     await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "brush-default" }));
-    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: 0 });
     expect(rows.find((r) => r.clientStrokeId === "brush-default")?.brushType).toBe("brush");
   });
 
@@ -179,7 +176,7 @@ describe("sketchbookStrokes.submit — brushType", () => {
       api.sketchbookStrokes.submit,
       strokeArgs({ clientStrokeId: "brush-watercolor", brushType: "watercolor" }),
     );
-    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: 0 });
     expect(rows.find((r) => r.clientStrokeId === "brush-watercolor")?.brushType).toBe("watercolor");
   });
 
@@ -188,7 +185,7 @@ describe("sketchbookStrokes.submit — brushType", () => {
       api.sketchbookStrokes.submit,
       strokeArgs({ clientStrokeId: "erase-1", mode: "erase", brushType: "watercolor" }),
     );
-    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "geisha", afterSequence: 0 });
     expect(rows.find((r) => r.clientStrokeId === "erase-1")?.brushType).toBeUndefined();
   });
 });

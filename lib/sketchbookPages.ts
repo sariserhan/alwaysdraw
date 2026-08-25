@@ -18,78 +18,131 @@ export type SketchbookPage = {
   imageUrl?: string;
 };
 
-function ellipsePolygon(cx: number, cy: number, rx: number, ry: number, sides = 16): Point[] {
-  const pts: Point[] = [];
-  for (let i = 0; i < sides; i++) {
-    const angle = (i / sides) * Math.PI * 2;
-    pts.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) });
-  }
-  return pts;
+/** One region spanning the entire page — for free-form (imageUrl) pages,
+ * where painting is meant to be unrestricted rather than clipped to
+ * hand-picked shapes. See the `imageUrl` doc comment on SketchbookPage. */
+function fullCanvasRegion(width: number, height: number): SketchbookRegion {
+  return {
+    id: "canvas",
+    points: [
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height },
+    ],
+  };
 }
 
-// v1 placeholder art: a simple 5-petal flower with a stem and two leaves,
-// plus a minimal one-region circle proving a second page works end to end.
 // Every consumer (server validation, SVG render, canvas clip, hit test)
 // reads only this registry, so adding real outline art later only means
 // adding another entry here.
 export const SKETCHBOOK_PAGES: Record<string, SketchbookPage | undefined> = {
-  flower: {
-    id: "flower",
-    title: "Flower",
-    width: 800,
-    height: 1000,
-    regions: [
-      { id: "center", points: ellipsePolygon(400, 400, 50, 50) },
-      { id: "petal-1", points: ellipsePolygon(400, 285, 55, 55) },
-      { id: "petal-2", points: ellipsePolygon(509.4, 364.5, 55, 55) },
-      { id: "petal-3", points: ellipsePolygon(467.6, 493, 55, 55) },
-      { id: "petal-4", points: ellipsePolygon(332.4, 493, 55, 55) },
-      { id: "petal-5", points: ellipsePolygon(290.6, 364.5, 55, 55) },
-      {
-        id: "stem",
-        points: [
-          { x: 390, y: 450 },
-          { x: 410, y: 450 },
-          { x: 410, y: 850 },
-          { x: 390, y: 850 },
-        ],
-      },
-      { id: "leaf-left", points: ellipsePolygon(330, 650, 50, 25) },
-      { id: "leaf-right", points: ellipsePolygon(470, 650, 50, 25) },
-    ],
-  },
-  circle: {
-    id: "circle",
-    title: "Circle",
-    width: 400,
-    height: 400,
-    regions: [{ id: "circle", points: ellipsePolygon(200, 200, 150, 150) }],
-  },
+  // Free-form pages below: each width/height matches its SVG's own
+  // viewBox exactly (native scale, no coordinate conversion), and each
+  // has exactly one fullCanvasRegion — see the imageUrl doc comment.
   geisha: {
     id: "geisha",
     title: "Geisha",
-    // Matches public/sketchbook/geisha.svg's own viewBox exactly, so the
-    // image renders at native scale with no coordinate conversion.
     width: 159.007,
     height: 476.917,
-    regions: [
-      {
-        id: "canvas",
-        points: [
-          { x: 0, y: 0 },
-          { x: 159.007, y: 0 },
-          { x: 159.007, y: 476.917 },
-          { x: 0, y: 476.917 },
-        ],
-      },
-    ],
+    regions: [fullCanvasRegion(159.007, 476.917)],
     imageUrl: "/sketchbook/geisha.svg",
+  },
+  chess: {
+    id: "chess",
+    title: "Chess",
+    width: 468.75,
+    height: 606.61686,
+    regions: [fullCanvasRegion(468.75, 606.61686)],
+    imageUrl: "/sketchbook/chess.svg",
+  },
+  pinup: {
+    id: "pinup",
+    title: "Pinup",
+    width: 848,
+    height: 1312,
+    regions: [fullCanvasRegion(848, 1312)],
+    imageUrl: "/sketchbook/pinup.svg",
+  },
+  flourish: {
+    id: "flourish",
+    title: "Flourish",
+    width: 2409,
+    height: 3437,
+    regions: [fullCanvasRegion(2409, 3437)],
+    imageUrl: "/sketchbook/flourish.svg",
+  },
+  flowerframe: {
+    id: "flowerframe",
+    title: "Flower Frame",
+    width: 516.73914,
+    height: 729.5885,
+    regions: [fullCanvasRegion(516.73914, 729.5885)],
+    imageUrl: "/sketchbook/flowerframe.svg",
+  },
+  mathematician: {
+    id: "mathematician",
+    title: "Mathematician",
+    width: 286.278,
+    height: 259.312,
+    regions: [fullCanvasRegion(286.278, 259.312)],
+    imageUrl: "/sketchbook/mathematician.svg",
+  },
+  spacewalk: {
+    id: "spacewalk",
+    title: "Spacewalk",
+    width: 614,
+    height: 622.072,
+    regions: [fullCanvasRegion(614, 622.072)],
+    imageUrl: "/sketchbook/spacewalk.svg",
+  },
+  "classic-car": {
+    id: "classic-car",
+    title: "Classic Car",
+    width: 947,
+    height: 576,
+    regions: [fullCanvasRegion(947, 576)],
+    imageUrl: "/sketchbook/classic-car.svg",
+  },
+  "bomber-plane": {
+    id: "bomber-plane",
+    title: "Bomber Plane",
+    width: 1135.7,
+    height: 867.28,
+    regions: [fullCanvasRegion(1135.7, 867.28)],
+    imageUrl: "/sketchbook/bomber-plane.svg",
+  },
+  tortoise: {
+    id: "tortoise",
+    title: "Tortoise",
+    width: 468,
+    height: 263,
+    regions: [fullCanvasRegion(468, 263)],
+    imageUrl: "/sketchbook/tortoise.svg",
+  },
+  mandala: {
+    id: "mandala",
+    title: "Mandala",
+    width: 3295,
+    height: 3294,
+    regions: [fullCanvasRegion(3295, 3294)],
+    imageUrl: "/sketchbook/mandala.svg",
+  },
+  "lineart-mural": {
+    id: "lineart-mural",
+    title: "Mural",
+    width: 2637.1,
+    height: 887.5,
+    regions: [fullCanvasRegion(2637.1, 887.5)],
+    imageUrl: "/sketchbook/lineart-mural.svg",
   },
 };
 
 // Legacy sketchbookStrokes rows written before multi-page support have no
 // pageId — the one-time backfill migration (convex/migrations.ts) assigns
-// them here, since this was the only page that existed at the time.
+// them here. "flower" was the only page that existed at the time and has
+// since been removed from the registry above; this stays a historical
+// label for those old rows rather than a real, resolvable page id.
 export const DEFAULT_SKETCHBOOK_PAGE_ID = "flower";
 
 /** The only sound way to check a pageId: `in` and plain truthy lookups on
