@@ -186,10 +186,16 @@ export const updateStatus = mutation({
     reportId: v.id("contentReports"),
     status: v.union(v.literal("reviewed"), v.literal("dismissed")),
   },
-  returns: v.null(),
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false, error: verified.error };
+    }
     await ctx.db.patch(args.reportId, { status: args.status });
-    return null;
+    return { success: true as const };
   },
 });

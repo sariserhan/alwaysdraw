@@ -3,7 +3,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
-import { MAX_PROTECTED_ZONES, ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS } from "./constants";
+import {
+  MAX_PROTECTED_ZONES,
+  ADMIN_VERIFY_GLOBAL_WINDOW,
+  ADMIN_FAILED_VERIFY_WINDOW,
+  RATE_LIMIT_WINDOW_MS,
+} from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -35,6 +40,58 @@ describe("convex/admin — protected zones & moderation", () => {
       const invalid = await t.mutation(api.admin.verifyPasscode, { passcode: "wrong-passcode" });
       expect(invalid).toBe(false);
     });
+
+    it("throttles repeated wrong guesses through verifyAdminPasscode (used by every moderation mutation) via a stricter budget than the general one", async () => {
+      // Every admin mutation gated by verifyAdminPasscode reports rejection
+      // through its return value (`{ success: false, error }`), not a thrown
+      // exception — see verifyAdminPasscode's doc comment in admin.ts. A
+      // Convex mutation's writes are ALL discarded if it ultimately throws,
+      // no matter how deep the write happened (confirmed against
+      // convex/src/server/database.ts / registration.ts and empirically via
+      // convex-test), so "consume the failed-guess bucket, then throw" could
+      // never make that consumption durable — the throw meant to reject the
+      // request always undid the very write meant to remember it happened.
+      // Returning a value instead lets the mutation commit normally while
+      // still reporting failure to the caller.
+
+      // ADMIN_FAILED_VERIFY_WINDOW (5) is well under ADMIN_VERIFY_GLOBAL_WINDOW
+      // (20), so this exhausts the failed-guess-only bucket first — proving
+      // it throttles wrong guesses independently, not just riding on the
+      // general per-call limit every admin action (right or wrong) shares.
+      for (let i = 0; i < ADMIN_FAILED_VERIFY_WINDOW; i++) {
+        const res = await t.mutation(api.admin.wipeArea, {
+          passcode: "wrong-guess",
+          minX: 0,
+          minY: 0,
+          maxX: 1,
+          maxY: 1,
+        });
+        expect(res.success).toBe(false);
+        expect(!res.success && res.error).toMatch(/INVALID_ADMIN_PASSCODE/);
+      }
+
+      const limited = await t.mutation(api.admin.wipeArea, {
+        passcode: "wrong-guess",
+        minX: 0,
+        minY: 0,
+        maxX: 1,
+        maxY: 1,
+      });
+      expect(limited.success).toBe(false);
+      expect(!limited.success && limited.error).toMatch(/rate.?limit/i);
+
+      // The correct passcode is completely unaffected — a real admin who
+      // already has it never fails this check, so it never touches the
+      // failed-guess budget at all.
+      const ok = await t.mutation(api.admin.wipeArea, {
+        passcode: PASSCODE,
+        minX: 0,
+        minY: 0,
+        maxX: 1,
+        maxY: 1,
+      });
+      expect(ok.success).toBe(true);
+    });
   });
 
   describe("protected zones (mural shield)", () => {
@@ -48,7 +105,7 @@ describe("convex/admin — protected zones & moderation", () => {
         maxY: 300,
       });
 
-      expect(res.success).toBe(true);
+      if (!res.success) throw new Error(res.error);
 
       const zones = await t.query(api.admin.getProtectedZones, {});
       expect(zones).toHaveLength(1);
@@ -287,6 +344,7 @@ describe("convex/admin — protected zones & moderation", () => {
         maxY: 100,
       });
 
+      if (!wipeRes.success) throw new Error(wipeRes.error);
       expect(wipeRes.deletedCount).toBe(1);
     });
 
@@ -316,6 +374,7 @@ describe("convex/admin — protected zones & moderation", () => {
         targetClientId: "vandal-999",
       });
 
+      if (!rbRes.success) throw new Error(rbRes.error);
       expect(rbRes.deletedCount).toBe(2);
     });
 

@@ -1,9 +1,11 @@
 import { ConvexError, v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
-import { consumeRateLimit } from "./abuse";
+import { consumeRateLimit, tryConsumeRateLimit } from "./abuse";
 import {
   ADMIN_VERIFY_GLOBAL_WINDOW,
+  ADMIN_FAILED_VERIFY_WINDOW,
+  ADMIN_FAILED_VERIFY_WINDOW_MS,
   MAX_PROTECTED_ZONES,
   RATE_LIMIT_WINDOW_MS,
   MAX_BROADCAST_MESSAGE_LENGTH,
@@ -46,11 +48,48 @@ export function isPasscodeValid(passcode: string): boolean {
 // Every admin mutation routes through here, not just the pre-flight check —
 // otherwise a client could skip verifyPasscode and brute-force a passcode
 // directly against e.g. wipeArea instead.
-export async function verifyAdminPasscode(ctx: MutationCtx, passcode: string) {
-  await consumeRateLimit(ctx, "admin:verify:global", ADMIN_VERIFY_GLOBAL_WINDOW, RATE_LIMIT_WINDOW_MS);
-  if (!isPasscodeValid(passcode)) {
-    throw new ConvexError("INVALID_ADMIN_PASSCODE: Unauthorized administrative operation.");
+//
+// Returns a result instead of throwing — deliberately. A Convex mutation's
+// writes are ALL discarded together if the mutation ultimately throws, no
+// matter how deep the write happened (see tryConsumeRateLimit's doc comment
+// in abuse.ts for the full explanation, plus an empirical confirmation).
+// "Consume the failed-guess budget, then throw to reject the request" can
+// therefore never make that consumption durable — every caller MUST return
+// `{ ok: false }` as a normal value (never re-throw it) or the two rate
+// limits below silently stop being enforced against wrong-passcode callers.
+export async function verifyAdminPasscode(
+  ctx: MutationCtx,
+  passcode: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const generalOk = await tryConsumeRateLimit(
+    ctx,
+    "admin:verify:global",
+    ADMIN_VERIFY_GLOBAL_WINDOW,
+    RATE_LIMIT_WINDOW_MS,
+  );
+  if (!generalOk) {
+    return { ok: false, error: "ADMIN_RATE_LIMITED: Too many admin requests — try again shortly." };
   }
+  if (!isPasscodeValid(passcode)) {
+    // A separate, much stricter budget than the general one above — a
+    // legitimate admin who already has the right passcode never fails this
+    // check, so this only ever throttles someone actually guessing, on top
+    // of (not instead of) the general per-10s cap.
+    const failedOk = await tryConsumeRateLimit(
+      ctx,
+      "admin:verify:failed:global",
+      ADMIN_FAILED_VERIFY_WINDOW,
+      ADMIN_FAILED_VERIFY_WINDOW_MS,
+    );
+    if (!failedOk) {
+      return {
+        ok: false,
+        error: "ADMIN_RATE_LIMITED: Too many incorrect passcode attempts — try again in a minute.",
+      };
+    }
+    return { ok: false, error: "INVALID_ADMIN_PASSCODE: Unauthorized administrative operation." };
+  }
+  return { ok: true };
 }
 
 /**
@@ -80,14 +119,20 @@ export const wipeArea = mutation({
     // until done is true. See AdminPanelModal's handleWipeArea.
     afterSequence: v.optional(v.number()),
   },
-  returns: v.object({
-    success: v.boolean(),
-    deletedCount: v.number(),
-    done: v.boolean(),
-    nextAfterSequence: v.number(),
-  }),
+  returns: v.union(
+    v.object({
+      success: v.literal(true),
+      deletedCount: v.number(),
+      done: v.boolean(),
+      nextAfterSequence: v.number(),
+    }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
 
     const batch = await ctx.db
       .query("strokes")
@@ -115,7 +160,7 @@ export const wipeArea = mutation({
     const done = batch.length < PURGE_BATCH_SIZE;
     const nextAfterSequence = batch.length > 0 ? batch[batch.length - 1].sequence : args.afterSequence ?? 0;
 
-    return { success: true, deletedCount, done, nextAfterSequence };
+    return { success: true as const, deletedCount, done, nextAfterSequence };
   },
 });
 
@@ -131,14 +176,20 @@ export const rollbackClient = mutation({
     targetClientId: v.string(),
     cursor: v.optional(v.string()),
   },
-  returns: v.object({
-    success: v.boolean(),
-    deletedCount: v.number(),
-    done: v.boolean(),
-    nextCursor: v.union(v.string(), v.null()),
-  }),
+  returns: v.union(
+    v.object({
+      success: v.literal(true),
+      deletedCount: v.number(),
+      done: v.boolean(),
+      nextCursor: v.union(v.string(), v.null()),
+    }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
 
     const result = await ctx.db
       .query("strokes")
@@ -153,7 +204,7 @@ export const rollbackClient = mutation({
       deletedCount++;
     }
 
-    return { success: true, deletedCount, done: result.isDone, nextCursor: result.continueCursor };
+    return { success: true as const, deletedCount, done: result.isDone, nextCursor: result.continueCursor };
   },
 });
 
@@ -165,8 +216,15 @@ export const publishBroadcast = mutation({
     passcode: v.string(),
     message: v.string(),
   },
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
     if (args.message.length === 0 || args.message.length > MAX_BROADCAST_MESSAGE_LENGTH) {
       throw new Error(`message must be between 1 and ${MAX_BROADCAST_MESSAGE_LENGTH} characters`);
     }
@@ -187,7 +245,7 @@ export const publishBroadcast = mutation({
       createdTimestamp: Date.now(),
     });
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -198,8 +256,15 @@ export const clearBroadcast = mutation({
   args: {
     passcode: v.string(),
   },
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
 
     const activeList = await ctx.db
       .query("broadcasts")
@@ -210,7 +275,7 @@ export const clearBroadcast = mutation({
       await ctx.db.patch(item._id, { active: false });
     }
 
-    return { success: true };
+    return { success: true as const };
   },
 });
 
@@ -243,8 +308,15 @@ export const createProtectedZone = mutation({
     ownerClientId: v.optional(v.string()),
     ownerName: v.optional(v.string()),
   },
+  returns: v.union(
+    v.object({ success: v.literal(true), zoneId: v.id("protectedZones") }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
     if (args.name.length === 0 || args.name.length > MAX_ZONE_NAME_LENGTH) {
       throw new Error(`name must be between 1 and ${MAX_ZONE_NAME_LENGTH} characters`);
     }
@@ -273,7 +345,7 @@ export const createProtectedZone = mutation({
       ownerName: args.ownerName || undefined,
     });
 
-    return { success: true, zoneId };
+    return { success: true as const, zoneId };
   },
 });
 
@@ -285,10 +357,17 @@ export const deleteProtectedZone = mutation({
     passcode: v.string(),
     zoneId: v.id("protectedZones"),
   },
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
     await ctx.db.delete(args.zoneId);
-    return { success: true };
+    return { success: true as const };
   },
 });
 

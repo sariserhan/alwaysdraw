@@ -69,6 +69,13 @@ export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
 // (clientId is self-reported), so this is a tight global-only cap — it
 // won't stop a determined attacker, but it makes casual brute-forcing slow.
 export const ADMIN_VERIFY_GLOBAL_WINDOW = 20;
+// A second, much stricter budget consumed only on an INVALID passcode (see
+// admin.ts's verifyAdminPasscode) — legitimate admin usage never fails this
+// check, so it only ever throttles someone actually guessing, independent of
+// how much a real admin is otherwise clicking around. 5/min instead of
+// 20/10s cuts the maximum guess rate from ~172,800/day to ~7,200/day.
+export const ADMIN_FAILED_VERIFY_WINDOW = 5;
+export const ADMIN_FAILED_VERIFY_WINDOW_MS = 60_000;
 // These two are admin-gated (need the passcode), so exploitation requires a
 // compromised secret — still worth a cap so a compromised passcode doesn't
 // also get an unbounded blast radius the way every other user-facing text

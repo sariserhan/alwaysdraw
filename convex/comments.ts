@@ -143,10 +143,16 @@ export const adminRemove = mutation({
     passcode: v.string(),
     commentId: v.id("canvasComments"),
   },
-  returns: v.null(),
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
   handler: async (ctx, args) => {
-    await verifyAdminPasscode(ctx, args.passcode);
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false, error: verified.error };
+    }
     await ctx.db.delete(args.commentId);
-    return null;
+    return { success: true as const };
   },
 });

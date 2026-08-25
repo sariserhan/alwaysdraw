@@ -154,9 +154,14 @@ describe("comments.adminRemove — moderation", () => {
       x: 0,
       y: 0,
     });
-    await expect(
-      t.mutation(api.comments.adminRemove, { passcode: "wrong-passcode", commentId: id }),
-    ).rejects.toThrow(/INVALID_ADMIN_PASSCODE/);
+    // adminRemove reports rejection via its return value, not a thrown
+    // error — a mutation gated by verifyAdminPasscode can't durably record a
+    // failed passcode attempt if it also throws to reject the request; the
+    // throw would roll back that very record along with everything else in
+    // the same call. See admin.ts's verifyAdminPasscode doc comment.
+    const res = await t.mutation(api.comments.adminRemove, { passcode: "wrong-passcode", commentId: id });
+    expect(res.success).toBe(false);
+    expect(!res.success && res.error).toMatch(/INVALID_ADMIN_PASSCODE/);
     const list = await t.query(api.comments.list, {});
     expect(list).toHaveLength(1);
   });
