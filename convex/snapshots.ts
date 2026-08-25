@@ -1,13 +1,14 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { RATE_LIMIT_WINDOW_MS, SNAPSHOTS_GLOBAL_WINDOW, MAX_SNAPSHOT_IMAGE_BYTES } from "./constants";
+import {
+  RATE_LIMIT_WINDOW_MS,
+  SNAPSHOTS_GLOBAL_WINDOW,
+  MAX_SNAPSHOT_IMAGE_BYTES,
+  SNAPSHOTS_TO_KEEP,
+} from "./constants";
 import { assertWritesEnabled, consumeRateLimit } from "./abuse";
 
 const IMAGE_DATA_URL_PATTERN = /^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
-
-// Only getLatest ever reads this table — older rows exist purely for a
-// manual rollback safety margin, not because anything queries them.
-const SNAPSHOTS_TO_KEEP = 3;
 
 const snapshotReturnFields = v.object({
   _id: v.id("snapshots"),

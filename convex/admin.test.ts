@@ -8,6 +8,7 @@ import {
   ADMIN_VERIFY_GLOBAL_WINDOW,
   ADMIN_FAILED_VERIFY_WINDOW,
   RATE_LIMIT_WINDOW_MS,
+  SNAPSHOTS_TO_KEEP,
 } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
@@ -394,6 +395,46 @@ describe("convex/admin — protected zones & moderation", () => {
 
       const cleared = await t.query(api.admin.getActiveBroadcast, {});
       expect(cleared).toBeNull();
+    });
+  });
+
+  describe("getTelemetry", () => {
+    it("returns null for an invalid passcode", async () => {
+      const result = await t.query(api.admin.getTelemetry, { passcode: "wrong" });
+      expect(result).toBeNull();
+    });
+
+    it("reports a bounded snapshotCount even with more snapshots than SNAPSHOTS_TO_KEEP", async () => {
+      // Regression test: snapshotCount used to read up to 1000 full
+      // snapshot rows (each up to MAX_SNAPSHOT_IMAGE_BYTES) just to count
+      // them. Bounded to SNAPSHOTS_TO_KEEP + 1 now, matching what
+      // snapshots.submit's own pruning keeps the table at in steady state.
+      vi.useFakeTimers();
+      try {
+        for (let i = 0; i < SNAPSHOTS_TO_KEEP + 3; i++) {
+          await t.mutation(api.strokes.submit, {
+            clientStrokeId: `telemetry-seq-${i}`,
+            clientId: "telemetry-tester",
+            mode: "draw",
+            color: "#000000",
+            width: 4,
+            points: [{ x: i, y: i }],
+            clientTimestamp: Date.now(),
+          });
+          const meta = await t.run(async (ctx) => ctx.db.query("canvasMetadata").first());
+          await t.mutation(api.snapshots.submit, {
+            sequence: meta?.currentSequence ?? 0,
+            imageData: `data:image/webp;base64,sample${i}`,
+            strokeCount: i,
+          });
+          vi.advanceTimersByTime(RATE_LIMIT_WINDOW_MS + 1000);
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+
+      const result = await t.query(api.admin.getTelemetry, { passcode: PASSCODE });
+      expect(result?.snapshotCount).toBe(SNAPSHOTS_TO_KEEP);
     });
   });
 });

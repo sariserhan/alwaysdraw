@@ -470,12 +470,23 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const onlineCount = useQuery(api.presence.onlineCount);
   const [subscribedTileKeys, setSubscribedTileKeys] = useState<string[]>([]);
   const subscribedTileKeysRef = useRef<string[]>([]);
-  const presenceList = useQuery(
+  // At the app's own DEFAULT_ZOOM (0.06), the visible area covers roughly
+  // the entire 20,000x20,000 world — ~1,300+ 500-unit tiles, far past
+  // MAX_SCOPED_PRESENCE_TILES. Every visitor lands there, so a bare "skip
+  // past the cap" here meant remote cursors silently never appeared for
+  // anyone who hadn't already zoomed in past ~5x DEFAULT_ZOOM. Falls back to
+  // presence.list (bounded, indexed by lastSeenAt, same online-window
+  // filter and return shape) whenever the visible area is too broad for
+  // tile-scoping to be viable — the same query the un-tiled version of this
+  // feature already used, before tile-scoping was added for the zoomed-in
+  // case.
+  const tooManyTilesForScoping = subscribedTileKeys.length > MAX_SCOPED_PRESENCE_TILES;
+  const scopedPresenceList = useQuery(
     api.presence.listByTiles,
-    subscribedTileKeys.length > 0 && subscribedTileKeys.length <= MAX_SCOPED_PRESENCE_TILES
-      ? { tileKeys: subscribedTileKeys }
-      : "skip",
+    !tooManyTilesForScoping && subscribedTileKeys.length > 0 ? { tileKeys: subscribedTileKeys } : "skip",
   );
+  const globalPresenceList = useQuery(api.presence.list, tooManyTilesForScoping ? {} : "skip");
+  const presenceList = tooManyTilesForScoping ? globalPresenceList : scopedPresenceList;
   const canvasCommentRows = useQuery(api.comments.list, {});
   const comments = useMemo<CanvasComment[]>(
     () =>
@@ -2101,11 +2112,17 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         return;
       }
 
-      if (tool === "magnifier") return;
-
       const worldPt = getPointerWorld(e.clientX, e.clientY);
+      // Tracked (and so broadcast via the next heartbeat) regardless of
+      // tool — remote viewers should see a live cursor no matter what tool
+      // is active. Previously sat after the magnifier early-return below,
+      // so switching to the magnifier froze that client's position for
+      // everyone else until they switched tools again.
       Object.assign(lastCursorWorldRef.current, worldPt);
       lastActivityAtRef.current = Date.now();
+
+      if (tool === "magnifier") return;
+
       // No dirty flags — just runs the per-frame overlay position sync (see
       // scheduleRedraw) so the protected-zone hover badge tracks the cursor
       // even on a plain idle hover, which none of the tool branches below

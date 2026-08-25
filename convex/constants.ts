@@ -65,6 +65,12 @@ export const VOTES_PER_CLIENT_WINDOW = 30;
 // are infrequent, so this is generous headroom, not a real throughput cap.
 export const SNAPSHOTS_GLOBAL_WINDOW = 5;
 export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
+// Only snapshots.getLatest ever reads this table — older rows exist purely
+// for a manual rollback safety margin, not because anything queries them.
+// Shared with admin.ts's getTelemetry, which uses it to bound a cheap
+// row-count read instead of pulling every (up to MAX_SNAPSHOT_IMAGE_BYTES)
+// row's full image payload just to count them.
+export const SNAPSHOTS_TO_KEEP = 3;
 // Admin passcode attempts have no reliable per-attacker identity to key on
 // (clientId is self-reported), so this is a tight global-only cap — it
 // won't stop a determined attacker, but it makes casual brute-forcing slow.

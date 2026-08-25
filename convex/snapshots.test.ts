@@ -1,9 +1,10 @@
 // @vitest-environment edge-runtime
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import type { StrokeMode, BrushType, Point } from "../lib/types";
+import { SNAPSHOTS_TO_KEEP, RATE_LIMIT_WINDOW_MS } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -159,6 +160,40 @@ describe("snapshots query and mutation", () => {
         strokeCount: 5,
       }),
     ).resolves.toBeDefined();
+  });
+
+  it("prunes to SNAPSHOTS_TO_KEEP, deleting the oldest rows first", async () => {
+    // More submissions than SNAPSHOTS_GLOBAL_WINDOW allows in one window —
+    // advance fake time between each so this exercises pruning, not the
+    // rate limiter (already covered separately below).
+    vi.useFakeTimers();
+    const submittedCount = SNAPSHOTS_TO_KEEP + 3;
+    try {
+      for (let i = 0; i < submittedCount; i++) {
+        const sequence = await advanceSequence(t, 1);
+        await t.mutation(api.snapshots.submit, {
+          sequence,
+          imageData: `data:image/webp;base64,sample${i}`,
+          strokeCount: i,
+        });
+        vi.advanceTimersByTime(RATE_LIMIT_WINDOW_MS + 1000);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const remaining = await t.run(async (ctx) => ctx.db.query("snapshots").collect());
+    expect(remaining).toHaveLength(SNAPSHOTS_TO_KEEP);
+    // The kept rows are the newest ones — every strokeCount below
+    // (submittedCount - SNAPSHOTS_TO_KEEP) was pruned away.
+    const keptStrokeCounts = remaining.map((r) => r.strokeCount).sort((a, b) => a - b);
+    expect(keptStrokeCounts).toEqual(
+      Array.from({ length: SNAPSHOTS_TO_KEEP }, (_, i) => submittedCount - SNAPSHOTS_TO_KEEP + i),
+    );
+
+    // getLatest still returns the actual latest, unaffected by pruning.
+    const latest = await t.query(api.snapshots.getLatest, {});
+    expect(latest?.strokeCount).toBe(submittedCount - 1);
   });
 
   it("rate limits excessive global submissions", async () => {

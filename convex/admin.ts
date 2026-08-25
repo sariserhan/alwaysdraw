@@ -11,6 +11,7 @@ import {
   MAX_BROADCAST_MESSAGE_LENGTH,
   MAX_ZONE_NAME_LENGTH,
   MAX_CLIENT_ID_LENGTH,
+  SNAPSHOTS_TO_KEEP,
 } from "./constants";
 import { claimNextSequence } from "./canvasMetadata";
 
@@ -413,7 +414,16 @@ export const getTelemetry = query({
     // exactly once every 15s regardless of how many clients ask.
     const meta = await ctx.db.query("canvasMetadata").first();
     const presenceStats = await ctx.db.query("presenceStats").first();
-    const snapshotCount = (await ctx.db.query("snapshots").take(1000)).length;
+    // Was `.take(1000)` — each row can carry up to MAX_SNAPSHOT_IMAGE_BYTES
+    // (5MB) of base64 image data, and Convex charges for actual document
+    // bytes read regardless of which fields the code touches afterward, so
+    // that one line could read up to ~5GB per call. snapshots.submit prunes
+    // to SNAPSHOTS_TO_KEEP now, so the table should never realistically
+    // exceed that — bounding the read here to match turns this from "read
+    // up to 1000 multi-MB rows to produce a number" into a genuinely cheap,
+    // still-accurate count. The +1 only shows up as a stale overcount in
+    // the moment between a submit's insert and its own pruning pass.
+    const snapshotCount = (await ctx.db.query("snapshots").take(SNAPSHOTS_TO_KEEP + 1)).length;
     const protectedZoneCount = (await ctx.db.query("protectedZones").take(MAX_PROTECTED_ZONES)).length;
 
     return {
