@@ -416,7 +416,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   // under the header — chained offsets so both stay aligned as the header's
   // height changes (it wraps to 1-3 rows depending on viewport width).
   const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
     screenY: number;
