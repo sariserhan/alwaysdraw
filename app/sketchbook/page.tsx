@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { SKETCHBOOK_PAGES, regionPathData, type SketchbookPage } from "@/lib/sketchbookPages";
+import { SKETCHBOOK_PAGES, type SketchbookPage } from "@/lib/sketchbookPages";
+import { SketchbookThumbnail } from "@/components/SketchbookThumbnail";
 
 export const metadata: Metadata = {
   title: "Sketchbook — alwaysdraw",
@@ -21,30 +22,7 @@ export default function SketchbookGalleryPage() {
       <h1 className="mb-8 text-center text-3xl font-semibold text-[#1a1a1a]">Sketchbook</h1>
       <div className="mx-auto grid max-w-3xl grid-cols-2 gap-6 sm:grid-cols-3">
         {pages.map((page) => (
-          <Link
-            key={page.id}
-            href={`/sketchbook/${page.id}`}
-            className="flex flex-col items-center gap-2 rounded-lg bg-white/60 p-4 transition hover:bg-white"
-          >
-            {page.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={page.imageUrl} alt="" className="h-32 w-32 object-contain" />
-            ) : (
-              <svg viewBox={`0 0 ${page.width} ${page.height}`} className="h-32 w-32">
-                {page.regions.map((region) => (
-                  <path
-                    key={region.id}
-                    d={regionPathData(region)}
-                    fill="none"
-                    stroke="#1a1a1a"
-                    strokeWidth={3}
-                    strokeLinejoin="round"
-                  />
-                ))}
-              </svg>
-            )}
-            <span className="text-sm font-medium text-[#1a1a1a]">{page.title}</span>
-          </Link>
+          <SketchbookThumbnail key={page.id} page={page} />
         ))}
       </div>
     </div>

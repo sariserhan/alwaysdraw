@@ -3,6 +3,10 @@ import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { ChromeRivet } from "@/components/ChromeRivet";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { SketchbookThumbnail } from "@/components/SketchbookThumbnail";
+import { SKETCHBOOK_PAGES, type SketchbookPage } from "@/lib/sketchbookPages";
+
+const sketchbookPages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.com";
 
@@ -382,6 +386,31 @@ export default function Home() {
               <span>➔</span>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* JUMP RIGHT IN */}
+      <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent-crimson mb-2">
+            Pick A Spot
+          </h2>
+          <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
+            Jump Right In
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          <Link
+            href="/canvas"
+            className="flex flex-col items-center justify-center gap-2 rounded-lg border border-rust/40 bg-rust/10 p-4 text-center transition hover:bg-rust/20"
+          >
+            <span className="text-4xl">🎨</span>
+            <span className="text-sm font-bold text-accent-yellow">Live Canvas</span>
+          </Link>
+          {sketchbookPages.map((page) => (
+            <SketchbookThumbnail key={page.id} page={page} className="h-16 w-16" />
+          ))}
         </div>
       </section>
 
