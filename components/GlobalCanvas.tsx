@@ -62,7 +62,6 @@ import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } fro
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
-import { InviteBanner } from "./InviteBanner";
 import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
 import { generateAiStrokes, convertImageToStrokes, fetchRealAiStrokes } from "@/lib/aiDrawer";
 import { OnlineCount } from "./OnlineCount";
@@ -3306,7 +3305,6 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
         />
-        {!embedded && <InviteBanner />}
         <DrawingChallengeWidget
           activeGoal={activeAdminGoal}
           onAcceptChallenge={(goal) => {
