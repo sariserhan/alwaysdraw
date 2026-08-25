@@ -105,9 +105,17 @@ export const SNAPSHOTS_TO_KEEP = 3;
 // MAX_SNAPSHOT_IMAGE_BYTES, against Convex's 16MB per-transaction read cap).
 export const SNAPSHOTS_PRUNE_BATCH_SIZE = 5;
 // Admin passcode attempts have no reliable per-attacker identity to key on
-// (clientId is self-reported), so this is a tight global-only cap — it
-// won't stop a determined attacker, but it makes casual brute-forcing slow.
-export const ADMIN_VERIFY_GLOBAL_WINDOW = 20;
+// (clientId is self-reported), so this is a tight global-only cap meant to
+// make casual brute-forcing slow — but verifyAdminPasscode runs on every
+// admin mutation, not just login, so this budget is also spent by every
+// batch of an already-authenticated admin's own paginated bulk operations
+// (wipeArea, rollbackClient — see their PURGE_BATCH_SIZE-per-call loops in
+// GlobalCanvas.tsx). Too tight here means clearing a large-enough area
+// self-trips this mid-operation, not an attacker. The actual brute-force
+// defense is the separate, much stricter ADMIN_FAILED_VERIFY_WINDOW below
+// (wrong guesses only) — this one just needs to comfortably clear a real
+// bulk-clear burst.
+export const ADMIN_VERIFY_GLOBAL_WINDOW = 300;
 // A second, much stricter budget consumed only on an INVALID passcode (see
 // admin.ts's verifyAdminPasscode) — legitimate admin usage never fails this
 // check, so it only ever throttles someone actually guessing, independent of
