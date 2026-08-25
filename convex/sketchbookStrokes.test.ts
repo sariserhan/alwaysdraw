@@ -5,7 +5,7 @@ import schema from "./schema";
 import { api } from "./_generated/api";
 import { MIN_BRUSH_WIDTH, MAX_BRUSH_WIDTH, SKETCHBOOK_STROKES_PER_CLIENT_WINDOW } from "./constants";
 import { SKETCHBOOK_PAGES } from "../lib/sketchbookPages";
-import type { StrokeMode, Point } from "../lib/types";
+import type { StrokeMode, Point, BrushType } from "../lib/types";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -24,7 +24,9 @@ const baseArgs = {
   clientTimestamp: 0,
 };
 
-function strokeArgs(overrides: Partial<typeof baseArgs> & { clientStrokeId: string }) {
+function strokeArgs(
+  overrides: Partial<typeof baseArgs> & { clientStrokeId: string; brushType?: BrushType },
+) {
   return { ...baseArgs, ...overrides };
 }
 
@@ -157,5 +159,36 @@ describe("sketchbookStrokes.listSince", () => {
 
     expect(flowerRows.map((r) => r.clientStrokeId)).toEqual(["flower-1"]);
     expect(circleRows.map((r) => r.clientStrokeId)).toEqual(["circle-1"]);
+  });
+});
+
+describe("sketchbookStrokes.submit — brushType", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("defaults brushType to 'brush' for a draw stroke when omitted", async () => {
+    await t.mutation(api.sketchbookStrokes.submit, strokeArgs({ clientStrokeId: "brush-default" }));
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    expect(rows.find((r) => r.clientStrokeId === "brush-default")?.brushType).toBe("brush");
+  });
+
+  it("stores an explicit brushType for a draw stroke", async () => {
+    await t.mutation(
+      api.sketchbookStrokes.submit,
+      strokeArgs({ clientStrokeId: "brush-watercolor", brushType: "watercolor" }),
+    );
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    expect(rows.find((r) => r.clientStrokeId === "brush-watercolor")?.brushType).toBe("watercolor");
+  });
+
+  it("never stores a brushType for an erase stroke, even if one is sent", async () => {
+    await t.mutation(
+      api.sketchbookStrokes.submit,
+      strokeArgs({ clientStrokeId: "erase-1", mode: "erase", brushType: "watercolor" }),
+    );
+    const rows = await t.query(api.sketchbookStrokes.listSince, { pageId: "flower", afterSequence: 0 });
+    expect(rows.find((r) => r.clientStrokeId === "erase-1")?.brushType).toBeUndefined();
   });
 });

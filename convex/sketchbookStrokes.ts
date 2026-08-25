@@ -18,6 +18,7 @@ import {
   RATE_LIMIT_WINDOW_MS,
   SKETCHBOOK_STROKES_PER_CLIENT_WINDOW,
   SKETCHBOOK_STROKES_GLOBAL_WINDOW,
+  BRUSH_TYPES,
 } from "./constants";
 import { assertBoundedIdentifier, assertWritesEnabled, consumeRateLimit } from "./abuse";
 import { containsProfanity } from "./profanity";
@@ -25,6 +26,7 @@ import { claimNextSequence } from "./sketchbookMetadata";
 import { getSketchbookPage } from "../lib/sketchbookPages";
 
 const pointValidator = v.object({ x: v.number(), y: v.number() });
+const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
 
 const sketchbookStrokeReturnFields = v.object({
   _id: v.id("sketchbookStrokes"),
@@ -36,6 +38,7 @@ const sketchbookStrokeReturnFields = v.object({
   mode: v.union(v.literal("draw"), v.literal("erase")),
   pageId: v.optional(v.string()),
   regionId: v.string(),
+  brushType: v.optional(brushTypeValidator),
   color: v.string(),
   width: v.number(),
   opacity: v.optional(v.number()),
@@ -55,6 +58,7 @@ export const submit = mutation({
     mode: v.union(v.literal("draw"), v.literal("erase")),
     pageId: v.string(),
     regionId: v.string(),
+    brushType: v.optional(brushTypeValidator),
     color: v.string(),
     width: v.number(),
     opacity: v.optional(v.number()),
@@ -139,6 +143,7 @@ export const submit = mutation({
       mode: args.mode,
       pageId: args.pageId,
       regionId: args.regionId,
+      brushType: args.mode === "draw" ? (args.brushType ?? "brush") : undefined,
       color: args.color,
       width: args.width,
       opacity: args.opacity ?? 1,

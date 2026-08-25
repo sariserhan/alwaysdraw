@@ -199,6 +199,9 @@ export default defineSchema({
     // Which region within that page this stroke is clipped to —
     // validated server-side against that page's own region list.
     regionId: v.string(),
+    // Only meaningful when mode === "draw"; omitted for erase strokes.
+    // Same catalog as the main canvas's strokes.brushType.
+    brushType: v.optional(brushTypeValidator),
     color: v.string(),
     width: v.number(),
     opacity: v.optional(v.number()),
@@ -215,4 +218,19 @@ export default defineSchema({
   sketchbookMetadata: defineTable({
     currentSequence: v.number(),
   }),
+
+  // Scoped per-page rather than per-tile like the main canvas's `presence`
+  // — a sketchbook page is small and bounded, so there's no spatial
+  // sharding to do, just "everyone currently on this page."
+  sketchbookPresence: defineTable({
+    clientId: v.string(),
+    pageId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    cursorX: v.number(),
+    cursorY: v.number(),
+    lastSeenAt: v.number(),
+  })
+    .index("by_clientId", ["clientId"])
+    .index("by_pageId_and_lastSeenAt", ["pageId", "lastSeenAt"]),
 });

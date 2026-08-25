@@ -20,6 +20,7 @@ import type * as presence from "../presence.js";
 import type * as profanity from "../profanity.js";
 import type * as reports from "../reports.js";
 import type * as sketchbookMetadata from "../sketchbookMetadata.js";
+import type * as sketchbookPresence from "../sketchbookPresence.js";
 import type * as sketchbookStrokes from "../sketchbookStrokes.js";
 import type * as snapshots from "../snapshots.js";
 import type * as strokes from "../strokes.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   profanity: typeof profanity;
   reports: typeof reports;
   sketchbookMetadata: typeof sketchbookMetadata;
+  sketchbookPresence: typeof sketchbookPresence;
   sketchbookStrokes: typeof sketchbookStrokes;
   snapshots: typeof snapshots;
   strokes: typeof strokes;

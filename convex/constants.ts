@@ -47,6 +47,10 @@ export const SKETCHBOOK_STROKES_PER_CLIENT_WINDOW = 300;
 export const SKETCHBOOK_STROKES_GLOBAL_WINDOW = 2_000;
 export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
 export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
+// Separate budget from the main canvas's presence:* buckets, same
+// reasoning as SKETCHBOOK_STROKES_*.
+export const SKETCHBOOK_HEARTBEATS_PER_CLIENT_WINDOW = 6;
+export const SKETCHBOOK_HEARTBEATS_GLOBAL_WINDOW = 2_000;
 // Bookmark rows are permanent (unlike presence/snapshots), so both a
 // per-client and a global cap bound table growth from a spoofed clientId.
 export const BOOKMARKS_PER_CLIENT_WINDOW = 10;
