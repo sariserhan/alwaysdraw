@@ -208,109 +208,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* LIVE CANVAS HOTSPOTS & PREVIEW SHOWCASE */}
-      <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent-crimson mb-2 flex items-center justify-center gap-1.5">
-            <ChromeRivet className="relative" />
-            <span>Popular Canvas Hotspots</span>
-          </h2>
-          <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
-            Explore Active Drawing Districts
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link
-            href="/canvas?x=0&y=0&z=1"
-            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
-          >
-            <div>
-              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
-                <span>📍 Tile (0, 0)</span>
-                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
-              </div>
-              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
-                Origin Plaza
-              </h4>
-              <p className="text-xs text-ink-dim leading-relaxed mb-4">
-                The central birthplace of the global canvas wall where artists gather.
-              </p>
-            </div>
-            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
-              <span>Teleport Here</span>
-              <span className="group-hover:translate-x-1 transition-transform">➔</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/canvas?x=1200&y=-600&z=1.5"
-            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
-          >
-            <div>
-              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
-                <span>👾 Tile (1200, -600)</span>
-                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
-              </div>
-              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
-                Pixel Art Boulevard
-              </h4>
-              <p className="text-xs text-ink-dim leading-relaxed mb-4">
-                Cooperative 8-bit grid murals, game sprites, and retro character art.
-              </p>
-            </div>
-            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
-              <span>Teleport Here</span>
-              <span className="group-hover:translate-x-1 transition-transform">➔</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/canvas?x=-2400&y=1800&z=1"
-            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
-          >
-            <div>
-              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
-                <span>🌆 Tile (-2400, 1800)</span>
-                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
-              </div>
-              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
-                Cyberpunk Haven
-              </h4>
-              <p className="text-xs text-ink-dim leading-relaxed mb-4">
-                Neon glow calligraphy, high-tech sketches, and vibrant street art.
-              </p>
-            </div>
-            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
-              <span>Teleport Here</span>
-              <span className="group-hover:translate-x-1 transition-transform">➔</span>
-            </div>
-          </Link>
-
-          <Link
-            href="/canvas?x=3500&y=-1200&z=1"
-            className="group flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-5 shadow-md hover:border-rust/60 transition-all hover:scale-[1.02]"
-          >
-            <div>
-              <div className="flex items-center justify-between font-mono text-xs text-accent-yellow font-bold mb-2">
-                <span>🎨 Tile (3500, -1200)</span>
-                <span className="text-[10px] uppercase text-emerald-400">● Active</span>
-              </div>
-              <h4 className="font-display text-lg font-bold text-ink mb-1 group-hover:text-accent-yellow transition-colors">
-                Watercolor Garden
-              </h4>
-              <p className="text-xs text-ink-dim leading-relaxed mb-4">
-                Expressive painterly washes, oil blendings, and soft pastel sketches.
-              </p>
-            </div>
-            <div className="font-mono text-xs font-bold uppercase text-accent-crimson flex items-center gap-1">
-              <span>Teleport Here</span>
-              <span className="group-hover:translate-x-1 transition-transform">➔</span>
-            </div>
-          </Link>
-        </div>
-      </section>
-
       {/* FEATURE CARDS GRID */}
       <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
@@ -341,76 +238,60 @@ export default function Home() {
         </div>
       </section>
 
-      {/* USE CASE SECTIONS */}
+      {/* TWO WAYS TO CREATE */}
       <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent-crimson mb-2">
             Tailored Experiences
           </h2>
           <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
-            Ways to Use AlwaysDraw
+            Two Ways to Create
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-6 shadow-md">
+        <div className="flex flex-col gap-8">
+          {/* Live Canvas card */}
+          <div className="flex flex-col items-start justify-between gap-6 rounded-lg border border-chrome-border bg-chrome-bg-raised p-8 shadow-md sm:flex-row sm:items-center">
             <div>
               <div className="text-4xl mb-4">🎨</div>
               <h4 className="font-display text-2xl font-bold text-ink mb-3">Live World Canvas</h4>
-              <p className="text-sm text-ink-dim leading-relaxed mb-6">
+              <p className="text-sm text-ink-dim leading-relaxed max-w-lg">
                 Paint on one endless, shared canvas with everyone on the internet, live in real time — draw with friends, brainstorm, or just doodle.
               </p>
             </div>
             <Link
               href="/canvas"
-              className="inline-flex items-center justify-center gap-2 rounded-sm border border-rust/40 bg-rust/10 px-4 py-2 font-mono text-xs font-bold uppercase text-accent-yellow hover:bg-rust hover:text-white transition"
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-sm bg-accent-crimson px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-crimson-deep transition"
             >
               <span>Explore Live Canvas</span>
               <span>➔</span>
             </Link>
           </div>
 
-          <div className="flex flex-col justify-between rounded-lg border border-chrome-border bg-chrome-bg-raised p-6 shadow-md">
-            <div>
-              <div className="text-4xl mb-4">📖</div>
-              <h4 className="font-display text-2xl font-bold text-ink mb-3">Sketchbook</h4>
-              <p className="text-sm text-ink-dim leading-relaxed mb-6">
-                Color in a shared gallery of illustrated pages with friends and strangers, one stroke at a time.
-              </p>
+          {/* Sketchbook card, with every page's thumbnail embedded */}
+          <div className="rounded-lg border border-chrome-border bg-[#f0ebd9] p-8 shadow-md">
+            <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center mb-6">
+              <div>
+                <div className="text-4xl mb-4">📖</div>
+                <h4 className="font-display text-2xl font-bold text-[#1a1a1a] mb-3">Sketchbook</h4>
+                <p className="text-sm text-[#1a1a1a]/70 leading-relaxed max-w-lg">
+                  Color in a shared gallery of illustrated pages with friends and strangers, one stroke at a time. Pick a page below to jump straight in.
+                </p>
+              </div>
+              <Link
+                href="/sketchbook"
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-sm bg-[#1a1a1a] px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-[#1a1a1a]/80 transition"
+              >
+                <span>See All Pages</span>
+                <span>➔</span>
+              </Link>
             </div>
-            <Link
-              href="/sketchbook"
-              className="inline-flex items-center justify-center gap-2 rounded-sm border border-rust/40 bg-rust/10 px-4 py-2 font-mono text-xs font-bold uppercase text-accent-yellow hover:bg-rust hover:text-white transition"
-            >
-              <span>Explore Sketchbook</span>
-              <span>➔</span>
-            </Link>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 md:grid-cols-6">
+              {sketchbookPages.map((page) => (
+                <SketchbookThumbnail key={page.id} page={page} className="h-14 w-14" />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* JUMP RIGHT IN */}
-      <section className="px-4 sm:px-8 py-20 border-b border-chrome-border max-w-6xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-accent-crimson mb-2">
-            Pick A Spot
-          </h2>
-          <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
-            Jump Right In
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          <Link
-            href="/canvas"
-            className="flex flex-col items-center justify-center gap-2 rounded-lg border border-rust/40 bg-rust/10 p-4 text-center transition hover:bg-rust/20"
-          >
-            <span className="text-4xl">🎨</span>
-            <span className="text-sm font-bold text-accent-yellow">Live Canvas</span>
-          </Link>
-          {sketchbookPages.map((page) => (
-            <SketchbookThumbnail key={page.id} page={page} className="h-16 w-16" />
-          ))}
         </div>
       </section>
 
