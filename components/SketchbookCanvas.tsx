@@ -326,15 +326,23 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
   // Apply newly synced strokes as they arrive.
   useEffect(() => {
     if (!liveTail || liveTail.length === 0) return;
-    let maxSeq = afterSequence;
-    for (const row of liveTail) {
-      maxSeq = Math.max(maxSeq, row.sequence);
-      if (renderedIdsRef.current.has(row.clientStrokeId)) continue;
-      renderedIdsRef.current.add(row.clientStrokeId);
-      allStrokesRef.current.push(row);
-      drawStrokeClipped(row);
-    }
-    setAfterSequence(maxSeq);
+    // Deferred via queueMicrotask, same pattern as GlobalCanvas.tsx's
+    // equivalent liveTail-sync effect — setAfterSequence is itself one of
+    // this effect's own deps (advancing the pagination cursor re-triggers
+    // the listSince subscription with a higher afterSequence), which reads
+    // as a cascading update unless the actual state write happens outside
+    // the effect's synchronous call stack.
+    queueMicrotask(() => {
+      let maxSeq = afterSequence;
+      for (const row of liveTail) {
+        maxSeq = Math.max(maxSeq, row.sequence);
+        if (renderedIdsRef.current.has(row.clientStrokeId)) continue;
+        renderedIdsRef.current.add(row.clientStrokeId);
+        allStrokesRef.current.push(row);
+        drawStrokeClipped(row);
+      }
+      setAfterSequence(maxSeq);
+    });
   }, [liveTail, afterSequence, drawStrokeClipped]);
 
   // username/countryCode change independently of the heartbeat cadence

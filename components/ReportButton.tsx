@@ -66,12 +66,18 @@ export function ReportButton({
 
   // A region drag just finished — reopen (or stay open) showing it, even
   // though this component itself closed its popup to start the drag.
+  // Deferred via queueMicrotask, same pattern as GlobalCanvas.tsx's
+  // liveTail-sync effect: positionPopover/setSubmitted/setIsOpen all read
+  // or write state synchronously in response to an external signal
+  // (pendingRegion), which reads as a same-effect state write unless it
+  // happens outside the effect's own synchronous call stack.
   useEffect(() => {
     if (!pendingRegion) return;
-    positionPopover();
-    setSubmitted(false);
-    setIsOpen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    queueMicrotask(() => {
+      positionPopover();
+      setSubmitted(false);
+      setIsOpen(true);
+    });
   }, [pendingRegion]);
 
   useEffect(() => {
