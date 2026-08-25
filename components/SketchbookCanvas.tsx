@@ -327,6 +327,17 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
     setAfterSequence(maxSeq);
   }, [liveTail, afterSequence, drawStrokeClipped]);
 
+  // username/countryCode change independently of the heartbeat cadence
+  // (a name edit, the one-time geo resolution below) — read them from a
+  // ref inside the interval rather than depending on the state directly,
+  // so a change is picked up by the next tick without tearing down and
+  // restarting the interval (and firing an extra immediate heartbeat) on
+  // every change, the way including them in the effect's deps would.
+  const identityRef = useRef({ username, countryCode });
+  useEffect(() => {
+    identityRef.current = { username, countryCode };
+  }, [username, countryCode]);
+
   // Broadcast this client's cursor position/identity to others on this
   // page, same cadence as the main canvas's presence.heartbeat.
   useEffect(() => {
@@ -334,8 +345,8 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
       heartbeat({
         clientId,
         pageId,
-        username,
-        countryCode,
+        username: identityRef.current.username,
+        countryCode: identityRef.current.countryCode,
         cursorX: lastCursorWorldRef.current.x,
         cursorY: lastCursorWorldRef.current.y,
       }).catch(() => {});
@@ -343,7 +354,7 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
     send();
     const id = setInterval(send, HEARTBEAT_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [heartbeat, pageId, clientId, username, countryCode]);
+  }, [heartbeat, pageId, clientId]);
 
   // Continuously advance RemoteCursors' glide-to-latest-position animation,
   // independent of paint/resize events — nothing else drives a per-frame
