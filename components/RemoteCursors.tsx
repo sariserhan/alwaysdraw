@@ -4,15 +4,18 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { worldToScreen } from "@/lib/coordinates";
 import type { Camera } from "@/lib/camera";
 import { getCountryFlagEmoji } from "@/lib/flags";
+import { HEARTBEAT_ACTIVE_INTERVAL_MS } from "@/convex/constants";
 
 type CursorEntry = { clientId: string; username?: string; countryCode?: string; cursorX: number; cursorY: number };
 
 const CURSOR_COLORS = ["#e0432b", "#39c07a", "#2f9fe0", "#e0b13a", "#c14fd6"];
 
-// Matches the heartbeat interval (GlobalCanvas.tsx's setInterval(send, 3000))
-// so a cursor finishes gliding to its latest known position right as the
-// next update lands, instead of snapping there the instant it arrives.
-const LERP_DURATION_MS = 3000;
+// Matches the active-broadcast heartbeat interval so a cursor finishes
+// gliding to its latest known position right as the next update lands,
+// instead of snapping there the instant it arrives. Sharing the constant
+// (rather than each file hardcoding the same number) is what keeps them
+// from drifting apart the way they previously did.
+const LERP_DURATION_MS = HEARTBEAT_ACTIVE_INTERVAL_MS;
 
 type LerpState = { fromX: number; fromY: number; toX: number; toY: number; startedAt: number };
 

@@ -6,7 +6,14 @@ import { useConvex, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { WORLD_WIDTH, WORLD_HEIGHT, MAX_COMMENT_LENGTH } from "@/convex/constants";
+import {
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  MAX_COMMENT_LENGTH,
+  HEARTBEAT_ACTIVE_INTERVAL_MS,
+  HEARTBEAT_IDLE_INTERVAL_MS,
+  HEARTBEAT_IDLE_THRESHOLD_MS,
+} from "@/convex/constants";
 import {
   type Camera,
   defaultCamera,
@@ -124,18 +131,6 @@ const HEATMAP_GRID_SIZE = 32;
 // writes, not an unbounded stampede.
 const SNAPSHOT_STROKE_THRESHOLD = 500;
 const SNAPSHOT_SIZE_PX = 2048;
-// Every open tab heartbeats forever regardless of activity, and each one is
-// a full presence-table write that reactively re-pushes to every other
-// connected client's cursor subscription — a cost floor that scales with
-// how many tabs are merely open, not how many people are actually doing
-// anything. Backing off once idle cuts that floor for the common case
-// (someone glancing at the wall, or a background tab) without touching
-// online-status accuracy: HEARTBEAT_IDLE_INTERVAL_MS still stays well under
-// PRESENCE_ONLINE_WINDOW_MS (30s), so nobody flips to "offline" just because
-// their mouse stopped moving.
-const HEARTBEAT_ACTIVE_INTERVAL_MS = 3000;
-const HEARTBEAT_IDLE_INTERVAL_MS = 15000;
-const HEARTBEAT_IDLE_THRESHOLD_MS = 10000;
 const WELCOME_HINT_AUTO_DISMISS_MS = 8000;
 // Remote cursors subscribe per-tile instead of globally (presence.listByTiles)
 // so a cursor move somewhere off-screen never re-pushes to a viewer who

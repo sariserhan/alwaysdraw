@@ -45,8 +45,35 @@ export const STROKES_GLOBAL_WINDOW = 2_000;
 // worst case), so the same headroom reasoning applies.
 export const SKETCHBOOK_STROKES_PER_CLIENT_WINDOW = 300;
 export const SKETCHBOOK_STROKES_GLOBAL_WINDOW = 2_000;
-export const HEARTBEATS_PER_CLIENT_WINDOW = 6;
-export const HEARTBEATS_GLOBAL_WINDOW = 2_000;
+// Every open tab heartbeats forever regardless of activity, and each one is
+// a full presence-table write that reactively re-pushes to every other
+// connected client's cursor subscription — a cost floor that scales with
+// how many tabs are merely open, not how many people are actually doing
+// anything. Backing off once idle cuts that floor for the common case
+// (someone glancing at the wall, or a background tab) without touching
+// online-status accuracy: HEARTBEAT_IDLE_INTERVAL_MS still stays well under
+// PRESENCE_ONLINE_WINDOW_MS (30s), so nobody flips to "offline" just because
+// their mouse stopped moving.
+//
+// HEARTBEAT_ACTIVE_INTERVAL_MS also sets how fresh a remote cursor's
+// position can ever be — RemoteCursors.tsx glides toward each new position
+// over exactly this long, so this is the actual perceived lag. Shared here
+// (not just a GlobalCanvas.tsx local) because it and
+// HEARTBEATS_PER_CLIENT_WINDOW/HEARTBEATS_GLOBAL_WINDOW below must stay
+// mutually consistent — the active interval sets the sustained per-client
+// call rate the windows need to allow.
+export const HEARTBEAT_ACTIVE_INTERVAL_MS = 150;
+export const HEARTBEAT_IDLE_INTERVAL_MS = 15_000;
+export const HEARTBEAT_IDLE_THRESHOLD_MS = 10_000;
+// 150ms sustained active broadcasting is ~67 calls per RATE_LIMIT_WINDOW_MS
+// (10s); 80 leaves headroom for an idle-to-active burst without throttling
+// a real user's own cursor.
+export const HEARTBEATS_PER_CLIENT_WINDOW = 80;
+// Covers roughly 50 concurrently-active (cursor-moving) clients at the
+// active interval's sustained rate before the shared bucket throttles
+// everyone — well above this app's current real concurrency, with room to
+// grow before this needs revisiting.
+export const HEARTBEATS_GLOBAL_WINDOW = 4_000;
 // Separate budget from the main canvas's presence:* buckets, same
 // reasoning as SKETCHBOOK_STROKES_*.
 export const SKETCHBOOK_HEARTBEATS_PER_CLIENT_WINDOW = 6;
