@@ -687,6 +687,32 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
               style={{ backgroundColor: swatch, borderColor: color === swatch && tool === "draw" ? "#1a1a1a" : "transparent" }}
             />
           ))}
+          {(() => {
+            const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#1a1a1a";
+            const isCustom = tool === "draw" && !activePalette.colors.includes(color);
+            return (
+              <label
+                className={`relative h-5 w-5 shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/20 transition-transform hover:scale-110 ${isCustom ? "ring-2 ring-[#1a1a1a]" : ""}`}
+                title="Custom color"
+                style={{ background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)" }}
+              >
+                <input
+                  type="color"
+                  value={safeColor}
+                  onChange={(e) => {
+                    setColor(e.target.value);
+                    setTool("draw");
+                    setPanMode(false);
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  aria-label="custom color"
+                />
+                {isCustom && (
+                  <span aria-hidden className="pointer-events-none absolute inset-[3px] rounded-full" style={{ background: safeColor }} />
+                )}
+              </label>
+            );
+          })()}
           <button
             type="button"
             aria-label={`switch color palette (currently ${activePalette.name})`}
