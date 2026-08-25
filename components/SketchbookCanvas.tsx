@@ -313,6 +313,10 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
     [applyCamera],
   );
 
+  const recenter = useCallback(() => {
+    applyCamera({ x: page.width / 2, y: page.height / 2, zoom: fitZoomRef.current });
+  }, [applyCamera, page]);
+
   useEffect(() => {
     if (!errorMessage) return;
     const id = setTimeout(() => setErrorMessage(null), 4000);
@@ -779,6 +783,15 @@ export function SketchbookCanvas({ pageId }: { pageId: string }) {
             className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${panMode ? "bg-[#1a1a1a] text-white" : "bg-black/[0.08] text-[#1a1a1a]"}`}
           >
             ✋ Pan
+          </button>
+          <button
+            type="button"
+            aria-label="recenter on the page"
+            title="Lost? Recenter on the page"
+            onClick={recenter}
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-black/[0.08] text-xs text-[#1a1a1a]"
+          >
+            🎯
           </button>
           <button
             type="button"
