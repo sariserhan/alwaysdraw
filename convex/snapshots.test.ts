@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import type { StrokeMode, BrushType, Point } from "../lib/types";
-import { SNAPSHOTS_TO_KEEP, RATE_LIMIT_WINDOW_MS } from "./constants";
+import { SNAPSHOTS_TO_KEEP, SNAPSHOTS_PRUNE_BATCH_SIZE, RATE_LIMIT_WINDOW_MS } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
 const modules = Object.fromEntries(
@@ -194,6 +194,65 @@ describe("snapshots query and mutation", () => {
     // getLatest still returns the actual latest, unaffected by pruning.
     const latest = await t.query(api.snapshots.getLatest, {});
     expect(latest?.strokeCount).toBe(submittedCount - 1);
+  });
+
+  it("prunes a large pre-existing backlog in bounded batches, never in one shot", async () => {
+    // Regression test for a real production incident: pruning used to
+    // .collect() the WHOLE table to find overflow. A 48-row backlog
+    // accumulated before pruning ever existed read 17MB in one call,
+    // exceeded Convex's per-transaction read cap, and failed the entire
+    // submit mutation (including its own insert, since Convex mutations
+    // are all-or-nothing) — repeatedly, since a failed prune never shrinks
+    // the table for the next attempt either. Seed a backlog directly
+    // (bypassing submit, simulating rows from before pruning existed) well
+    // past what one bounded batch can clear, and confirm submit still
+    // succeeds and only prunes a bounded batch per call.
+    const backlogSize = SNAPSHOTS_TO_KEEP + SNAPSHOTS_PRUNE_BATCH_SIZE * 2 + 4;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < backlogSize; i++) {
+        await ctx.db.insert("snapshots", {
+          sequence: i,
+          imageData: `data:image/webp;base64,backlog${i}`,
+          strokeCount: i,
+          createdAt: Date.now(),
+        });
+      }
+    });
+
+    const sequence = await advanceSequence(t, backlogSize + 1);
+    await expect(
+      t.mutation(api.snapshots.submit, {
+        sequence,
+        imageData: "data:image/webp;base64,newest",
+        strokeCount: 999,
+      }),
+    ).resolves.toBeDefined();
+
+    const afterOneSubmit = await t.run(async (ctx) => ctx.db.query("snapshots").collect());
+    // Backlog (48) + this submit's own insert (1), minus one bounded batch
+    // of deletions — nowhere near fully pruned yet, proving this call
+    // didn't try to clear everything at once.
+    expect(afterOneSubmit).toHaveLength(backlogSize + 1 - SNAPSHOTS_PRUNE_BATCH_SIZE);
+
+    // Draining the rest takes several more submits, each still bounded —
+    // eventually converges to SNAPSHOTS_TO_KEEP.
+    vi.useFakeTimers();
+    let remainingCount = afterOneSubmit.length;
+    try {
+      while (remainingCount > SNAPSHOTS_TO_KEEP) {
+        const nextSequence = await advanceSequence(t, 1);
+        await t.mutation(api.snapshots.submit, {
+          sequence: nextSequence,
+          imageData: `data:image/webp;base64,drain${remainingCount}`,
+          strokeCount: remainingCount,
+        });
+        vi.advanceTimersByTime(RATE_LIMIT_WINDOW_MS + 1000);
+        remainingCount = (await t.run(async (ctx) => ctx.db.query("snapshots").collect())).length;
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(remainingCount).toBe(SNAPSHOTS_TO_KEEP);
   });
 
   it("rate limits excessive global submissions", async () => {

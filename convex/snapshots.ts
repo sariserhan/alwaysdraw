@@ -5,6 +5,7 @@ import {
   SNAPSHOTS_GLOBAL_WINDOW,
   MAX_SNAPSHOT_IMAGE_BYTES,
   SNAPSHOTS_TO_KEEP,
+  SNAPSHOTS_PRUNE_BATCH_SIZE,
 } from "./constants";
 import { assertWritesEnabled, consumeRateLimit } from "./abuse";
 
@@ -90,13 +91,22 @@ export const submit = mutation({
       createdAt: Date.now(),
     });
 
-    const overflow = await ctx.db
+    const keep = await ctx.db
       .query("snapshots")
       .withIndex("by_sequence")
       .order("desc")
-      .collect();
-    for (const row of overflow.slice(SNAPSHOTS_TO_KEEP)) {
-      await ctx.db.delete(row._id);
+      .take(SNAPSHOTS_TO_KEEP);
+    const keepIds = new Set(keep.map((r) => r._id));
+
+    const oldestBatch = await ctx.db
+      .query("snapshots")
+      .withIndex("by_sequence")
+      .order("asc")
+      .take(SNAPSHOTS_PRUNE_BATCH_SIZE);
+    for (const row of oldestBatch) {
+      if (!keepIds.has(row._id)) {
+        await ctx.db.delete(row._id);
+      }
     }
 
     return inserted;

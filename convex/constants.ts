@@ -71,6 +71,12 @@ export const MAX_SNAPSHOT_IMAGE_BYTES = 5 * 1024 * 1024;
 // row-count read instead of pulling every (up to MAX_SNAPSHOT_IMAGE_BYTES)
 // row's full image payload just to count them.
 export const SNAPSHOTS_TO_KEEP = 3;
+// Bounds each snapshots.submit's pruning pass — never reads/deletes more
+// than this many old rows in one call. A backlog larger than this
+// converges over several submits instead. See snapshots.ts's PRUNE_BATCH_SIZE
+// usage for why an unbounded pass is unsafe (each row up to
+// MAX_SNAPSHOT_IMAGE_BYTES, against Convex's 16MB per-transaction read cap).
+export const SNAPSHOTS_PRUNE_BATCH_SIZE = 5;
 // Admin passcode attempts have no reliable per-attacker identity to key on
 // (clientId is self-reported), so this is a tight global-only cap — it
 // won't stop a determined attacker, but it makes casual brute-forcing slow.
