@@ -353,7 +353,8 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const handleDeleteProtectedZone = useCallback(async (zoneId: string) => {
     if (!adminPasscode) return;
     try {
-      await deleteProtectedZone({ passcode: adminPasscode, zoneId: zoneId as Id<"protectedZones"> });
+      const res = await deleteProtectedZone({ passcode: adminPasscode, zoneId: zoneId as Id<"protectedZones"> });
+      if (!res.success) throw new Error(res.error);
     } catch {
       setSubmitError("couldn't unlock that zone — try again");
     }
@@ -1559,6 +1560,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         targetClientId: "ADMIN_IMAGE_STAMPER",
         cursor: cursor ?? undefined,
       });
+      if (!res.success) throw new Error(res.error);
       cursor = res.nextCursor;
       done = res.done;
     }
@@ -1579,6 +1581,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
           maxY: rect.maxY,
           afterSequence,
         });
+        if (!res.success) throw new Error(res.error);
         totalDeleted += res.deletedCount;
         afterSequence = res.nextAfterSequence;
         done = res.done;

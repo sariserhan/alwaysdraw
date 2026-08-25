@@ -247,6 +247,7 @@ export function AdminPanelModal({
           targetClientId,
           cursor: cursor ?? undefined,
         });
+        if (!res.success) throw new Error(res.error);
         totalDeleted += res.deletedCount;
         cursor = res.nextCursor;
         done = res.done;
@@ -261,7 +262,7 @@ export function AdminPanelModal({
     if (!zoneName.trim()) return;
     try {
       setActionStatus(`Creating Protection Zone: ${zoneName}...`);
-      await createProtectedZone({
+      const res = await createProtectedZone({
         passcode: activePasscode,
         name: zoneName,
         minX: Number(zoneMinX),
@@ -271,6 +272,7 @@ export function AdminPanelModal({
         ownerClientId: zoneOwnerClientId.trim() || undefined,
         ownerName: zoneOwnerName.trim() || undefined,
       });
+      if (!res.success) throw new Error(res.error);
       setActionStatus(`Success! Locked canvas zone "${zoneName}".`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Zone creation failed"}`);
@@ -280,10 +282,11 @@ export function AdminPanelModal({
   const handleDeleteZone = async (zoneId: Id<"protectedZones">) => {
     try {
       setActionStatus("Removing protection zone...");
-      await deleteProtectedZone({
+      const res = await deleteProtectedZone({
         passcode: activePasscode,
         zoneId,
       });
+      if (!res.success) throw new Error(res.error);
       setActionStatus("Success! Unlocked canvas zone.");
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Zone delete failed"}`);
@@ -304,10 +307,11 @@ export function AdminPanelModal({
     if (!broadcastMessage.trim()) return;
     try {
       setActionStatus("Publishing broadcast announcement...");
-      await publishBroadcast({
+      const res = await publishBroadcast({
         passcode: activePasscode,
         message: broadcastMessage,
       });
+      if (!res.success) throw new Error(res.error);
       setActionStatus("Success! Live broadcast sent to all active painters.");
       setBroadcastMessage("");
     } catch (err: unknown) {
@@ -318,7 +322,8 @@ export function AdminPanelModal({
   const handleClearBroadcast = async () => {
     try {
       setActionStatus("Clearing broadcast banner...");
-      await clearBroadcast({ passcode: activePasscode });
+      const res = await clearBroadcast({ passcode: activePasscode });
+      if (!res.success) throw new Error(res.error);
       setActionStatus("Success! Broadcast cleared.");
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Clear failed"}`);
@@ -327,7 +332,8 @@ export function AdminPanelModal({
 
   const handleDismissReport = async (reportId: Id<"contentReports">) => {
     try {
-      await updateReportStatus({ passcode: activePasscode, reportId, status: "dismissed" });
+      const res = await updateReportStatus({ passcode: activePasscode, reportId, status: "dismissed" });
+      if (!res.success) throw new Error(res.error);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Dismiss failed"}`);
     }
@@ -348,8 +354,10 @@ export function AdminPanelModal({
     commentId: Id<"canvasComments">,
   ) => {
     try {
-      await adminRemoveComment({ passcode: activePasscode, commentId });
-      await updateReportStatus({ passcode: activePasscode, reportId, status: "reviewed" });
+      const removeRes = await adminRemoveComment({ passcode: activePasscode, commentId });
+      if (!removeRes.success) throw new Error(removeRes.error);
+      const statusRes = await updateReportStatus({ passcode: activePasscode, reportId, status: "reviewed" });
+      if (!statusRes.success) throw new Error(statusRes.error);
       setActionStatus("Success! Comment removed.");
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Delete failed"}`);
