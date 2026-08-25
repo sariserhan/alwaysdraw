@@ -9,6 +9,14 @@ if (sentryDsn) {
     release: process.env.NEXT_PUBLIC_APP_RELEASE,
     sendDefaultPii: false,
     tracesSampleRate: Number(process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE ?? "0.05"),
+    ignoreErrors: [
+      // React Server Components' Flight client throws this when the
+      // streamed page payload is cut off mid-transfer — tab closed,
+      // navigated away, or network dropped while a page was still
+      // streaming in. Every report of it has an all-internal stack (no
+      // app frames), so it isn't actionable app-code noise.
+      "Connection closed",
+    ],
   });
 }
 
