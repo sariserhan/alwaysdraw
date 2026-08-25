@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { generateAiStrokes as generateProceduralStrokes } from "@/lib/aiDrawer";
 import type { BrushType, Point } from "@/lib/types";
 
-export const runtime = "edge";
-
 const GEMINI_TIMEOUT_MS = 10_000;
 
 // Per-isolate sliding window — no caller identity is passed in the request
-// body, so this limits by IP. Edge isolates aren't shared across regions, so
-// this is a soft cap, not a hard distributed limit.
+// body, so this limits by IP. Isolates aren't necessarily shared across
+// requests or regions, so this is a soft cap, not a hard distributed limit.
 // ponytail: in-memory limiter, good enough for an admin-only feature; move
 // to the Convex-backed limiter (convex/abuse.ts) if this needs real
 // cross-region enforcement.
@@ -144,8 +142,10 @@ Valid brushType values: "neonGlow", "brush", "watercolor", "calligraphy", "oilPa
       return NextResponse.json({ strokes, source: "procedural-fallback" });
     }
 
-    const parsed = JSON.parse(candidateText);
-    const strokes = (parsed.strokes || []).map((s: any) => ({
+    const parsed = JSON.parse(candidateText) as {
+      strokes?: { points?: Point[]; color?: string; brushType?: BrushType; width?: number }[];
+    };
+    const strokes = (parsed.strokes || []).map((s) => ({
       points: s.points || [],
       color: s.color || color,
       brushType: s.brushType || brushType,
