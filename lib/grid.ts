@@ -166,7 +166,7 @@ export function drawGridOverlay(
       const x1 = worldMinX;
       const y1 = -x1 * tan30 + C;
       const x2 = worldMaxX;
-      const y2 = x2 * tan30 + C;
+      const y2 = -x2 * tan30 + C;
 
       const sx1 = toScreenX(x1);
       const sy1 = toScreenY(y1);

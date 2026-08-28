@@ -1087,6 +1087,14 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
   );
 
+  // Toggling the grid (or its spacing/opacity) only rebuilds redrawWorld's
+  // closure — nothing actually re-invokes it until some other interaction
+  // (pan, zoom, a stroke) happens to redraw next, so flipping the toggle
+  // otherwise looks like it did nothing until the user moves the canvas.
+  useEffect(() => {
+    scheduleRedraw({ world: true });
+  }, [gridConfig, scheduleRedraw]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (laserTrailsRef.current.length === 0) return;
