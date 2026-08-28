@@ -3,7 +3,7 @@ import type { Point } from "./types";
 export const SHAPE_TYPES = ["line", "arrow", "rect", "circle", "triangle", "star", "hexagon", "heart"] as const;
 export type ShapeType = (typeof SHAPE_TYPES)[number];
 
-export const SHAPE_CATALOG: Array<{ type: ShapeType; label: string; icon?: string }> = [
+export const SHAPE_CATALOG: Array<{ type: ShapeType; label: string }> = [
   { type: "line", label: "Line" },
   { type: "arrow", label: "Arrow" },
   { type: "rect", label: "Square" },

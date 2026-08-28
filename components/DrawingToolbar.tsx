@@ -431,7 +431,7 @@ function ShapePicker({
               : "bg-chrome-bg text-ink-dim hover:bg-chrome-border hover:text-ink"
           }`}
         >
-          {s.icon}
+          <ShapeIcon type={s.type} />
         </button>
       ))}
     </div>
