@@ -191,7 +191,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="min-h-full bg-chrome-bg text-ink font-sans antialiased">
+      <body className="min-h-full bg-chrome-bg text-ink font-sans antialiased" suppressHydrationWarning>
         {/* Visually hidden semantic text for crawlers and screen readers */}
         <noscript>
           <div style={{ padding: "20px", color: "#ffffff", backgroundColor: "#121315" }}>
