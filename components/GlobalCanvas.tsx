@@ -512,8 +512,9 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
     drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
-    drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
-  }, [gridConfig]);
+    // Grid is drawn in redrawStrokes instead — this layer sits underneath
+    // the strokes canvas's opaque snapshot base layer, which would hide it.
+  }, []);
 
   const redrawHeatmap = useCallback(() => {
     const ctx = heatmapCtxRef.current;
@@ -702,7 +703,16 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
       ctx.restore();
     }
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion]);
+
+    // Drawn last, on this canvas rather than the world layer below it — the
+    // snapshot base layer above is a full opaque bitmap of the whole world
+    // rect (background baked in), so a grid painted on the world canvas
+    // underneath it is invisible any time a snapshot has loaded, which in
+    // practice is almost always. Drawing it here, after every stroke
+    // (including erases) has already been composited, keeps it visible
+    // and immune to being punched through by an erase's destination-out.
+    drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1087,12 +1097,12 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
   );
 
-  // Toggling the grid (or its spacing/opacity) only rebuilds redrawWorld's
+  // Toggling the grid (or its spacing/opacity) only rebuilds redrawStrokes's
   // closure — nothing actually re-invokes it until some other interaction
   // (pan, zoom, a stroke) happens to redraw next, so flipping the toggle
   // otherwise looks like it did nothing until the user moves the canvas.
   useEffect(() => {
-    scheduleRedraw({ world: true });
+    scheduleRedraw({ strokes: true });
   }, [gridConfig, scheduleRedraw]);
 
   useEffect(() => {
