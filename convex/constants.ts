@@ -104,6 +104,30 @@ export const SNAPSHOTS_TO_KEEP = 3;
 // usage for why an unbounded pass is unsafe (each row up to
 // MAX_SNAPSHOT_IMAGE_BYTES, against Convex's 16MB per-transaction read cap).
 export const SNAPSHOTS_PRUNE_BATCH_SIZE = 5;
+
+// Board: a fixed-size, non-zoomable, always-fully-visible second shared
+// canvas — see docs/superpowers/specs/2026-08-29-board-canvas-design.md.
+export const BOARD_WIDTH = 2400;
+export const BOARD_HEIGHT = 1350;
+export const BOARD_STROKES_PER_CLIENT_WINDOW = 300;
+export const BOARD_STROKES_GLOBAL_WINDOW = 2_000;
+export const BOARD_HEARTBEATS_PER_CLIENT_WINDOW = 80;
+export const BOARD_HEARTBEATS_GLOBAL_WINDOW = 4_000;
+export const BOARD_COMMENTS_PER_CLIENT_WINDOW = 10;
+export const BOARD_COMMENTS_GLOBAL_WINDOW = 200;
+export const BOARD_REPORTS_PER_CLIENT_WINDOW = 5;
+export const BOARD_REPORTS_GLOBAL_WINDOW = 50;
+export const BOARD_WIPE_BATCH_SIZE = 500;
+// Presence list is bounded the same way presence.list already is — a
+// public, anonymous, zero-signup page must never assume its own realistic
+// traffic; it must be bounded regardless of how many people show up.
+export const BOARD_MAX_PRESENCE_LIST = 50;
+// Soft-deleted boardStrokes rows are hard-deleted after this long by
+// boardAdmin.pruneDeletedStrokes, IF an admin has opted in (see
+// boardMetadata.autoPruneEnabled) — off by default.
+export const BOARD_DELETED_STROKE_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const BOARD_PRUNE_BATCH_SIZE = 500;
+
 // Admin passcode attempts have no reliable per-attacker identity to key on
 // (clientId is self-reported), so this is a tight global-only cap — it
 // won't stop a determined attacker, but it makes casual brute-forcing slow.

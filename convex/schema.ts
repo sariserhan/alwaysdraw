@@ -187,6 +187,88 @@ export default defineSchema({
     .index("by_status_and_createdAt", ["status", "createdAt"])
     .index("by_reporter", ["reporterId"]),
 
+  boardStrokes: defineTable({
+    clientStrokeId: v.string(),
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    mode: v.union(v.literal("draw"), v.literal("erase")),
+    brushType: v.optional(brushTypeValidator),
+    color: v.string(),
+    width: v.number(),
+    opacity: v.optional(v.number()),
+    points: v.array(v.object({ x: v.number(), y: v.number() })),
+    clientTimestamp: v.number(),
+    sequence: v.number(),
+    serverTimestamp: v.number(),
+    deleted: v.optional(v.boolean()),
+    // Set only when deleted becomes true (wipeAll) — separate from
+    // serverTimestamp (the stroke's original creation time, which
+    // wipeAll never touches) because pruneDeletedStrokes needs to know
+    // how long a row has been *deleted*, not how old the original stroke
+    // was. Conflating the two would let a stroke drawn long ago get
+    // hard-deleted almost immediately after being wiped, defeating the
+    // whole point of a retention window.
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_sequence", ["sequence"])
+    .index("by_clientStrokeId", ["clientStrokeId"])
+    .index("by_clientId", ["clientId"])
+    // Lets pruneDeletedStrokes jump straight to eligible rows instead of
+    // scanning by_sequence from the oldest stroke forward — wipeAll
+    // re-stamps a soft-deleted row's `sequence` to a fresh, high value
+    // (see the schema comment on strokes.deleted for why), so deleted
+    // rows sort toward the *end* of by_sequence, not scattered among old
+    // live ones. A by_sequence scan from the front would mostly re-read
+    // old live rows and rarely reach the deleted ones at all.
+    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"]),
+
+  boardMetadata: defineTable({
+    currentSequence: v.number(),
+    autoPruneEnabled: v.optional(v.boolean()),
+  }),
+
+  boardPresence: defineTable({
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    lastSeenAt: v.number(),
+    cursorX: v.number(),
+    cursorY: v.number(),
+    laserTrail: v.optional(
+      v.array(v.object({ x: v.number(), y: v.number(), timestamp: v.number() })),
+    ),
+  })
+    .index("by_clientId", ["clientId"])
+    .index("by_lastSeenAt", ["lastSeenAt"]),
+
+  boardComments: defineTable({
+    clientId: v.string(),
+    username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    text: v.string(),
+    x: v.number(),
+    y: v.number(),
+    createdAt: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+
+  boardReports: defineTable({
+    reporterId: v.string(),
+    targetType: v.union(v.literal("area"), v.literal("comment")),
+    x: v.optional(v.number()),
+    y: v.optional(v.number()),
+    minX: v.optional(v.number()),
+    minY: v.optional(v.number()),
+    maxX: v.optional(v.number()),
+    maxY: v.optional(v.number()),
+    commentId: v.optional(v.id("boardComments")),
+    reason: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("reviewed"), v.literal("dismissed")),
+    createdAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_reporter", ["reporterId"]),
+
   sketchbookStrokes: defineTable({
     clientStrokeId: v.string(),
     clientId: v.string(),
