@@ -10,6 +10,12 @@
 
 import type * as abuse from "../abuse.js";
 import type * as admin from "../admin.js";
+import type * as boardAdmin from "../boardAdmin.js";
+import type * as boardComments from "../boardComments.js";
+import type * as boardMetadata from "../boardMetadata.js";
+import type * as boardPresence from "../boardPresence.js";
+import type * as boardReports from "../boardReports.js";
+import type * as boardStrokes from "../boardStrokes.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as canvasMetadata from "../canvasMetadata.js";
 import type * as comments from "../comments.js";
@@ -34,6 +40,12 @@ import type {
 declare const fullApi: ApiFromModules<{
   abuse: typeof abuse;
   admin: typeof admin;
+  boardAdmin: typeof boardAdmin;
+  boardComments: typeof boardComments;
+  boardMetadata: typeof boardMetadata;
+  boardPresence: typeof boardPresence;
+  boardReports: typeof boardReports;
+  boardStrokes: typeof boardStrokes;
   bookmarks: typeof bookmarks;
   canvasMetadata: typeof canvasMetadata;
   comments: typeof comments;

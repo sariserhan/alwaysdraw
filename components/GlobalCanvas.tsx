@@ -108,6 +108,7 @@ import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
 import { drawGridOverlay, snapPointToGrid, type GridConfig } from "@/lib/grid";
 import { getVisibleTileKeys, getTileKeysForStroke, getTileCoords, getTileId, TILE_SIZE } from "@/lib/tiling";
 import { findStrokeNearPoint } from "@/lib/hitTest";
+import { wallBackend, boardBackend } from "@/lib/canvasBackend";
 
 const MIN_CURSOR_DIAMETER_PX = 4;
 const MAGNIFIER_SIZE_PX = 160;
@@ -160,9 +161,11 @@ export interface GlobalCanvasProps {
   /** Hides the header, minimap, and sidebar for a lightweight iframe-embed
    * view — just the canvas and the drawing toolbar. See app/embed/page.tsx. */
   embedded?: boolean;
+  mode?: "wall" | "board";
 }
 
-export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
+export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasProps = {}) {
+  const backend = mode === "board" ? boardBackend : wallBackend;
   const containerRef = useRef<HTMLDivElement>(null);
   const worldCanvasRef = useRef<HTMLCanvasElement>(null);
   const worldCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -480,11 +483,11 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
   const convex = useConvex();
-  const submitStroke = useMutation(api.strokes.submit);
-  const heartbeat = useMutation(api.presence.heartbeat);
-  const createComment = useMutation(api.comments.create);
-  const removeComment = useMutation(api.comments.remove);
-  const adminRemoveComment = useMutation(api.comments.adminRemove);
+  const submitStroke = useMutation(backend.strokesApi.submit);
+  const heartbeat = useMutation(backend.presenceApi.heartbeat);
+  const createComment = useMutation(backend.commentsApi.create);
+  const removeComment = useMutation(backend.commentsApi.remove);
+  const adminRemoveComment = useMutation(backend.commentsApi.adminRemove);
   const reportContent = useMutation(api.reports.create);
   const submitSnapshot = useMutation(api.snapshots.submit);
 
@@ -506,9 +509,9 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     api.presence.listByTiles,
     !tooManyTilesForScoping && subscribedTileKeys.length > 0 ? { tileKeys: subscribedTileKeys } : "skip",
   );
-  const globalPresenceList = useQuery(api.presence.list, tooManyTilesForScoping ? {} : "skip");
+  const globalPresenceList = useQuery(backend.presenceApi.list, tooManyTilesForScoping ? {} : "skip");
   const presenceList = tooManyTilesForScoping ? globalPresenceList : scopedPresenceList;
-  const canvasCommentRows = useQuery(api.comments.list, {});
+  const canvasCommentRows = useQuery(backend.commentsApi.list, {});
   const comments = useMemo<CanvasComment[]>(
     () =>
       (canvasCommentRows ?? []).map((c) => ({
@@ -1924,7 +1927,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       const stencilSize = Math.max(40, brushWidth * 6);
       const subPaths = buildStencilPoints(selectedStencil, worldPt.x, worldPt.y, stencilSize);
       for (const points of subPaths) {
-        const tiles = getTileKeysForStroke(points, brushWidth, WORLD_WIDTH, WORLD_HEIGHT);
+        const tiles = getTileKeysForStroke(points, brushWidth, backend.worldWidth, backend.worldHeight);
         const clientStrokeId = `${clientId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const stroke: LocalStroke = {
           clientStrokeId,
@@ -1961,7 +1964,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       }
       scheduleRedraw({ world: true, strokes: true });
     },
-    [brushWidth, selectedStencil, color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw],
+    [brushWidth, selectedStencil, color, opacity, clientId, username, countryCode, submitStroke, scheduleRedraw, backend],
   );
 
   const handlePointerDown = useCallback(
