@@ -72,6 +72,13 @@ boardStrokes: defineTable({
 
 boardMetadata: defineTable({
   currentSequence: v.number(),
+  // Off (undefined/false) by default — the pruning cron always fires on
+  // schedule (Convex crons are static, deploy-time configuration; there's
+  // no way to register/unregister one at runtime), but pruneDeletedStrokes
+  // checks this flag first and no-ops entirely if it's off. An admin
+  // opts in via the admin panel when they actually want old soft-deleted
+  // rows cleaned up automatically.
+  autoPruneEnabled: v.optional(v.boolean()),
 }),
 
 boardPresence: defineTable({
@@ -194,22 +201,35 @@ export const BOARD_PRUNE_BATCH_SIZE = 500;
 - `convex/boardAdmin.ts` also exports `pruneDeletedStrokes`, an
   `internalMutation` run on a new cron (`convex/crons.ts`, alongside the
   existing `clear stale presence`/`recompute online count` jobs — e.g.
-  every 10 minutes): pages through `boardStrokes` via the `by_sequence`
-  index in `BOARD_PRUNE_BATCH_SIZE` batches, hard-deleting
-  (`ctx.db.delete`, not a patch) any row where `deleted === true` and
-  `serverTimestamp < Date.now() - BOARD_DELETED_STROKE_RETENTION_MS`. This
-  is the mechanism that keeps Board's "full-stroke replay stays cheap"
-  assumption (see Non-goals) actually true over time — unlike the main
-  wall's `strokes` table, which has no equivalent cleanup today and
-  relies on the snapshot-image optimization to stay affordable despite
-  that; Board has no such cushion, so this is load-bearing here, not
-  optional polish. Safe to hard-delete: a row only reaches this state
-  well after every connected client's incremental `listSince` sync has
-  already observed and applied its `deleted: true` patch, and a client
-  that reconnects later and replays from scratch correctly never sees a
-  hard-deleted row at all — which is exactly the same "gone" outcome a
-  soft-deleted-but-never-pruned row already produces today, just without
-  the storage/replay cost of keeping it around forever.
+  every 10 minutes). **Opt-in, off by default**: the very first thing the
+  handler does is read `boardMetadata.autoPruneEnabled` and return
+  immediately (no reads/writes beyond that one row) if it isn't `true` —
+  the cron itself always fires on schedule (Convex crons are static,
+  deploy-time configuration with no runtime enable/disable), but the
+  function it calls is a no-op until an admin turns it on. When enabled,
+  it pages through `boardStrokes` via the `by_sequence` index in
+  `BOARD_PRUNE_BATCH_SIZE` batches, hard-deleting (`ctx.db.delete`, not a
+  patch) any row where `deleted === true` and `serverTimestamp <
+  Date.now() - BOARD_DELETED_STROKE_RETENTION_MS`. Also exports
+  `setAutoPruneEnabled` (passcode-gated via `verifyAdminPasscode`, same
+  as every other admin mutation), which patches
+  `boardMetadata.autoPruneEnabled` — this is what the admin panel's
+  toggle (see Admin UI below) actually calls.
+
+  This is the mechanism that keeps Board's "full-stroke replay stays
+  cheap" assumption (see Non-goals) true over time *if* an admin opts
+  into it — unlike the main wall's `strokes` table, which has no
+  equivalent cleanup today and relies on the snapshot-image optimization
+  to stay affordable despite that; Board has no such cushion, so leaving
+  this off indefinitely means accepting the same unbounded-growth
+  characteristic the main wall already has, as a deliberate choice, not
+  an oversight. Safe to hard-delete when enabled: a row only reaches this
+  state well after every connected client's incremental `listSince` sync
+  has already observed and applied its `deleted: true` patch, and a
+  client that reconnects later and replays from scratch correctly never
+  sees a hard-deleted row at all — the same "gone" outcome a
+  soft-deleted-but-never-pruned row already produces, just without the
+  storage/replay cost of keeping it around forever.
 
 ### Client: `components/GlobalCanvas.tsx`
 
@@ -300,6 +320,17 @@ Camera handling when `backend.supportsZoomPan` is false:
   the main wall already has between its own client-side clamping and
   `strokes.submit`'s server-side `WORLD_WIDTH`/`WORLD_HEIGHT` bounds check.
 
+### Admin UI (`components/AdminPanelModal.tsx`)
+
+A new toggle in the existing admin panel — same passcode-gated surface
+every other admin control already lives in, no new UI surface. Reads
+`boardMetadata.autoPruneEnabled` (a small new query,
+`boardAdmin.getAutoPruneEnabled`) and renders it as an on/off switch
+labeled "Auto-prune deleted Board strokes," calling
+`boardAdmin.setAutoPruneEnabled` on toggle — same
+request/response/error-display pattern the panel's other admin actions
+(wipe, zone create/delete) already use.
+
 ### Routing
 
 New route `app/board/page.tsx`: `"use client"`, dynamically imports
@@ -343,12 +374,21 @@ Mirrors this codebase's established per-module test convention:
   regression-test shape as `snapshots.test.ts`'s bounded-batch-pruning
   test, since that was a real production incident this session), wrong
   passcode is rejected without wiping anything. Also covers
-  `pruneDeletedStrokes`: a row marked `deleted: true` with an old enough
-  `serverTimestamp` is hard-deleted (`ctx.db.query("boardStrokes")` no
-  longer finds it at all, not just filtered); a row marked `deleted: true`
-  too recently is left alone; a non-deleted row is never pruned regardless
-  of age; a backlog larger than `BOARD_PRUNE_BATCH_SIZE` converges over
-  multiple calls, same bounded-batch shape as the `wipeAll` test above.
+  `pruneDeletedStrokes`: **with `autoPruneEnabled` unset/false (the
+  default), a row marked `deleted: true` with an old `serverTimestamp` is
+  left untouched** — this is the primary regression test for the feature
+  flag itself, since silently pruning by default is exactly the behavior
+  the user explicitly opted out of. With `autoPruneEnabled: true` (set via
+  `setAutoPruneEnabled` in the test setup): a row marked `deleted: true`
+  with an old enough `serverTimestamp` is hard-deleted
+  (`ctx.db.query("boardStrokes")` no longer finds it at all, not just
+  filtered); a row marked `deleted: true` too recently is left alone; a
+  non-deleted row is never pruned regardless of age; a backlog larger than
+  `BOARD_PRUNE_BATCH_SIZE` converges over multiple calls, same
+  bounded-batch shape as the `wipeAll` test above. Also covers
+  `setAutoPruneEnabled`: requires a valid passcode (wrong passcode leaves
+  the flag unchanged), and `getAutoPruneEnabled` reflects the current
+  value.
 - No unit/component-render test for `GlobalCanvas`'s new `mode` prop or
   the camera-lock behavior itself — this codebase has no React
   component-rendering test infrastructure (confirmed: only one
