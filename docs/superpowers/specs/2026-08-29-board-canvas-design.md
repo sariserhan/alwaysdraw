@@ -102,6 +102,10 @@ boardReports: defineTable({
   targetType: v.union(v.literal("area"), v.literal("comment")),
   x: v.optional(v.number()),
   y: v.optional(v.number()),
+  minX: v.optional(v.number()),
+  minY: v.optional(v.number()),
+  maxX: v.optional(v.number()),
+  maxY: v.optional(v.number()),
   commentId: v.optional(v.id("boardComments")),
   reason: v.optional(v.string()),
   status: v.union(v.literal("open"), v.literal("reviewed"), v.literal("dismissed")),
@@ -111,13 +115,13 @@ boardReports: defineTable({
   .index("by_reporter", ["reporterId"]),
 ```
 
-`boardReports` drops `minX/minY/maxX/maxY/zoom` (main wall's
-`contentReports` fields for a drag-marked rectangle at a given zoom) since
-Board has no zoom/pan to report a camera position or region against. This
-means `targetType: "area"` on Board always means the main wall's existing
-"quick report — just a camera position, no marked rectangle" case (see
-the schema comment on `contentReports` above) — never the rectangle case,
-which structurally can't happen without zoom/pan.
+`boardReports` keeps the main wall's drag-marked-rectangle reporting
+(`minX/minY/maxX/maxY`) — a rectangle-select gesture only needs *some*
+screen↔world coordinate transform, not a *variable* one, and Board still
+has that transform (it's just fixed instead of user-adjustable). The only
+field actually dropped is `zoom`, since Board's zoom is always the same
+computed `fitZoom` value — recording it on every report would be
+redundant, not meaningful history.
 
 ### Constants (`convex/constants.ts`)
 
@@ -137,6 +141,18 @@ export const BOARD_COMMENTS_GLOBAL_WINDOW = 200;
 export const BOARD_REPORTS_PER_CLIENT_WINDOW = 5;
 export const BOARD_REPORTS_GLOBAL_WINDOW = 50;
 export const BOARD_WIPE_BATCH_SIZE = 500;
+// Presence list is bounded the same way presence.list already is (see
+// MAX_PRESENCE_LIST) — a public, anonymous, zero-signup page must never
+// assume its own realistic traffic; it must be bounded regardless of how
+// many people actually show up.
+export const BOARD_MAX_PRESENCE_LIST = 50;
+// Soft-deleted boardStrokes rows (from wipeAll) are hard-deleted after this
+// long — long enough that any client's incremental listSince sync has
+// certainly already observed the deletion (see the pruning cron below).
+// Board has no snapshot-image cushion (see Non-goals), so unlike the main
+// wall, unpruned deleted rows directly inflate every future replay's cost.
+export const BOARD_DELETED_STROKE_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const BOARD_PRUNE_BATCH_SIZE = 500;
 ```
 
 ### New Convex modules
@@ -157,11 +173,14 @@ export const BOARD_WIPE_BATCH_SIZE = 500;
   instead of `WORLD_WIDTH`/`WORLD_HEIGHT`, and with no `tiles` field or
   tile-intersection logic (see Non-goals).
 - `convex/boardPresence.ts` — `heartbeat`/`list` mirroring
-  `convex/presence.ts`, minus `listByTiles`/`tileKey` (no tiling) and
-  minus `onlineCount`'s cron-maintained counter (Board's presence table
-  is small enough — bounded by the small canvas's realistic concurrent
-  audience — that a direct `list` read is cheap; add the counter later
-  only if that stops being true).
+  `convex/presence.ts`, minus `listByTiles`/`tileKey` (no tiling). `list`
+  is explicitly bounded exactly like `presence.list` already is: filtered
+  to `lastSeenAt >= Date.now() - PRESENCE_ONLINE_WINDOW_MS` via the
+  `by_lastSeenAt` index, then `.take(BOARD_MAX_PRESENCE_LIST)` — never an
+  unbounded read, regardless of how much traffic actually arrives. Also
+  minus `onlineCount`'s cron-maintained counter for now (the bounded
+  `list` read stays cheap either way; add the counter later only if a
+  bare read count query is ever needed independent of the full list).
 - `convex/boardComments.ts` — mirrors `convex/comments.ts` exactly
   (`create`/`remove`/`list`), swapping the table name.
 - `convex/boardAdmin.ts` — a `wipeAll` mutation (passcode-gated via the
@@ -172,32 +191,114 @@ export const BOARD_WIPE_BATCH_SIZE = 500;
   "the whole thing." Also a `reports`-queue read/resolve pair mirroring
   `admin.ts`'s existing comment/area report handling, scoped to
   `boardReports`/`boardComments`.
+- `convex/boardAdmin.ts` also exports `pruneDeletedStrokes`, an
+  `internalMutation` run on a new cron (`convex/crons.ts`, alongside the
+  existing `clear stale presence`/`recompute online count` jobs — e.g.
+  every 10 minutes): pages through `boardStrokes` via the `by_sequence`
+  index in `BOARD_PRUNE_BATCH_SIZE` batches, hard-deleting
+  (`ctx.db.delete`, not a patch) any row where `deleted === true` and
+  `serverTimestamp < Date.now() - BOARD_DELETED_STROKE_RETENTION_MS`. This
+  is the mechanism that keeps Board's "full-stroke replay stays cheap"
+  assumption (see Non-goals) actually true over time — unlike the main
+  wall's `strokes` table, which has no equivalent cleanup today and
+  relies on the snapshot-image optimization to stay affordable despite
+  that; Board has no such cushion, so this is load-bearing here, not
+  optional polish. Safe to hard-delete: a row only reaches this state
+  well after every connected client's incremental `listSince` sync has
+  already observed and applied its `deleted: true` patch, and a client
+  that reconnects later and replays from scratch correctly never sees a
+  hard-deleted row at all — which is exactly the same "gone" outcome a
+  soft-deleted-but-never-pruned row already produces today, just without
+  the storage/replay cost of keeping it around forever.
 
 ### Client: `components/GlobalCanvas.tsx`
 
-Takes a new prop, `mode?: "wall" | "board"` (default `"wall"`, so every
-existing call site is unaffected). Near the top of the component, a small
-set of wrapper functions pick which Convex module to call based on
-`mode` — same pattern as the earlier rooms design — so every one of the
-~3,000 lines of drawing/tool/rendering logic below is unchanged and
-mode-agnostic; it only ever calls through the wrappers.
+Rather than scattering `mode === "board"` checks through an already
+~3,000-line component, `GlobalCanvas` takes a new prop, `mode?: "wall" |
+"board"` (default `"wall"`, so every existing call site is unaffected),
+and resolves it to a single **`CanvasBackend`** adapter object up front:
 
-Camera handling in `"board"` mode:
+```ts
+// lib/canvasBackend.ts
+export interface CanvasBackend {
+  strokesApi: {
+    submit: typeof api.strokes.submit | typeof api.boardStrokes.submit;
+    listSince: typeof api.strokes.listSince | typeof api.boardStrokes.listSince;
+    getLatest: typeof api.strokes.getLatest | typeof api.boardStrokes.getLatest;
+  };
+  presenceApi: {
+    heartbeat: typeof api.presence.heartbeat | typeof api.boardPresence.heartbeat;
+    list: typeof api.presence.list | typeof api.boardPresence.list;
+  };
+  commentsApi: {
+    create: typeof api.comments.create | typeof api.boardComments.create;
+    remove: typeof api.comments.remove | typeof api.boardComments.remove;
+    list: typeof api.comments.list | typeof api.boardComments.list;
+  };
+  worldWidth: number;
+  worldHeight: number;
+  supportsZoomPan: boolean;
+  showMinimap: boolean;
+}
+
+export const wallBackend: CanvasBackend = {
+  strokesApi: { submit: api.strokes.submit, listSince: api.strokes.listSince, getLatest: api.strokes.getLatest },
+  presenceApi: { heartbeat: api.presence.heartbeat, list: api.presence.list },
+  commentsApi: { create: api.comments.create, remove: api.comments.remove, list: api.comments.list },
+  worldWidth: WORLD_WIDTH,
+  worldHeight: WORLD_HEIGHT,
+  supportsZoomPan: true,
+  showMinimap: true,
+};
+
+export const boardBackend: CanvasBackend = {
+  strokesApi: { submit: api.boardStrokes.submit, listSince: api.boardStrokes.listSince, getLatest: api.boardStrokes.getLatest },
+  presenceApi: { heartbeat: api.boardPresence.heartbeat, list: api.boardPresence.list },
+  commentsApi: { create: api.boardComments.create, remove: api.boardComments.remove, list: api.boardComments.list },
+  worldWidth: BOARD_WIDTH,
+  worldHeight: BOARD_HEIGHT,
+  supportsZoomPan: false,
+  showMinimap: false,
+};
+```
+
+`GlobalCanvas` does `const backend = mode === "board" ? boardBackend :
+wallBackend;` once, then every existing `useMutation(api.strokes.submit)`
+/ `useQuery(api.presence.list, ...)` call site becomes
+`useMutation(backend.strokesApi.submit)` / `useQuery(backend.presenceApi.list,
+...)` — the ~3,000 lines of drawing/tool/rendering logic below are
+otherwise unchanged and never reference `mode` directly, only `backend`'s
+fields. Tile-scoped presence subscription logic
+(`subscribedTileKeys`/`MAX_SCOPED_PRESENCE_TILES`) is skipped whenever
+`backend.showMinimap` is false (Board never has enough world-space to
+need tile scoping — see Non-goals) — presence subscribes to
+`backend.presenceApi.list` unconditionally in that case.
+
+Camera handling when `backend.supportsZoomPan` is false:
 - On mount and on every window resize, the camera is set to
-  `{ x: BOARD_WIDTH / 2, y: BOARD_HEIGHT / 2, zoom: fitZoom }`, where
-  `fitZoom = Math.min(viewportWidth / BOARD_WIDTH, viewportHeight / BOARD_HEIGHT)`
+  `{ x: backend.worldWidth / 2, y: backend.worldHeight / 2, zoom: fitZoom }`,
+  where `fitZoom = Math.min(viewportWidth / backend.worldWidth, viewportHeight / backend.worldHeight)`
   — the whole board exactly fits the viewport, centered, same "fit"
   math `SketchbookCanvas.tsx` already uses for its own pages.
 - Every zoom/pan input handler (wheel/trackpad-pinch zoom, `+`/`-`
-  buttons, keyboard zoom shortcuts, click-drag panning) is disabled in
-  this mode — the camera is set once per resize and never changes
-  otherwise.
-- The minimap is hidden in this mode (redundant when the whole board is
-  always fully visible at once).
-- Tile-scoped presence subscription logic
-  (`subscribedTileKeys`/`MAX_SCOPED_PRESENCE_TILES`) is bypassed entirely
-  in board mode — presence just subscribes to the one `boardPresence.list`
-  query, unconditionally.
+  buttons, keyboard zoom shortcuts, click-drag panning) is disabled — the
+  camera is set once per resize and never changes otherwise.
+- The minimap is hidden (`backend.showMinimap` is false) — redundant when
+  the whole board is always fully visible at once.
+- **Letterboxing**: when the viewport's aspect ratio doesn't match
+  `BOARD_WIDTH`/`BOARD_HEIGHT` (e.g. a phone, an ultrawide monitor),
+  `fitZoom` leaves a margin on two sides rather than cropping or
+  stretching the board. That margin renders as plain background (the
+  same chrome background color the rest of the app's chrome uses, not
+  the board's paper color) so it visually reads as "outside the canvas,"
+  not as empty drawable space.
+- Pointer input outside the board's rect (inside that letterboxed margin)
+  is ignored for drawing purposes — it never starts a stroke. This is a
+  client-side UX guard on top of (not instead of) the server-side bounds
+  check `boardStrokes.submit` already does against `BOARD_WIDTH`/`BOARD_HEIGHT`
+  (see New Convex modules above), the same defense-in-depth relationship
+  the main wall already has between its own client-side clamping and
+  `strokes.submit`'s server-side `WORLD_WIDTH`/`WORLD_HEIGHT` bounds check.
 
 ### Routing
 
@@ -241,11 +342,24 @@ Mirrors this codebase's established per-module test convention:
   over multiple calls without ever reading unboundedly in one call (same
   regression-test shape as `snapshots.test.ts`'s bounded-batch-pruning
   test, since that was a real production incident this session), wrong
-  passcode is rejected without wiping anything.
-- No render/component test for `GlobalCanvas`'s new `mode` prop or the
-  camera-lock behavior — this codebase has no React component-rendering
-  test infrastructure (confirmed: only one non-rendering component test
-  exists, `BrushCursor.test.ts`). Verified instead via live browser
-  check (two tabs, confirm draw/comment/presence sync, confirm zoom
-  input has no effect) before considering the task done, same as every
-  other UI-behavior change this session.
+  passcode is rejected without wiping anything. Also covers
+  `pruneDeletedStrokes`: a row marked `deleted: true` with an old enough
+  `serverTimestamp` is hard-deleted (`ctx.db.query("boardStrokes")` no
+  longer finds it at all, not just filtered); a row marked `deleted: true`
+  too recently is left alone; a non-deleted row is never pruned regardless
+  of age; a backlog larger than `BOARD_PRUNE_BATCH_SIZE` converges over
+  multiple calls, same bounded-batch shape as the `wipeAll` test above.
+- No unit/component-render test for `GlobalCanvas`'s new `mode` prop or
+  the camera-lock behavior itself — this codebase has no React
+  component-rendering test infrastructure (confirmed: only one
+  non-rendering component test exists, `BrushCursor.test.ts`). It does,
+  however, have Playwright e2e infrastructure already
+  (`e2e/multiplayer.spec.ts`, `e2e/sketchbook.spec.ts`, `npm run
+  test:e2e`), which is the right tool for exactly this behavior. New
+  `e2e/board.spec.ts`: load `/board`, capture the canvas element's
+  bounding rect and the rendered stroke path for a drawn mark; dispatch a
+  wheel-zoom event and a simulated pinch; assert the canvas's bounding
+  rect and camera-derived stroke position are byte-identical before and
+  after (proving zoom input had zero effect) — this is Board's single
+  defining behavioral difference from every other canvas in the app, so
+  it gets a real regression test, not just a manual check.
