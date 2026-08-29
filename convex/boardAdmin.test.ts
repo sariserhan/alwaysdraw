@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
+import { MutationCtx } from "./_generated/server";
 import { BOARD_WIPE_BATCH_SIZE, BOARD_PRUNE_BATCH_SIZE, RATE_LIMIT_WINDOW_MS } from "./constants";
 
 const allModules = import.meta.glob("./**/*.*s");
@@ -101,7 +102,7 @@ describe("boardAdmin auto-prune", () => {
   // loop that seeds more than one row.
   async function seedOldDeletedStroke(t: ReturnType<typeof convexTest>, id: string, ageMs: number) {
     const { sequence } = await submitBoardStroke(t, id);
-    await t.run(async (ctx) => {
+    await t.run(async (ctx: MutationCtx) => {
       const row = await ctx.db
         .query("boardStrokes")
         .withIndex("by_sequence", (q) => q.eq("sequence", sequence))
@@ -136,7 +137,7 @@ describe("boardAdmin auto-prune", () => {
 
     await seedOldDeletedStroke(t, "old-one", 30 * 24 * 60 * 60 * 1000); // old + deleted -> pruned
     const recent = await submitBoardStroke(t, "recent-deleted");
-    await t.run(async (ctx) => {
+    await t.run(async (ctx: MutationCtx) => {
       const row = await ctx.db
         .query("boardStrokes")
         .withIndex("by_sequence", (q) => q.eq("sequence", recent.sequence))
