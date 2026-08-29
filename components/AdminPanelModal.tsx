@@ -127,6 +127,8 @@ export function AdminPanelModal({
   const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
   const updateReportStatus = useMutation(api.reports.updateStatus);
   const adminRemoveComment = useMutation(api.comments.adminRemove);
+  const autoPruneEnabled = useQuery(api.boardAdmin.getAutoPruneEnabled, {});
+  const setAutoPruneEnabled = useMutation(api.boardAdmin.setAutoPruneEnabled);
 
   const protectedZones = useQuery(
     api.admin.getProtectedZones,
@@ -231,6 +233,17 @@ export function AdminPanelModal({
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Wipe failed"}`);
     } finally {
       setIsWiping(false);
+    }
+  };
+
+  const handleToggleAutoPrune = async () => {
+    try {
+      setActionStatus("Updating Board auto-prune setting...");
+      const res = await setAutoPruneEnabled({ passcode: activePasscode, enabled: !autoPruneEnabled });
+      if (!res.success) throw new Error(res.error);
+      setActionStatus(`Success! Board auto-prune is now ${!autoPruneEnabled ? "ON" : "OFF"}.`);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Failed to update auto-prune"}`);
     }
   };
 
@@ -576,6 +589,24 @@ export function AdminPanelModal({
                   className="rounded bg-rust px-3 py-1.5 font-bold text-on-accent hover:brightness-110"
                 >
                   PURGE ALL CLIENT MARKS
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 border-t border-chrome-border pt-3 mt-3">
+                <div>
+                  <div className="font-bold text-xs uppercase">Board Auto-Prune</div>
+                  <div className="text-[10px] text-ink-dim">
+                    Automatically hard-deletes old wiped Board strokes. Off by default.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleAutoPrune}
+                  className={`px-3 py-1 text-xs font-bold rounded-sm border ${
+                    autoPruneEnabled ? "bg-accent-yellow text-black border-accent-yellow" : "bg-transparent border-chrome-border"
+                  }`}
+                >
+                  {autoPruneEnabled ? "ON" : "OFF"}
                 </button>
               </div>
             </div>
