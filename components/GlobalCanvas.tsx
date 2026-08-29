@@ -1416,22 +1416,37 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
-    const send = () => {
+    let cancelled = false;
+    // Waits for each heartbeat to settle before scheduling the next one —
+    // at the old 3s interval a fire-and-forget timer never overlapped, but
+    // at 150ms a heartbeat slower than that (any real network latency
+    // spike) let the next one fire while the previous was still in flight,
+    // racing two writes to the same per-client presence/rate-limit rows
+    // and causing exactly the OCC storm this was meant to avoid.
+    const send = async () => {
       const myTrail = laserTrailsRef.current.find((t) => !t.id.startsWith("remote-"));
-      heartbeat({
-        clientId,
-        username,
-        cursorX: lastCursorWorldRef.current.x,
-        cursorY: lastCursorWorldRef.current.y,
-        laserTrail: myTrail ? myTrail.points : undefined,
-      }).catch(() => {});
+      try {
+        await heartbeat({
+          clientId,
+          username,
+          cursorX: lastCursorWorldRef.current.x,
+          cursorY: lastCursorWorldRef.current.y,
+          laserTrail: myTrail ? myTrail.points : undefined,
+        });
+      } catch {
+        // Ignored — the next heartbeat retries the current position anyway.
+      }
+      if (cancelled) return;
       const idleFor = Date.now() - (lastActivityAtRef.current ?? Date.now());
       const nextDelay =
         idleFor > HEARTBEAT_IDLE_THRESHOLD_MS ? HEARTBEAT_IDLE_INTERVAL_MS : HEARTBEAT_ACTIVE_INTERVAL_MS;
       timeoutId = setTimeout(send, nextDelay);
     };
     send();
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [heartbeat, clientId, username]);
 
   const commitOwnChunk = useCallback(
