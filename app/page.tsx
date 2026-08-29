@@ -131,6 +131,9 @@ export default function Home() {
             <Link href="/canvas" className="text-accent-yellow hover:text-ink transition">
               🎨 Live Canvas
             </Link>
+            <Link href="/board" className="hover:text-ink transition">
+              🖼️ Board
+            </Link>
             <Link href="/sketchbook" className="hover:text-ink transition">
               📖 Sketchbook
             </Link>

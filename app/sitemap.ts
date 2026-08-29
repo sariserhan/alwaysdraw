@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     "",
     "/canvas",
+    "/board",
     "/sketchbook",
     ...Object.keys(SKETCHBOOK_PAGES).map((id) => `/sketchbook/${id}`),
   ];
@@ -15,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return routes.map((route) => ({
     url: `${siteUrl}${route}`,
     lastModified: new Date(),
-    changeFrequency: route === "" || route === "/canvas" || route.startsWith("/sketchbook") ? "always" : "weekly",
-    priority: route === "" || route === "/canvas" || route.startsWith("/sketchbook") ? 1.0 : 0.8,
+    changeFrequency: route === "" || route === "/canvas" || route === "/board" || route.startsWith("/sketchbook") ? "always" : "weekly",
+    priority: route === "" || route === "/canvas" || route === "/board" || route.startsWith("/sketchbook") ? 1.0 : 0.8,
   }));
 }
