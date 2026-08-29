@@ -31,4 +31,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "prune deleted board strokes",
+  { minutes: 10 },
+  internal.boardAdmin.pruneDeletedStrokes,
+  {},
+);
+
 export default crons;
