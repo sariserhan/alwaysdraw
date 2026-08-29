@@ -51,6 +51,9 @@ describe("boardAdmin.wipeAll", () => {
     const rows = await t.run((ctx) => ctx.db.query("boardStrokes").collect());
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.deleted)).toBe(true);
+    // deletedAt (not serverTimestamp) is what pruneDeletedStrokes (Task 7)
+    // keys off — must be set at deletion time, every time.
+    expect(rows.every((r) => typeof r.deletedAt === "number")).toBe(true);
   });
 
   it("converges a backlog larger than BOARD_WIPE_BATCH_SIZE over multiple bounded calls", async () => {

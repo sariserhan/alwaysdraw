@@ -40,7 +40,7 @@ export const wipeAll = mutation({
     for (const stroke of batch) {
       if (stroke.deleted) continue;
       const nextSequence = await claimNextSequence(ctx);
-      await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
+      await ctx.db.patch(stroke._id, { deleted: true, deletedAt: Date.now(), sequence: nextSequence });
       deletedCount++;
     }
 
