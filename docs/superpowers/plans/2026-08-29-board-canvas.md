@@ -54,10 +54,26 @@ In `convex/schema.ts`, add these five table definitions (place them after the ex
     sequence: v.number(),
     serverTimestamp: v.number(),
     deleted: v.optional(v.boolean()),
+    // Set only when deleted becomes true (wipeAll) — separate from
+    // serverTimestamp (the stroke's original creation time, which
+    // wipeAll never touches) because pruneDeletedStrokes needs to know
+    // how long a row has been *deleted*, not how old the original stroke
+    // was. Conflating the two would let a stroke drawn long ago get
+    // hard-deleted almost immediately after being wiped, defeating the
+    // whole point of a retention window.
+    deletedAt: v.optional(v.number()),
   })
     .index("by_sequence", ["sequence"])
     .index("by_clientStrokeId", ["clientStrokeId"])
-    .index("by_clientId", ["clientId"]),
+    .index("by_clientId", ["clientId"])
+    // Lets pruneDeletedStrokes jump straight to eligible rows instead of
+    // scanning by_sequence from the oldest stroke forward — wipeAll
+    // re-stamps a soft-deleted row's `sequence` to a fresh, high value
+    // (see the schema comment on strokes.deleted for why), so deleted
+    // rows sort toward the *end* of by_sequence, not scattered among old
+    // live ones. A by_sequence scan from the front would mostly re-read
+    // old live rows and rarely reach the deleted ones at all.
+    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"]),
 
   boardMetadata: defineTable({
     currentSequence: v.number(),
@@ -382,6 +398,12 @@ const boardStrokeReturnFields = v.object({
   sequence: v.number(),
   serverTimestamp: v.number(),
   deleted: v.optional(v.boolean()),
+  // Must be declared even though this task never sets it (only
+  // boardAdmin.wipeAll does, in Task 6) — Convex's return validator
+  // rejects any field present on a returned document that isn't
+  // declared here, so listSince would start throwing on any row a later
+  // wipeAll has touched if this were omitted.
+  deletedAt: v.optional(v.number()),
 });
 
 export const submit = mutation({
@@ -1375,6 +1397,9 @@ describe("boardAdmin.wipeAll", () => {
     const rows = await t.run((ctx) => ctx.db.query("boardStrokes").collect());
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.deleted)).toBe(true);
+    // deletedAt (not serverTimestamp) is what pruneDeletedStrokes (Task 7)
+    // keys off — must be set at deletion time, every time.
+    expect(rows.every((r) => typeof r.deletedAt === "number")).toBe(true);
   });
 
   it("converges a backlog larger than BOARD_WIPE_BATCH_SIZE over multiple bounded calls", async () => {
@@ -1450,7 +1475,7 @@ export const wipeAll = mutation({
     for (const stroke of batch) {
       if (stroke.deleted) continue;
       const nextSequence = await claimNextSequence(ctx);
-      await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
+      await ctx.db.patch(stroke._id, { deleted: true, deletedAt: Date.now(), sequence: nextSequence });
       deletedCount++;
     }
 
@@ -1504,15 +1529,22 @@ describe("boardAdmin auto-prune", () => {
     vi.unstubAllEnvs();
   });
 
-  async function seedOldDeletedStroke(t: ReturnType<typeof convexTest>, ageMs: number) {
-    const { sequence } = await submitBoardStroke(t, "old-one");
+  // `id` must be unique per call (it's used as both clientStrokeId and
+  // clientId via submitBoardStroke) — submit() is idempotent on
+  // clientStrokeId, so a repeated id would silently return the
+  // already-existing row instead of inserting a new one, breaking any
+  // loop that seeds more than one row.
+  async function seedOldDeletedStroke(t: ReturnType<typeof convexTest>, id: string, ageMs: number) {
+    const { sequence } = await submitBoardStroke(t, id);
     await t.run(async (ctx) => {
       const row = await ctx.db
         .query("boardStrokes")
         .withIndex("by_sequence", (q) => q.eq("sequence", sequence))
         .unique();
       if (!row) throw new Error("seed row not found");
-      await ctx.db.patch(row._id, { deleted: true, serverTimestamp: Date.now() - ageMs });
+      // deletedAt (when it was deleted), not serverTimestamp (when it was
+      // originally drawn) — pruning eligibility is based on the former.
+      await ctx.db.patch(row._id, { deleted: true, deletedAt: Date.now() - ageMs });
     });
   }
 
@@ -1521,7 +1553,7 @@ describe("boardAdmin auto-prune", () => {
   });
 
   it("does nothing when autoPruneEnabled is off (the default)", async () => {
-    await seedOldDeletedStroke(t, 30 * 24 * 60 * 60 * 1000); // 30 days old
+    await seedOldDeletedStroke(t, "old-one", 30 * 24 * 60 * 60 * 1000); // 30 days old
     await t.mutation(internal.boardAdmin.pruneDeletedStrokes, {});
     const rows = await t.run((ctx) => ctx.db.query("boardStrokes").collect());
     expect(rows).toHaveLength(1);
@@ -1537,7 +1569,7 @@ describe("boardAdmin auto-prune", () => {
     await t.mutation(api.boardAdmin.setAutoPruneEnabled, { passcode: PASSCODE, enabled: true });
     expect(await t.query(api.boardAdmin.getAutoPruneEnabled, {})).toBe(true);
 
-    await seedOldDeletedStroke(t, 30 * 24 * 60 * 60 * 1000); // old + deleted -> pruned
+    await seedOldDeletedStroke(t, "old-one", 30 * 24 * 60 * 60 * 1000); // old + deleted -> pruned
     const recent = await submitBoardStroke(t, "recent-deleted");
     await t.run(async (ctx) => {
       const row = await ctx.db
@@ -1545,7 +1577,7 @@ describe("boardAdmin auto-prune", () => {
         .withIndex("by_sequence", (q) => q.eq("sequence", recent.sequence))
         .unique();
       if (!row) throw new Error("seed row not found");
-      await ctx.db.patch(row._id, { deleted: true }); // deleted just now -> not pruned yet
+      await ctx.db.patch(row._id, { deleted: true, deletedAt: Date.now() }); // deleted just now -> not pruned yet
     });
     await submitBoardStroke(t, "still-live"); // never deleted -> never pruned
 
@@ -1562,7 +1594,7 @@ describe("boardAdmin auto-prune", () => {
     await t.mutation(api.boardAdmin.setAutoPruneEnabled, { passcode: PASSCODE, enabled: true });
     const backlogSize = BOARD_PRUNE_BATCH_SIZE + 10;
     for (let i = 0; i < backlogSize; i++) {
-      await seedOldDeletedStroke(t, 30 * 24 * 60 * 60 * 1000);
+      await seedOldDeletedStroke(t, `old-${i}`, 30 * 24 * 60 * 60 * 1000);
     }
     let remaining = backlogSize;
     let calls = 0;
@@ -1649,16 +1681,25 @@ export const pruneDeletedStrokes = internalMutation({
     if (!meta?.autoPruneEnabled) return null;
 
     const cutoff = Date.now() - BOARD_DELETED_STROKE_RETENTION_MS;
+    // by_deleted_and_deletedAt, not by_sequence: wipeAll re-stamps a
+    // soft-deleted row's sequence to a fresh, high value, so deleted rows
+    // don't sit at the front of by_sequence with old live ones — a scan
+    // from the oldest sequence would mostly re-read undeletable live rows
+    // and rarely reach anything actually eligible for pruning. Filtering
+    // on deletedAt (when the row was deleted), not serverTimestamp (when
+    // the stroke was originally drawn), is also required for correctness:
+    // wipeAll never touches serverTimestamp, so using it here would treat
+    // an old stroke as immediately prunable the moment it's wiped,
+    // defeating the retention window's entire purpose.
     const batch = await ctx.db
       .query("boardStrokes")
-      .withIndex("by_sequence")
-      .order("asc")
+      .withIndex("by_deleted_and_deletedAt", (q) => q.eq("deleted", true).lt("deletedAt", cutoff))
       .take(BOARD_PRUNE_BATCH_SIZE);
 
+    // Every row in batch already matches deleted===true && deletedAt<cutoff
+    // by construction of the index query above — no further filtering needed.
     for (const stroke of batch) {
-      if (stroke.deleted && stroke.serverTimestamp < cutoff) {
-        await ctx.db.delete(stroke._id);
-      }
+      await ctx.db.delete(stroke._id);
     }
     return null;
   },
