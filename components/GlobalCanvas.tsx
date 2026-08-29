@@ -507,10 +507,15 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const tooManyTilesForScoping = subscribedTileKeys.length > MAX_SCOPED_PRESENCE_TILES;
   const scopedPresenceList = useQuery(
     api.presence.listByTiles,
-    !tooManyTilesForScoping && subscribedTileKeys.length > 0 ? { tileKeys: subscribedTileKeys } : "skip",
+    backend.usesTileScoping && !tooManyTilesForScoping && subscribedTileKeys.length > 0
+      ? { tileKeys: subscribedTileKeys }
+      : "skip",
   );
-  const globalPresenceList = useQuery(backend.presenceApi.list, tooManyTilesForScoping ? {} : "skip");
-  const presenceList = tooManyTilesForScoping ? globalPresenceList : scopedPresenceList;
+  const globalPresenceList = useQuery(
+    backend.presenceApi.list,
+    !backend.usesTileScoping || tooManyTilesForScoping ? {} : "skip",
+  );
+  const presenceList = !backend.usesTileScoping || tooManyTilesForScoping ? globalPresenceList : scopedPresenceList;
   const canvasCommentRows = useQuery(backend.commentsApi.list, {});
   const comments = useMemo<CanvasComment[]>(
     () =>
@@ -541,10 +546,10 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     if (!ctx) return;
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
-    drawWorldBackground(ctx, cameraRef.current, width, height, WORLD_WIDTH, WORLD_HEIGHT);
+    drawWorldBackground(ctx, cameraRef.current, width, height, backend.worldWidth, backend.worldHeight);
     // Grid is drawn in redrawStrokes instead — this layer sits underneath
     // the strokes canvas's opaque snapshot base layer, which would hide it.
-  }, []);
+  }, [backend]);
 
   const redrawHeatmap = useCallback(() => {
     const ctx = heatmapCtxRef.current;
@@ -1220,10 +1225,33 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     return () => ro.disconnect();
   }, [redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
 
+  // Board mode has no zoom/pan: lock the camera to whatever zoom fits the
+  // entire fixed world inside the current viewport, centered. Placed after
+  // the resize effect above (not right by cameraRef/viewportRef's
+  // declaration) so viewportRef.current is already populated by the time
+  // this runs on mount — otherwise the first fit would bail on a 0x0
+  // viewport and never fire again until a window resize.
+  useEffect(() => {
+    if (backend.supportsZoomPan) return;
+    const applyFitCamera = () => {
+      const { width, height } = viewportRef.current;
+      if (width === 0 || height === 0) return;
+      const fitZoom = Math.min(width / backend.worldWidth, height / backend.worldHeight);
+      const fitCamera = { x: backend.worldWidth / 2, y: backend.worldHeight / 2, zoom: fitZoom };
+      cameraRef.current = fitCamera;
+      scheduleRedraw({ world: true, strokes: true });
+    };
+    applyFitCamera();
+    window.addEventListener("resize", applyFitCamera);
+    return () => window.removeEventListener("resize", applyFitCamera);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backend.supportsZoomPan, backend.worldWidth, backend.worldHeight]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
+      if (!backend.supportsZoomPan) return;
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
@@ -1235,7 +1263,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [scheduleRedraw]);
+  }, [scheduleRedraw, backend]);
 
   // Snapshot-assisted fast loading + initial replay
   useEffect(() => {
@@ -1773,19 +1801,21 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
 
   const resetView = useCallback(() => {
+    if (!backend.supportsZoomPan) return;
     cameraRef.current = defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
     scheduleRedraw({ world: true, strokes: true });
     captureEvent("camera_reset");
-  }, [scheduleRedraw]);
+  }, [scheduleRedraw, backend]);
 
   const zoomButton = useCallback(
     (factor: number) => {
+      if (!backend.supportsZoomPan) return;
       const { width, height } = viewportRef.current;
       cameraRef.current = zoomAt(cameraRef.current, factor, width / 2, height / 2, width, height);
       scheduleRedraw({ world: true, strokes: true });
       captureEvent("zoom_button", { factor });
     },
-    [scheduleRedraw],
+    [scheduleRedraw, backend],
   );
 
   const [hotkeysOpen, setHotkeysOpen] = useState(false);
@@ -2111,9 +2141,14 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         return;
       }
 
+      if (worldPt.x < 0 || worldPt.x > backend.worldWidth || worldPt.y < 0 || worldPt.y > backend.worldHeight) {
+        return; // outside the board's drawable rect — the letterboxed margin
+      }
+
       beginDraw(worldPt);
     },
     [
+      backend,
       beginDraw,
       color,
       endDraw,
@@ -2142,6 +2177,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       }
 
       if (isPanningRef.current) {
+        if (!backend.supportsZoomPan) return;
         const { width, height } = viewportRef.current;
         if (activePointersRef.current.size >= 2) {
           const pts = [...activePointersRef.current.values()];
@@ -2309,7 +2345,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
       continueDraw(worldPt);
     },
-    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler, updateCoordFinder, stampStencilAt],
+    [continueDraw, getPointerWorld, getScreenPoint, scheduleRedraw, tool, shapeType, color, brushWidth, opacity, clientId, updateCursorOverlay, updateMagnifier, updateRuler, updateCoordFinder, stampStencilAt, backend],
   );
 
   const handlePointerUp = useCallback(
@@ -2697,7 +2733,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           viewportHeight={viewportSize.height}
         />
 
-        {!embedded && (
+        {!embedded && backend.showMinimap && (
           <aside id="minimap-panel" aria-label="Canvas Minimap Overview">
             <MiniMap
               canvasRef={miniMapCanvasRef}
