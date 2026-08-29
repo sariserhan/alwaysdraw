@@ -1429,6 +1429,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         await heartbeat({
           clientId,
           username,
+          countryCode,
           cursorX: lastCursorWorldRef.current.x,
           cursorY: lastCursorWorldRef.current.y,
           laserTrail: myTrail ? myTrail.points : undefined,
@@ -1447,7 +1448,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [heartbeat, clientId, username]);
+  }, [heartbeat, clientId, username, countryCode]);
 
   const commitOwnChunk = useCallback(
     (chunk: LocalStroke) => {

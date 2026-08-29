@@ -54,6 +54,7 @@ export default defineSchema({
   presence: defineTable({
     clientId: v.string(),
     username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
     lastSeenAt: v.number(),
     cursorX: v.number(),
     cursorY: v.number(),

@@ -94,6 +94,36 @@ describe("presence.heartbeat — username validation", () => {
   });
 });
 
+describe("presence.heartbeat — countryCode", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("rejects a malformed countryCode", async () => {
+    await expect(
+      t.mutation(api.presence.heartbeat, {
+        clientId: "a",
+        countryCode: "usa",
+        cursorX: 1,
+        cursorY: 1,
+      }),
+    ).rejects.toThrow(/countryCode/);
+  });
+
+  it("stores and lists countryCode so remote cursors can render the right flag", async () => {
+    await t.mutation(api.presence.heartbeat, {
+      clientId: "a",
+      countryCode: "JP",
+      cursorX: 1,
+      cursorY: 1,
+    });
+    const list = await t.query(api.presence.list, {});
+    expect(list).toHaveLength(1);
+    expect(list[0].countryCode).toBe("JP");
+  });
+});
+
 describe("presence.listByTiles", () => {
   let t: ReturnType<typeof convexTest>;
   beforeEach(() => {

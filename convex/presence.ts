@@ -14,6 +14,7 @@ import {
   HEARTBEATS_GLOBAL_WINDOW,
   MAX_TILES_PER_PRESENCE_QUERY,
   MAX_PRESENCE_PER_TILE,
+  COUNTRY_CODE_PATTERN,
 } from "./constants";
 import {
   assertBoundedIdentifier,
@@ -33,6 +34,7 @@ export const heartbeat = mutation({
   args: {
     clientId: v.string(),
     username: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
     cursorX: v.number(),
     cursorY: v.number(),
     laserTrail: v.optional(
@@ -54,6 +56,9 @@ export const heartbeat = mutation({
       if (containsProfanity(args.username)) {
         throw new ConvexError("PROFANITY_BLOCKED: username contains a blocked word — please choose another");
       }
+    }
+    if (args.countryCode !== undefined && !COUNTRY_CODE_PATTERN.test(args.countryCode)) {
+      throw new Error("countryCode must be a 2-letter ISO 3166-1 alpha-2 code");
     }
     await consumeRateLimit(
       ctx,
@@ -96,6 +101,7 @@ export const heartbeat = mutation({
     if (existing !== null) {
       await ctx.db.patch(existing._id, {
         username: args.username,
+        countryCode: args.countryCode,
         cursorX,
         cursorY,
         tileKey,
@@ -106,6 +112,7 @@ export const heartbeat = mutation({
       await ctx.db.insert("presence", {
         clientId: args.clientId,
         username: args.username,
+        countryCode: args.countryCode,
         cursorX,
         cursorY,
         tileKey,
@@ -123,6 +130,7 @@ export const list = query({
     v.object({
       clientId: v.string(),
       username: v.optional(v.string()),
+      countryCode: v.optional(v.string()),
       cursorX: v.number(),
       cursorY: v.number(),
       laserTrail: v.optional(
@@ -145,6 +153,7 @@ export const list = query({
     return rows.map((r) => ({
       clientId: r.clientId,
       username: r.username,
+      countryCode: r.countryCode,
       cursorX: r.cursorX,
       cursorY: r.cursorY,
       laserTrail: r.laserTrail,
@@ -165,6 +174,7 @@ export const listByTiles = query({
     v.object({
       clientId: v.string(),
       username: v.optional(v.string()),
+      countryCode: v.optional(v.string()),
       cursorX: v.number(),
       cursorY: v.number(),
       laserTrail: v.optional(
@@ -197,6 +207,7 @@ export const listByTiles = query({
       .map((r) => ({
         clientId: r.clientId,
         username: r.username,
+        countryCode: r.countryCode,
         cursorX: r.cursorX,
         cursorY: r.cursorY,
         laserTrail: r.laserTrail,
