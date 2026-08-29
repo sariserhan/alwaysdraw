@@ -86,6 +86,7 @@ import { HotkeysModal } from "./HotkeysModal";
 import { AdminPanelModal } from "./AdminPanelModal";
 import { AdminBroadcastBanner } from "./AdminBroadcastBanner";
 import { WelcomeHint } from "./WelcomeHint";
+import { NameJoinPrompt } from "./NameJoinPrompt";
 import { AdminImageOverlay, type AdminImagePlacement } from "./AdminImageOverlay";
 import { ProtectedZonesOverlay, type ProtectedZonesOverlayHandle } from "./ProtectedZonesOverlay";
 import { t, type Locale } from "@/lib/i18n";
@@ -131,6 +132,10 @@ const HEATMAP_GRID_SIZE = 32;
 const SNAPSHOT_STROKE_THRESHOLD = 500;
 const SNAPSHOT_SIZE_PX = 2048;
 const WELCOME_HINT_AUTO_DISMISS_MS = 8000;
+// Longer than the welcome hint's — this one asks for actual typing, so it
+// needs enough headroom to not vanish mid-thought, while still eventually
+// getting out of the way per the same non-blocking principle.
+const NAME_JOIN_PROMPT_AUTO_DISMISS_MS = 20000;
 // Remote cursors subscribe per-tile instead of globally (presence.listByTiles)
 // so a cursor move somewhere off-screen never re-pushes to a viewer who
 // can't see it. That only pays off when "visible tiles" is a small fraction
@@ -424,6 +429,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     countryCode: string | undefined;
   } | null>(null);
   const [showWelcomeHint, setShowWelcomeHint] = useState(false);
+  const [showNameJoinPrompt, setShowNameJoinPrompt] = useState(false);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -449,6 +455,27 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
     const timeoutId = setTimeout(() => setShowWelcomeHint(false), WELCOME_HINT_AUTO_DISMISS_MS);
     return () => clearTimeout(timeoutId);
   }, []);
+
+  // Shown every session (not once-ever like the welcome hint above) as long
+  // as the visitor stays anonymous — UsernameControl already lets anyone set
+  // a name, but tucked in the header it's easy to never notice, so most
+  // visitors never learn it exists. Stops appearing entirely once a name is
+  // set, whether through this prompt or the header control directly.
+  useEffect(() => {
+    if (username) return;
+    queueMicrotask(() => setShowNameJoinPrompt(true));
+    const timeoutId = setTimeout(() => setShowNameJoinPrompt(false), NAME_JOIN_PROMPT_AUTO_DISMISS_MS);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleNameJoinPromptSave = useCallback(
+    (name: string) => {
+      handleUsernameChange(name);
+      setShowNameJoinPrompt(false);
+    },
+    [handleUsernameChange],
+  );
   const [cameraSnapshot, setCameraSnapshot] = useState<Camera>(() => initialCamera);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -1456,6 +1483,7 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
         firstMarkTrackedRef.current = true;
         captureEvent("first_mark", { mode: chunk.mode, brush: chunk.brushType });
         setShowWelcomeHint(false);
+        setShowNameJoinPrompt(false);
       }
       rateLimitTracker.recordSubmission();
       pendingRef.current.set(chunk.clientStrokeId, chunk);
@@ -2978,6 +3006,12 @@ export function GlobalCanvas({ embedded = false }: GlobalCanvasProps = {}) {
       <AdminBroadcastBanner />
 
       <WelcomeHint visible={showWelcomeHint} onDismiss={() => setShowWelcomeHint(false)} locale={locale} />
+      <NameJoinPrompt
+        visible={showNameJoinPrompt}
+        onSave={handleNameJoinPromptSave}
+        onDismiss={() => setShowNameJoinPrompt(false)}
+        locale={locale}
+      />
 
       {/* Sticky Floating Admin Status Badge */}
       {adminPasscode && (
