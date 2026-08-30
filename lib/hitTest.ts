@@ -1,4 +1,29 @@
-import type { Point } from "./types";
+import type { Point, BrushType } from "./types";
+
+// How far each brush's actual visible ink can land from the stroke's path,
+// as a multiple of `width / 2` — some brushes (lib/brushes.ts) scatter dots,
+// blooms, or glow well outside the raw line width for a painterly/textured
+// look. A plain `width / 2` tolerance only matches brushes whose ink hugs
+// the path (brush, pencil, calligraphy), so hovering the actual visible
+// pixels of the others frequently missed. Derived from each renderer's
+// geometry (spread/dotScale/offset terms), rounded up for safety — an
+// oversized hit zone is an imperceptible trade-off, a missed one isn't.
+const BRUSH_HIT_RADIUS_MULTIPLIER: Record<BrushType, number> = {
+  brush: 1,
+  pencil: 1,
+  marker: 1.3,
+  highlighter: 2,
+  calligraphy: 1,
+  pixel: 1.5,
+  watercolor: 2.2,
+  oilPaint: 1.3,
+  chalk: 2.2,
+  charcoal: 2.2,
+  glitter: 2.5,
+  neonGlow: 1.5,
+  halftone: 1.5,
+};
+const DEFAULT_HIT_RADIUS_MULTIPLIER = 1;
 
 function distanceToSegment(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
@@ -24,6 +49,8 @@ export interface HitTestableStroke {
   points: Point[];
   width: number;
   mode: "draw" | "erase";
+  /** Only meaningful when mode === "draw" — see BRUSH_HIT_RADIUS_MULTIPLIER. */
+  brushType?: BrushType;
 }
 
 /**
@@ -41,7 +68,10 @@ export function findStrokeNearPoint<T extends HitTestableStroke>(
   for (let i = strokes.length - 1; i >= 0; i--) {
     const stroke = strokes[i];
     if (stroke.mode === "erase") continue;
-    if (distanceToPolyline(point, stroke.points) <= stroke.width / 2 + extraRadius) {
+    const multiplier = stroke.brushType
+      ? (BRUSH_HIT_RADIUS_MULTIPLIER[stroke.brushType] ?? DEFAULT_HIT_RADIUS_MULTIPLIER)
+      : DEFAULT_HIT_RADIUS_MULTIPLIER;
+    if (distanceToPolyline(point, stroke.points) <= (stroke.width / 2) * multiplier + extraRadius) {
       return stroke;
     }
   }
