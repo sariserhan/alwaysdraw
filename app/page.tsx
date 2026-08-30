@@ -182,6 +182,13 @@ export default function Home() {
             </Link>
 
             <Link
+              href="/board"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-chrome-border bg-chrome-bg-raised px-6 py-4.5 text-base font-mono font-bold uppercase tracking-wider text-ink hover:bg-chrome-border transition"
+            >
+              <span>Open Board</span>
+            </Link>
+
+            <Link
               href="/sketchbook"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md border border-chrome-border bg-chrome-bg-raised px-6 py-4.5 text-base font-mono font-bold uppercase tracking-wider text-ink hover:bg-chrome-border transition"
             >
