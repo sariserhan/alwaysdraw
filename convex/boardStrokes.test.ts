@@ -1,5 +1,5 @@
 // @vitest-environment edge-runtime
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
@@ -64,12 +64,21 @@ describe("boardStrokes.submit", () => {
     // otherwise this trips BOARD_STROKES_PER_CLIENT_WINDOW (300) long
     // before reaching BOARD_STROKES_GLOBAL_WINDOW (2000), failing this
     // loop instead of ever reaching the assertion below.
-    for (let i = 0; i < BOARD_STROKES_GLOBAL_WINDOW; i++) {
-      await t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: `flood-${i}`, clientId: `flooder-${i}` });
+    //
+    // The rate limiter keys its window off real Date.now() (convex/abuse.ts),
+    // so 2000 unmocked sequential calls racing a 10s window is flaky under
+    // load — freeze time so every call in this test shares one instant.
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < BOARD_STROKES_GLOBAL_WINDOW; i++) {
+        await t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: `flood-${i}`, clientId: `flooder-${i}` });
+      }
+      await expect(
+        t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: "flood-over", clientId: "flooder-over" }),
+      ).rejects.toThrow(/rate limit/i);
+    } finally {
+      vi.useRealTimers();
     }
-    await expect(
-      t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: "flood-over", clientId: "flooder-over" }),
-    ).rejects.toThrow(/rate limit/i);
   });
 });
 
