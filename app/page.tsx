@@ -248,7 +248,7 @@ export default function Home() {
             Tailored Experiences
           </h2>
           <h3 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink">
-            Two Ways to Create
+            Three Ways to Create
           </h3>
         </div>
 
@@ -267,6 +267,24 @@ export default function Home() {
               className="shrink-0 inline-flex items-center justify-center gap-2 rounded-sm bg-accent-crimson px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-crimson-deep transition"
             >
               <span>Explore Live Canvas</span>
+              <span>➔</span>
+            </Link>
+          </div>
+
+          {/* Board card */}
+          <div className="flex flex-col items-start justify-between gap-6 rounded-lg border border-chrome-border bg-chrome-bg-raised p-8 shadow-md sm:flex-row sm:items-center">
+            <div>
+              <div className="text-4xl mb-4">🖼️</div>
+              <h4 className="font-display text-2xl font-bold text-ink mb-3">Board</h4>
+              <p className="text-sm text-ink-dim leading-relaxed max-w-lg">
+                A fixed-size, full-screen shared canvas — no zooming or panning, just the whole board at a glance. Same brushes, shapes, and tools as the live canvas.
+              </p>
+            </div>
+            <Link
+              href="/board"
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-sm bg-accent-crimson px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-crimson-deep transition"
+            >
+              <span>Open Board</span>
               <span>➔</span>
             </Link>
           </div>
