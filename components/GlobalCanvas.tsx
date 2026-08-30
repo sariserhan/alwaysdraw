@@ -3151,6 +3151,16 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             <span>🏠</span>
             <span className="font-bold uppercase tracking-wider hidden sm:inline">HOME</span>
           </Link>
+          <Link
+            href={mode === "board" ? "/canvas" : "/board"}
+            title={mode === "board" ? "Go to the Live Canvas" : "Go to Board"}
+            className="flex items-center gap-1 rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink-dim hover:text-ink hover:border-rust transition-colors shadow-sm"
+          >
+            <span>{mode === "board" ? "🎨" : "🖼️"}</span>
+            <span className="font-bold uppercase tracking-wider hidden sm:inline">
+              {mode === "board" ? "CANVAS" : "BOARD"}
+            </span>
+          </Link>
           <div
             className="hidden sm:flex items-center gap-1 whitespace-nowrap rounded-sm border border-chrome-border bg-chrome-bg-raised/90 px-2 py-0.5 font-mono text-[11px] font-semibold text-ink shadow-sm"
             title="Active 500x500 spatial tiles in current camera viewport"
