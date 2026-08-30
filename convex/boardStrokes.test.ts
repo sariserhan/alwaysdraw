@@ -1,8 +1,9 @@
 // @vitest-environment edge-runtime
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
+import type { MutationCtx } from "./_generated/server";
 import type { BrushType } from "../lib/types";
 import { BOARD_STROKES_GLOBAL_WINDOW } from "./constants";
 
@@ -60,25 +61,34 @@ describe("boardStrokes.submit", () => {
   });
 
   it("rate limits excessive global submissions", async () => {
-    // A distinct clientId per call, not just a distinct clientStrokeId —
-    // otherwise this trips BOARD_STROKES_PER_CLIENT_WINDOW (300) long
-    // before reaching BOARD_STROKES_GLOBAL_WINDOW (2000), failing this
-    // loop instead of ever reaching the assertion below.
+    // Driving this boundary with 2000 real submit() calls (one per unit of
+    // BOARD_STROKES_GLOBAL_WINDOW) was flaky and slow: consumeRateLimit
+    // (convex/abuse.ts) keys its window off real Date.now(), so 2000
+    // unmocked sequential calls racing a 10s window could land in more than
+    // one window, and even once that was fixed with frozen time, the sheer
+    // number of real convex-test round trips risked exceeding vitest's
+    // default 5s per-test timeout under load.
     //
-    // The rate limiter keys its window off real Date.now() (convex/abuse.ts),
-    // so 2000 unmocked sequential calls racing a 10s window is flaky under
-    // load — freeze time so every call in this test shares one instant.
-    vi.useFakeTimers();
-    try {
-      for (let i = 0; i < BOARD_STROKES_GLOBAL_WINDOW; i++) {
-        await t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: `flood-${i}`, clientId: `flooder-${i}` });
-      }
-      await expect(
-        t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: "flood-over", clientId: "flooder-over" }),
-      ).rejects.toThrow(/rate limit/i);
-    } finally {
-      vi.useRealTimers();
-    }
+    // Seed the rateLimits row directly at one-under-the-limit instead — this
+    // exercises the exact same tryConsumeRateLimit read/compare code path
+    // (convex/abuse.ts's `existing.count >= limit`) with 2 real mutations
+    // instead of 2001, with no dependence on real or fake time at all.
+    const key = "boardStrokes:global";
+    await t.run(async (ctx: MutationCtx) => {
+      await ctx.db.insert("rateLimits", {
+        key,
+        windowStartedAt: Date.now(),
+        count: BOARD_STROKES_GLOBAL_WINDOW - 1,
+      });
+    });
+
+    // One under the limit: succeeds, and pushes the bucket to the limit.
+    await t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: "flood-last", clientId: "flooder-last" });
+
+    // At the limit: rejected.
+    await expect(
+      t.mutation(api.boardStrokes.submit, { ...baseArgs, clientStrokeId: "flood-over", clientId: "flooder-over" }),
+    ).rejects.toThrow(/rate limit/i);
   });
 });
 
