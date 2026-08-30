@@ -32,15 +32,22 @@ export default defineSchema({
     // patch does, making deletion reactive for everyone through the exact
     // same sync path new strokes already use, not just the admin who acted.
     deleted: v.optional(v.boolean()),
+    // When `deleted` was set — distinct from `serverTimestamp` (when the
+    // stroke was drawn) — see boardStrokes' identical field for why
+    // pruning must key off this, not serverTimestamp or sequence.
+    deletedAt: v.optional(v.number()),
   })
     .index("by_sequence", ["sequence"])
     .index("by_clientStrokeId", ["clientStrokeId"])
-    .index("by_clientId", ["clientId"]),
+    .index("by_clientId", ["clientId"])
+    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"]),
 
   canvasMetadata: defineTable({
     currentSequence: v.number(),
     width: v.number(),
     height: v.number(),
+    // Opt-in, off by default — see admin.pruneDeletedStrokes.
+    autoPruneEnabled: v.optional(v.boolean()),
   }),
 
   rateLimits: defineTable({

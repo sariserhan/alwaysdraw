@@ -129,8 +129,10 @@ export function AdminPanelModal({
   const deleteProtectedZone = useMutation(api.admin.deleteProtectedZone);
   const updateReportStatus = useMutation(api.reports.updateStatus);
   const adminRemoveComment = useMutation(api.comments.adminRemove);
-  const autoPruneEnabled = useQuery(api.boardAdmin.getAutoPruneEnabled, {});
-  const setAutoPruneEnabled = useMutation(api.boardAdmin.setAutoPruneEnabled);
+  const boardAutoPruneEnabled = useQuery(api.boardAdmin.getAutoPruneEnabled, {});
+  const setBoardAutoPruneEnabled = useMutation(api.boardAdmin.setAutoPruneEnabled);
+  const wallAutoPruneEnabled = useQuery(api.admin.getAutoPruneEnabled, {});
+  const setWallAutoPruneEnabled = useMutation(api.admin.setAutoPruneEnabled);
   // Board's own moderation queue and wipe. Addressed directly rather than
   // through CanvasBackend (as the report *button* is) because this is one
   // shared control centre reachable from either surface — an admin sitting
@@ -251,12 +253,23 @@ export function AdminPanelModal({
     }
   };
 
-  const handleToggleAutoPrune = async () => {
+  const handleToggleBoardAutoPrune = async () => {
     try {
       setActionStatus("Updating Board auto-prune setting...");
-      const res = await setAutoPruneEnabled({ passcode: activePasscode, enabled: !autoPruneEnabled });
+      const res = await setBoardAutoPruneEnabled({ passcode: activePasscode, enabled: !boardAutoPruneEnabled });
       if (!res.success) throw new Error(res.error);
-      setActionStatus(`Success! Board auto-prune is now ${!autoPruneEnabled ? "ON" : "OFF"}.`);
+      setActionStatus(`Success! Board auto-prune is now ${!boardAutoPruneEnabled ? "ON" : "OFF"}.`);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Failed to update auto-prune"}`);
+    }
+  };
+
+  const handleToggleWallAutoPrune = async () => {
+    try {
+      setActionStatus("Updating wall auto-prune setting...");
+      const res = await setWallAutoPruneEnabled({ passcode: activePasscode, enabled: !wallAutoPruneEnabled });
+      if (!res.success) throw new Error(res.error);
+      setActionStatus(`Success! Wall auto-prune is now ${!wallAutoPruneEnabled ? "ON" : "OFF"}.`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Failed to update auto-prune"}`);
     }
@@ -662,6 +675,24 @@ export function AdminPanelModal({
                 </button>
               </div>
 
+              <div className="flex items-center justify-between gap-2 border-t border-chrome-border pt-3">
+                <div>
+                  <div className="font-bold text-xs uppercase">Wall Auto-Prune</div>
+                  <div className="text-[10px] text-ink-dim">
+                    Automatically hard-deletes old wiped/rolled-back wall strokes. Off by default.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleWallAutoPrune}
+                  className={`px-3 py-1 text-xs font-bold rounded-sm border ${
+                    wallAutoPruneEnabled ? "bg-accent-yellow text-black border-accent-yellow" : "bg-transparent border-chrome-border"
+                  }`}
+                >
+                  {wallAutoPruneEnabled ? "ON" : "OFF"}
+                </button>
+              </div>
+
               <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
                 <span className="font-bold text-accent-crimson uppercase">🧨 Wipe Board</span>
                 <p className="text-[10px] text-ink-dim">
@@ -698,12 +729,12 @@ export function AdminPanelModal({
                 </div>
                 <button
                   type="button"
-                  onClick={handleToggleAutoPrune}
+                  onClick={handleToggleBoardAutoPrune}
                   className={`px-3 py-1 text-xs font-bold rounded-sm border ${
-                    autoPruneEnabled ? "bg-accent-yellow text-black border-accent-yellow" : "bg-transparent border-chrome-border"
+                    boardAutoPruneEnabled ? "bg-accent-yellow text-black border-accent-yellow" : "bg-transparent border-chrome-border"
                   }`}
                 >
-                  {autoPruneEnabled ? "ON" : "OFF"}
+                  {boardAutoPruneEnabled ? "ON" : "OFF"}
                 </button>
               </div>
             </div>

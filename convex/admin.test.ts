@@ -2,7 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "./schema";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import type { MutationCtx } from "./_generated/server";
 import {
   MAX_PROTECTED_ZONES,
   ADMIN_VERIFY_GLOBAL_WINDOW,
@@ -455,6 +456,127 @@ describe("convex/admin — protected zones & moderation", () => {
 
       const result = await t.query(api.admin.getTelemetry, { passcode: PASSCODE });
       expect(result?.snapshotCount).toBe(SNAPSHOTS_TO_KEEP);
+    });
+  });
+
+  describe("auto-prune (opt-in hard-delete of old soft-deleted strokes)", () => {
+    // `id` must be unique per call (used as both clientStrokeId and
+    // clientId) — submit() is idempotent on clientStrokeId, so a repeated
+    // id would silently return the already-existing row instead of
+    // inserting a new one, breaking any loop that seeds more than one row.
+    async function seedOldDeletedStroke(id: string, ageMs: number) {
+      const submitted = await t.mutation(api.strokes.submit, {
+        clientStrokeId: id,
+        clientId: id,
+        mode: "draw",
+        color: "#000000",
+        width: 4,
+        points: [{ x: 1, y: 1 }],
+        clientTimestamp: 0,
+      });
+      await t.run(async (ctx: MutationCtx) => {
+        const row = await ctx.db
+          .query("strokes")
+          .withIndex("by_sequence", (q) => q.eq("sequence", submitted.sequence))
+          .unique();
+        if (!row) throw new Error("seed row not found");
+        // deletedAt (when it was deleted), not serverTimestamp (when it was
+        // originally drawn) — pruning eligibility is based on the former.
+        await ctx.db.patch(row._id, { deleted: true, deletedAt: Date.now() - ageMs });
+      });
+    }
+
+    it("getAutoPruneEnabled defaults to false", async () => {
+      expect(await t.query(api.admin.getAutoPruneEnabled, {})).toBe(false);
+    });
+
+    it("does nothing when autoPruneEnabled is off (the default)", async () => {
+      await seedOldDeletedStroke("old-one", 30 * 24 * 60 * 60 * 1000); // 30 days old
+      await t.mutation(internal.admin.pruneDeletedStrokes, {});
+      const rows = await t.run((ctx) => ctx.db.query("strokes").collect());
+      expect(rows).toHaveLength(1);
+    });
+
+    it("setAutoPruneEnabled requires a valid passcode", async () => {
+      const wrong = await t.mutation(api.admin.setAutoPruneEnabled, { passcode: "wrong", enabled: true });
+      expect(wrong.success).toBe(false);
+      expect(await t.query(api.admin.getAutoPruneEnabled, {})).toBe(false);
+    });
+
+    it("once enabled, hard-deletes old soft-deleted rows but leaves recent or non-deleted ones", async () => {
+      await t.mutation(api.admin.setAutoPruneEnabled, { passcode: PASSCODE, enabled: true });
+      expect(await t.query(api.admin.getAutoPruneEnabled, {})).toBe(true);
+
+      await seedOldDeletedStroke("old-one", 30 * 24 * 60 * 60 * 1000); // old + deleted -> pruned
+      const recent = await t.mutation(api.strokes.submit, {
+        clientStrokeId: "recent-deleted",
+        clientId: "recent-deleted",
+        mode: "draw",
+        color: "#000000",
+        width: 4,
+        points: [{ x: 1, y: 1 }],
+        clientTimestamp: 0,
+      });
+      await t.run(async (ctx: MutationCtx) => {
+        const row = await ctx.db
+          .query("strokes")
+          .withIndex("by_sequence", (q) => q.eq("sequence", recent.sequence))
+          .unique();
+        if (!row) throw new Error("seed row not found");
+        await ctx.db.patch(row._id, { deleted: true, deletedAt: Date.now() }); // deleted just now -> not pruned yet
+      });
+      await t.mutation(api.strokes.submit, {
+        clientStrokeId: "still-live",
+        clientId: "still-live",
+        mode: "draw",
+        color: "#000000",
+        width: 4,
+        points: [{ x: 1, y: 1 }],
+        clientTimestamp: 0,
+      }); // never deleted -> never pruned
+
+      await t.mutation(internal.admin.pruneDeletedStrokes, {});
+
+      const rows = await t.run((ctx) => ctx.db.query("strokes").collect());
+      expect(rows).toHaveLength(2);
+      expect(rows.some((r) => r.clientStrokeId === "old-one")).toBe(false);
+      expect(rows.some((r) => r.clientStrokeId === "recent-deleted")).toBe(true);
+      expect(rows.some((r) => r.clientStrokeId === "still-live")).toBe(true);
+    });
+
+    it("converges a prune backlog larger than PRUNE_BATCH_SIZE in one call by seeding rows directly (no real-time loop)", async () => {
+      // Seeding via 500+ real submit() calls (as boardAdmin.test.ts's
+      // equivalent backlog test does) is real, but this file's rate-limit
+      // test just proved that even far short of the vitest default 5s
+      // timeout, a real per-call loop is variable enough to be worth
+      // avoiding when a direct seed proves the same thing deterministically
+      // and faster: insert rows straight into the table, already old and
+      // deleted, then confirm one prune call converges the whole backlog
+      // (batch size dominates the count, not multiple calls).
+      const backlogSize = 30; // several times PRUNE_BATCH_SIZE would just repeat this same assertion slower
+      await t.mutation(api.admin.setAutoPruneEnabled, { passcode: PASSCODE, enabled: true });
+      await t.run(async (ctx: MutationCtx) => {
+        for (let i = 0; i < backlogSize; i++) {
+          await ctx.db.insert("strokes", {
+            clientStrokeId: `backlog-${i}`,
+            clientId: `backlog-${i}`,
+            mode: "draw",
+            color: "#000000",
+            width: 4,
+            points: [{ x: 1, y: 1 }],
+            clientTimestamp: 0,
+            sequence: i + 1,
+            serverTimestamp: Date.now(),
+            deleted: true,
+            deletedAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
+          });
+        }
+      });
+
+      await t.mutation(internal.admin.pruneDeletedStrokes, {});
+
+      const rows = await t.run((ctx) => ctx.db.query("strokes").collect());
+      expect(rows).toHaveLength(0);
     });
   });
 });

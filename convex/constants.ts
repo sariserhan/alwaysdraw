@@ -38,6 +38,12 @@ export const RATE_LIMIT_WINDOW_MS = 10_000;
 // worst-case flush rate with headroom to spare.
 export const STROKES_PER_CLIENT_WINDOW = 300;
 export const STROKES_GLOBAL_WINDOW = 2_000;
+// Soft-deleted strokes rows (from wipeArea/rollbackClient) are hard-deleted
+// after this long by admin.pruneDeletedStrokes, IF an admin has opted in
+// (see canvasMetadata.autoPruneEnabled) — off by default. Same values as
+// Board's equivalent (BOARD_DELETED_STROKE_RETENTION_MS/BOARD_PRUNE_BATCH_SIZE).
+export const DELETED_STROKE_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const PRUNE_BATCH_SIZE = 500;
 // Separate budget from the main canvas's strokes:* buckets, so heavy
 // sketchbook use can't starve main-canvas writes or vice versa. Same
 // values as STROKES_PER_CLIENT_WINDOW/STROKES_GLOBAL_WINDOW — sketchbook

@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { consumeRateLimit, tryConsumeRateLimit } from "./abuse";
 import {
   ADMIN_VERIFY_GLOBAL_WINDOW,
@@ -12,6 +12,10 @@ import {
   MAX_ZONE_NAME_LENGTH,
   MAX_CLIENT_ID_LENGTH,
   SNAPSHOTS_TO_KEEP,
+  DELETED_STROKE_RETENTION_MS,
+  PRUNE_BATCH_SIZE as HARD_DELETE_PRUNE_BATCH_SIZE,
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
 } from "./constants";
 import { claimNextSequence } from "./canvasMetadata";
 
@@ -157,7 +161,7 @@ export const wipeArea = mutation({
         // this is what makes the deletion show up reactively for every
         // connected client's incremental sync, not just the admin who did it.
         const nextSequence = await claimNextSequence(ctx);
-        await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
+        await ctx.db.patch(stroke._id, { deleted: true, deletedAt: Date.now(), sequence: nextSequence });
         deletedCount++;
       }
     }
@@ -205,7 +209,7 @@ export const rollbackClient = mutation({
     for (const stroke of result.page) {
       if (stroke.deleted) continue;
       const nextSequence = await claimNextSequence(ctx);
-      await ctx.db.patch(stroke._id, { deleted: true, sequence: nextSequence });
+      await ctx.db.patch(stroke._id, { deleted: true, deletedAt: Date.now(), sequence: nextSequence });
       deletedCount++;
     }
 
@@ -437,5 +441,86 @@ export const getTelemetry = query({
       protectedZoneCount,
       currentSequence: meta?.currentSequence ?? 0,
     };
+  },
+});
+
+export const getAutoPruneEnabled = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const meta = await ctx.db.query("canvasMetadata").first();
+    return meta?.autoPruneEnabled ?? false;
+  },
+});
+
+export const setAutoPruneEnabled = mutation({
+  args: { passcode: v.string(), enabled: v.boolean() },
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, args) => {
+    const verified = await verifyAdminPasscode(ctx, args.passcode);
+    if (!verified.ok) {
+      return { success: false as const, error: verified.error };
+    }
+    const meta = await ctx.db.query("canvasMetadata").first();
+    if (meta === null) {
+      // canvasMetadata is a singleton seeded elsewhere (claimNextSequence) —
+      // reaching this branch would mean toggling the setting before the
+      // wall has ever been drawn on or metadata otherwise initialized. Kept
+      // as a safe fallback matching boardAdmin's setAutoPruneEnabled, not
+      // expected to actually fire in a running deployment.
+      await ctx.db.insert("canvasMetadata", {
+        currentSequence: 0,
+        width: WORLD_WIDTH,
+        height: WORLD_HEIGHT,
+        autoPruneEnabled: args.enabled,
+      });
+    } else {
+      await ctx.db.patch(meta._id, { autoPruneEnabled: args.enabled });
+    }
+    return { success: true as const };
+  },
+});
+
+/**
+ * Opt-in, off by default (see canvasMetadata.autoPruneEnabled). The cron in
+ * convex/crons.ts always fires on schedule — this handler's very first read
+ * decides whether it does anything at all. When enabled, hard-deletes (not
+ * a patch) old soft-deleted strokes rows, bounded to one batch per call so
+ * a large backlog converges over several cron runs instead of one unsafe
+ * unbounded pass. Mirrors boardAdmin.pruneDeletedStrokes exactly.
+ */
+export const pruneDeletedStrokes = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const meta = await ctx.db.query("canvasMetadata").first();
+    if (!meta?.autoPruneEnabled) return null;
+
+    const cutoff = Date.now() - DELETED_STROKE_RETENTION_MS;
+    // by_deleted_and_deletedAt, not by_sequence: wipeArea/rollbackClient
+    // re-stamp a soft-deleted row's sequence to a fresh, high value, so
+    // deleted rows don't sit at the front of by_sequence with old live
+    // ones — a scan from the oldest sequence would mostly re-read
+    // undeletable live rows and rarely reach anything actually eligible for
+    // pruning. Filtering on deletedAt (when the row was deleted), not
+    // serverTimestamp (when the stroke was originally drawn), is also
+    // required for correctness: neither soft-delete site touches
+    // serverTimestamp, so using it here would treat an old stroke as
+    // immediately prunable the moment it's wiped, defeating the retention
+    // window's entire purpose.
+    const batch = await ctx.db
+      .query("strokes")
+      .withIndex("by_deleted_and_deletedAt", (q) => q.eq("deleted", true).lt("deletedAt", cutoff))
+      .take(HARD_DELETE_PRUNE_BATCH_SIZE);
+
+    // Every row in batch already matches deleted===true && deletedAt<cutoff
+    // by construction of the index query above — no further filtering needed.
+    for (const stroke of batch) {
+      await ctx.db.delete(stroke._id);
+    }
+    return null;
   },
 });

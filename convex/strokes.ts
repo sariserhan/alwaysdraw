@@ -55,6 +55,12 @@ const strokeReturnFields = v.object({
   sequence: v.number(),
   serverTimestamp: v.number(),
   deleted: v.optional(v.boolean()),
+  // Not set by any handler in this file — only admin.wipeArea/rollbackClient
+  // set it on soft-delete — but it must still be declared here: an
+  // undeclared field on a returned row throws in Convex, and this file's
+  // listSince would start throwing on any row admin.pruneDeletedStrokes's
+  // sibling mutations have touched if this were omitted.
+  deletedAt: v.optional(v.number()),
 });
 
 export const submit = mutation({

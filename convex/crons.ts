@@ -38,4 +38,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "prune deleted wall strokes",
+  { minutes: 10 },
+  internal.admin.pruneDeletedStrokes,
+  {},
+);
+
 export default crons;
