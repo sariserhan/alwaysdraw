@@ -2279,11 +2279,19 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       // in and out under the cursor. Looked up via strokesByTileRef (a real
       // tile-bucketed index kept in sync with committedRef, not a linear
       // scan filtered by tile) so this stays cheap regardless of how many
-      // strokes the wall has.
+      // strokes the wall has. Board strokes never carry a `tiles` array
+      // (boardStrokes.submit doesn't tile at all — see backend.usesTileScoping),
+      // so that index is always empty on Board; fall back to a full scan of
+      // committedRef there instead, which is cheap given Board's naturally
+      // bounded stroke count.
       if (e.pointerType === "mouse" && e.buttons === 0) {
-        const { tileX, tileY } = getTileCoords(worldPt.x, worldPt.y, TILE_SIZE);
-        const cursorTileId = getTileId(tileX, tileY);
-        const candidates = strokesByTileRef.current.get(cursorTileId) ?? [];
+        let candidates: ServerStroke[];
+        if (backend.usesTileScoping) {
+          const { tileX, tileY } = getTileCoords(worldPt.x, worldPt.y, TILE_SIZE);
+          candidates = strokesByTileRef.current.get(getTileId(tileX, tileY)) ?? [];
+        } else {
+          candidates = committedRef.current;
+        }
         const extraRadiusWorld = HOVER_SCREEN_RADIUS_PX / cameraRef.current.zoom;
         const hit = findStrokeNearPoint(candidates, worldPt, extraRadiusWorld);
         setHoverAttribution(
