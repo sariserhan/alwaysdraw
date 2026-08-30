@@ -30,6 +30,11 @@ export type ServerStroke = LocalStroke & {
   serverTimestamp: number;
 };
 
+/** A row as returned by `strokes.listSince` or `boardStrokes.listSince` —
+ * the common shape both backends' read path is consumed through. Board rows
+ * carry no `tiles` (its world is one screen; nothing is ever culled). */
+export type ServerStrokeRow = ServerStroke & { deleted?: boolean };
+
 /** An axis-aligned world-space rectangle, e.g. a drag-selected region for
  * scoped replay/export. */
 export type WorldRect = { minX: number; minY: number; maxX: number; maxY: number };

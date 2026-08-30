@@ -16,8 +16,20 @@ export interface CanvasBackend {
     list: typeof api.comments.list | typeof api.boardComments.list;
     adminRemove: typeof api.comments.adminRemove | typeof api.boardComments.adminRemove;
   };
+  reportsApi: {
+    create: typeof api.reports.create | typeof api.boardReports.create;
+  };
   worldWidth: number;
   worldHeight: number;
+  /** False for Board: the spec's Non-goals exclude the snapshot machinery
+   * (its world replays fast enough without one), so Board neither reads,
+   * draws, nor writes a snapshot — all of which live in the wall's tables. */
+  usesSnapshots: boolean;
+  /** True for Board only: a press in the letterboxed margin is ignored
+   * rather than clamped onto the nearest edge. The wall keeps its
+   * long-standing forgiving clamp — its "void" is just unzoomed emptiness,
+   * not a permanent frame around the drawable area. */
+  rejectsOffCanvasInput: boolean;
   /** False for Board: camera is locked to an auto-fit zoom, never
    * user-adjustable (see GlobalCanvas.tsx's camera-lock logic). */
   supportsZoomPan: boolean;
@@ -38,8 +50,11 @@ export const wallBackend: CanvasBackend = {
     list: api.comments.list,
     adminRemove: api.comments.adminRemove,
   },
+  reportsApi: { create: api.reports.create },
   worldWidth: WORLD_WIDTH,
   worldHeight: WORLD_HEIGHT,
+  usesSnapshots: true,
+  rejectsOffCanvasInput: false,
   supportsZoomPan: true,
   showMinimap: true,
   usesTileScoping: true,
@@ -54,8 +69,11 @@ export const boardBackend: CanvasBackend = {
     list: api.boardComments.list,
     adminRemove: api.boardComments.adminRemove,
   },
+  reportsApi: { create: api.boardReports.create },
   worldWidth: BOARD_WIDTH,
   worldHeight: BOARD_HEIGHT,
+  usesSnapshots: false,
+  rejectsOffCanvasInput: true,
   supportsZoomPan: false,
   showMinimap: false,
   usesTileScoping: false,

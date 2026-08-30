@@ -71,10 +71,9 @@ export const setAutoPruneEnabled = mutation({
     if (!verified.ok) {
       return { success: false as const, error: verified.error };
     }
-    let meta = await ctx.db.query("boardMetadata").first();
+    const meta = await ctx.db.query("boardMetadata").first();
     if (meta === null) {
-      const id = await ctx.db.insert("boardMetadata", { currentSequence: 0, autoPruneEnabled: args.enabled });
-      meta = await ctx.db.get(id);
+      await ctx.db.insert("boardMetadata", { currentSequence: 0, autoPruneEnabled: args.enabled });
     } else {
       await ctx.db.patch(meta._id, { autoPruneEnabled: args.enabled });
     }

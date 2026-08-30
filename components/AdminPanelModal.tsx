@@ -72,6 +72,8 @@ export function AdminPanelModal({
 
   // Moderation state
   const [isWiping, setIsWiping] = useState(false);
+  const [isWipingBoard, setIsWipingBoard] = useState(false);
+  const [confirmWipeBoard, setConfirmWipeBoard] = useState(false);
   const [targetClientId, setTargetClientId] = useState("");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
@@ -129,6 +131,17 @@ export function AdminPanelModal({
   const adminRemoveComment = useMutation(api.comments.adminRemove);
   const autoPruneEnabled = useQuery(api.boardAdmin.getAutoPruneEnabled, {});
   const setAutoPruneEnabled = useMutation(api.boardAdmin.setAutoPruneEnabled);
+  // Board's own moderation queue and wipe. Addressed directly rather than
+  // through CanvasBackend (as the report *button* is) because this is one
+  // shared control centre reachable from either surface — an admin sitting
+  // on the wall can still clear Board or action a Board report.
+  const wipeBoard = useMutation(api.boardAdmin.wipeAll);
+  const updateBoardReportStatus = useMutation(api.boardReports.updateStatus);
+  const adminRemoveBoardComment = useMutation(api.boardComments.adminRemove);
+  const openBoardReports = useQuery(
+    api.boardReports.listOpen,
+    authenticated ? { passcode: activePasscode } : "skip",
+  );
 
   const protectedZones = useQuery(
     api.admin.getProtectedZones,
@@ -142,6 +155,8 @@ export function AdminPanelModal({
     api.reports.listOpen,
     authenticated ? { passcode: activePasscode } : "skip",
   );
+
+  const openReportCount = (openReports?.length ?? 0) + (openBoardReports?.length ?? 0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -244,6 +259,61 @@ export function AdminPanelModal({
       setActionStatus(`Success! Board auto-prune is now ${!autoPruneEnabled ? "ON" : "OFF"}.`);
     } catch (err: unknown) {
       setActionStatus(`Error: ${err instanceof Error ? err.message : "Failed to update auto-prune"}`);
+    }
+  };
+
+  /** Pages through boardAdmin.wipeAll the same way handleRollbackClient
+   * pages through admin.rollbackClient — one bounded batch per call until
+   * the server reports done. */
+  const handleWipeBoard = async () => {
+    if (isWipingBoard) return;
+    if (!confirmWipeBoard) {
+      setConfirmWipeBoard(true);
+      return;
+    }
+    try {
+      setIsWipingBoard(true);
+      setConfirmWipeBoard(false);
+      let totalDeleted = 0;
+      let afterSequence: number | undefined;
+      let done = false;
+      while (!done) {
+        setActionStatus(`Wiping the entire Board... ${totalDeleted} strokes so far.`);
+        const res = await wipeBoard({ passcode: activePasscode, afterSequence });
+        if (!res.success) throw new Error(res.error);
+        totalDeleted += res.deletedCount;
+        afterSequence = res.nextAfterSequence;
+        done = res.done;
+      }
+      setActionStatus(`Success! Wiped ${totalDeleted} strokes from the Board.`);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Board wipe failed"}`);
+    } finally {
+      setIsWipingBoard(false);
+    }
+  };
+
+  const handleDismissBoardReport = async (reportId: Id<"boardReports">) => {
+    try {
+      const res = await updateBoardReportStatus({ passcode: activePasscode, reportId, status: "dismissed" });
+      if (!res.success) throw new Error(res.error);
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Dismiss failed"}`);
+    }
+  };
+
+  const handleDeleteReportedBoardComment = async (
+    reportId: Id<"boardReports">,
+    commentId: Id<"boardComments">,
+  ) => {
+    try {
+      const removeRes = await adminRemoveBoardComment({ passcode: activePasscode, commentId });
+      if (!removeRes.success) throw new Error(removeRes.error);
+      const statusRes = await updateBoardReportStatus({ passcode: activePasscode, reportId, status: "reviewed" });
+      if (!statusRes.success) throw new Error(statusRes.error);
+      setActionStatus("Success! Board comment removed.");
+    } catch (err: unknown) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : "Delete failed"}`);
     }
   };
 
@@ -499,7 +569,7 @@ export function AdminPanelModal({
               }`}
             >
               <span>🚩</span>
-              <span className="truncate">REPORTS{openReports && openReports.length > 0 ? ` (${openReports.length})` : ""}</span>
+              <span className="truncate">REPORTS{openReportCount > 0 ? ` (${openReportCount})` : ""}</span>
             </button>
             <button
               type="button"
@@ -590,6 +660,33 @@ export function AdminPanelModal({
                 >
                   PURGE ALL CLIENT MARKS
                 </button>
+              </div>
+
+              <div className="flex flex-col gap-2 rounded border border-chrome-border bg-chrome-bg-raised/70 p-3">
+                <span className="font-bold text-accent-crimson uppercase">🧨 Wipe Board</span>
+                <p className="text-[10px] text-ink-dim">
+                  Clears every stroke from the fixed-size Board canvas (/board). Does not touch the
+                  main wall.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleWipeBoard}
+                    disabled={isWipingBoard}
+                    className="flex-1 rounded border border-accent-crimson bg-accent-crimson/20 px-3 py-1.5 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent disabled:opacity-50"
+                  >
+                    {isWipingBoard ? "WIPING..." : confirmWipeBoard ? "⚠️ CONFIRM WIPE BOARD" : "WIPE ENTIRE BOARD"}
+                  </button>
+                  {confirmWipeBoard && !isWipingBoard && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmWipeBoard(false)}
+                      className="rounded border border-chrome-border bg-chrome-bg px-3 py-1.5 font-bold text-ink-dim hover:text-ink"
+                    >
+                      CANCEL
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-2 border-t border-chrome-border pt-3 mt-3">
@@ -868,6 +965,7 @@ export function AdminPanelModal({
           {/* TAB: Reports queue */}
           {activeTab === "reports" && (
             <div className="flex flex-col gap-2 text-left font-mono text-xs">
+              <span className="font-bold uppercase text-ink-dim">🧱 Main wall</span>
               {!openReports || openReports.length === 0 ? (
                 <span className="text-[10px] text-ink-dim">No open reports.</span>
               ) : (
@@ -940,6 +1038,74 @@ export function AdminPanelModal({
                       <button
                         type="button"
                         onClick={() => handleDismissReport(r._id)}
+                        className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink-dim hover:text-ink"
+                      >
+                        DISMISS
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Board's own queue. No teleport action: Board's camera is
+                  locked to a fit of the whole canvas, so there is nowhere
+                  to jump to — the marked rectangle is shown as text. */}
+              <span className="mt-2 border-t border-chrome-border/60 pt-2 font-bold uppercase text-ink-dim">
+                🖼️ Board (/board)
+              </span>
+              {!openBoardReports || openBoardReports.length === 0 ? (
+                <span className="text-[10px] text-ink-dim">No open Board reports.</span>
+              ) : (
+                openBoardReports.map((r) => (
+                  <div
+                    key={r._id}
+                    className="flex flex-col gap-1.5 rounded border border-chrome-border bg-chrome-bg-raised/70 p-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold uppercase text-accent-yellow">
+                        {r.targetType === "area" ? "🗺️ Area" : "📝 Comment"}
+                      </span>
+                      <span className="text-[9px] text-ink-dim">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {r.targetType === "comment" && (
+                      <p className="rounded bg-chrome-bg p-1.5 text-[11px] text-ink">
+                        {r.commentText !== undefined
+                          ? `"${r.commentText}" — ${r.commentAuthor ?? "anon"}`
+                          : "(comment already deleted)"}
+                      </p>
+                    )}
+
+                    {r.targetType === "area" &&
+                      r.minX !== undefined && r.minY !== undefined && r.maxX !== undefined && r.maxY !== undefined && (
+                        <p className="text-[10px] text-ink-dim">
+                          🚩 Marked area: ({Math.round(r.minX)}, {Math.round(r.minY)}) → ({Math.round(r.maxX)}, {Math.round(r.maxY)})
+                        </p>
+                    )}
+
+                    {r.targetType === "area" && r.minX === undefined && r.x !== undefined && r.y !== undefined && (
+                      <p className="text-[10px] text-ink-dim">
+                        🚩 Reported view: ({Math.round(r.x)}, {Math.round(r.y)})
+                      </p>
+                    )}
+
+                    {r.reason && <p className="text-[10px] text-ink-dim">Reason: {r.reason}</p>}
+
+                    <div className="flex gap-2">
+                      {r.targetType === "comment" && r.commentId && r.commentText !== undefined && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReportedBoardComment(r._id, r.commentId!)}
+                          className="rounded border border-accent-crimson bg-accent-crimson/20 px-2 py-1 font-bold text-accent-crimson hover:bg-accent-crimson hover:text-on-accent"
+                        >
+                          🗑️ DELETE COMMENT
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDismissBoardReport(r._id)}
                         className="rounded border border-chrome-border bg-chrome-bg px-2 py-1 font-bold text-ink-dim hover:text-ink"
                       >
                         DISMISS

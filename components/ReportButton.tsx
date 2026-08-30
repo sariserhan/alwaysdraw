@@ -3,14 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { ChromeRivet } from "./ChromeRivet";
+import type { CanvasBackend } from "@/lib/canvasBackend";
 import type { Camera } from "@/lib/camera";
 import type { WorldRect } from "@/lib/types";
 import { t, type Locale } from "@/lib/i18n";
 import { useHasMounted } from "@/lib/useHasMounted";
 
 export interface ReportButtonProps {
+  /** Which canvas this button reports into — the wall's `reports` table or
+   * Board's `boardReports`. Without it a report from /board lands in the
+   * wall's admin queue at board-space coordinates. */
+  backend: CanvasBackend;
   currentCamera: Camera;
   clientId: string;
   locale: Locale;
@@ -32,6 +36,7 @@ export interface ReportButtonProps {
  * user-facing moderation signal in the app; everything else routes through
  * an admin acting directly on strokes/comments. */
 export function ReportButton({
+  backend,
   currentCamera,
   clientId,
   locale,
@@ -50,7 +55,7 @@ export function ReportButton({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
 
-  const createReport = useMutation(api.reports.create);
+  const createReport = useMutation(backend.reportsApi.create);
 
   const positionPopover = () => {
     if (!buttonRef.current) return;
@@ -131,14 +136,27 @@ export function ReportButton({
     try {
       setIsSubmitting(true);
       setSubmitError(false);
-      await createReport({
+      const base = {
         reporterId: clientId,
-        targetType: "area",
-        ...(pendingRegion
-          ? { minX: pendingRegion.minX, minY: pendingRegion.minY, maxX: pendingRegion.maxX, maxY: pendingRegion.maxY }
-          : { x: currentCamera.x, y: currentCamera.y, zoom: currentCamera.zoom }),
+        targetType: "area" as const,
         reason: reason.trim() || undefined,
-      });
+      };
+      if (pendingRegion) {
+        await createReport({
+          ...base,
+          minX: pendingRegion.minX,
+          minY: pendingRegion.minY,
+          maxX: pendingRegion.maxX,
+          maxY: pendingRegion.maxY,
+        });
+      } else if (backend.supportsZoomPan) {
+        await createReport({ ...base, x: currentCamera.x, y: currentCamera.y, zoom: currentCamera.zoom });
+      } else {
+        // Board has no zoom (boardReports.create declares no such arg, and
+        // an unknown arg is rejected at validation) — the whole board is
+        // always on screen, so the camera point alone locates the report.
+        await createReport({ ...base, x: currentCamera.x, y: currentCamera.y });
+      }
       setSubmitted(true);
       setReason("");
       if (pendingRegion) onRegionConsumed();

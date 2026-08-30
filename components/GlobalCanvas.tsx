@@ -58,7 +58,7 @@ import { convertTextToPoints, convertTextToStrokePaths, FONT_STYLES, type FontSt
 import { CommentsOverlay, type CanvasComment, type CommentsOverlayHandle } from "./CommentsOverlay";
 import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
-import type { LocalStroke, ServerStroke, Point, Tool, BrushType, WorldRect } from "@/lib/types";
+import type { LocalStroke, ServerStroke, ServerStrokeRow, Point, Tool, BrushType, WorldRect } from "@/lib/types";
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
@@ -488,10 +488,10 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const createComment = useMutation(backend.commentsApi.create);
   const removeComment = useMutation(backend.commentsApi.remove);
   const adminRemoveComment = useMutation(backend.commentsApi.adminRemove);
-  const reportContent = useMutation(api.reports.create);
+  const reportContent = useMutation(backend.reportsApi.create);
   const submitSnapshot = useMutation(api.snapshots.submit);
 
-  const onlineCount = useQuery(api.presence.onlineCount);
+  const wallOnlineCount = useQuery(api.presence.onlineCount, backend.usesTileScoping ? {} : "skip");
   const [subscribedTileKeys, setSubscribedTileKeys] = useState<string[]>([]);
   const subscribedTileKeysRef = useRef<string[]>([]);
   // At the app's own DEFAULT_ZOOM (0.06), the visible area covers roughly
@@ -516,6 +516,11 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     !backend.usesTileScoping || tooManyTilesForScoping ? {} : "skip",
   );
   const presenceList = !backend.usesTileScoping || tooManyTilesForScoping ? globalPresenceList : scopedPresenceList;
+  // Board's presence module deliberately has no counter query — its list is
+  // unscoped and already bounded (BOARD_MAX_PRESENCE_LIST), so its own
+  // length *is* the online count. Querying the wall's counter there would
+  // show the main wall's viewers on Board.
+  const onlineCount = backend.usesTileScoping ? wallOnlineCount : presenceList?.length;
   const canvasCommentRows = useQuery(backend.commentsApi.list, {});
   const comments = useMemo<CanvasComment[]>(
     () =>
@@ -531,10 +536,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       })),
     [canvasCommentRows],
   );
-  const liveTail = useQuery(
-    api.strokes.listSince,
+  const liveTailRows = useQuery(
+    backend.strokesApi.listSince,
     liveTailCursor === null ? "skip" : { afterSequence: liveTailCursor },
   );
+  // Widened to the shape both backends' rows share — Board rows carry no
+  // `tiles`, which is optional on ServerStrokeRow.
+  const liveTail: ServerStrokeRow[] | undefined = liveTailRows;
 
   const [maxSequence, setMaxSequence] = useState(0);
 
@@ -602,7 +610,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     // Snapshot base layer, if one was loaded — drawn under delta strokes so
     // later erases (destination-out) still punch through it correctly, same
     // as they punch through individually-replayed strokes.
-    if (snapshotImageRef.current) {
+    if (backend.usesSnapshots && snapshotImageRef.current) {
       const topLeft = worldToScreen(0, 0, cameraRef.current, width, height);
       const bottomRight = worldToScreen(WORLD_WIDTH, WORLD_HEIGHT, cameraRef.current, width, height);
       ctx.drawImage(
@@ -747,7 +755,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     // (including erases) has already been composited, keeps it visible
     // and immune to being punched through by an erase's destination-out.
     drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
+  }, [backend, paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
 
   // Replay animation loop
   useEffect(() => {
@@ -787,7 +795,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
     const { width, height } = viewportRef.current;
     const worldPt = screenToWorld(pos.x, pos.y, cameraRef.current, width, height);
-    const onWall = isWithinWorld(worldPt);
+    const onWall = isWithinWorld(worldPt, backend.worldWidth, backend.worldHeight);
     if (canvas) canvas.style.cursor = onWall ? "none" : "default";
 
     if (!el) return;
@@ -801,7 +809,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     el.style.width = `${diameter}px`;
     el.style.height = `${diameter}px`;
     el.style.display = "block";
-  }, [tool, brushWidth]);
+  }, [backend, tool, brushWidth]);
 
   useEffect(() => {
     updateCursorOverlay();
@@ -1165,6 +1173,21 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     if (rulerElRef.current) rulerElRef.current.style.display = "none";
   }, []);
 
+  // Board mode has no zoom/pan: lock the camera to whatever zoom fits the
+  // entire fixed world inside the current viewport, centered. Driven from
+  // the ResizeObserver callback below rather than a window "resize"
+  // listener — the window event fires *before* resize observations are
+  // delivered, so listening there would compute the fit from the
+  // pre-resize viewport and settle one resize behind, every time.
+  const applyFitCamera = useCallback(() => {
+    if (backend.supportsZoomPan) return;
+    const { width, height } = viewportRef.current;
+    if (width === 0 || height === 0) return;
+    const fitZoom = Math.min(width / backend.worldWidth, height / backend.worldHeight);
+    cameraRef.current = { x: backend.worldWidth / 2, y: backend.worldHeight / 2, zoom: fitZoom };
+    scheduleRedraw({ world: true, strokes: true });
+  }, [backend, scheduleRedraw]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const worldCanvas = worldCanvasRef.current;
@@ -1176,6 +1199,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
       viewportRef.current = { width: rect.width, height: rect.height };
+      applyFitCamera();
       setViewportSize({ width: rect.width, height: rect.height });
       for (const c of [canvas, worldCanvas, heatmapCanvas]) {
         c.width = Math.round(rect.width * dpr);
@@ -1223,29 +1247,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     return () => ro.disconnect();
-  }, [redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
-
-  // Board mode has no zoom/pan: lock the camera to whatever zoom fits the
-  // entire fixed world inside the current viewport, centered. Placed after
-  // the resize effect above (not right by cameraRef/viewportRef's
-  // declaration) so viewportRef.current is already populated by the time
-  // this runs on mount — otherwise the first fit would bail on a 0x0
-  // viewport and never fire again until a window resize.
-  useEffect(() => {
-    if (backend.supportsZoomPan) return;
-    const applyFitCamera = () => {
-      const { width, height } = viewportRef.current;
-      if (width === 0 || height === 0) return;
-      const fitZoom = Math.min(width / backend.worldWidth, height / backend.worldHeight);
-      const fitCamera = { x: backend.worldWidth / 2, y: backend.worldHeight / 2, zoom: fitZoom };
-      cameraRef.current = fitCamera;
-      scheduleRedraw({ world: true, strokes: true });
-    };
-    applyFitCamera();
-    window.addEventListener("resize", applyFitCamera);
-    return () => window.removeEventListener("resize", applyFitCamera);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend.supportsZoomPan, backend.worldWidth, backend.worldHeight]);
+  }, [applyFitCamera, redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1277,23 +1279,25 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         // skip replaying strokes up to the snapshot if its image actually
         // loads — otherwise we'd silently render a wall missing everything
         // before that point, with no error. Falls back to full replay.
-        const latestSnapshot = await convex.query(api.snapshots.getLatest);
-        if (latestSnapshot && latestSnapshot.sequence > 0) {
-          try {
-            snapshotImageRef.current = await loadImage(latestSnapshot.imageData);
-            snapshotSequenceRef.current = latestSnapshot.sequence;
-            setMinSequence(latestSnapshot.sequence);
-            after = latestSnapshot.sequence;
-          } catch (imageError) {
-            captureOperationalError(imageError, "snapshot_image_load", {
-              sequence: latestSnapshot.sequence,
-            });
+        if (backend.usesSnapshots) {
+          const latestSnapshot = await convex.query(api.snapshots.getLatest);
+          if (latestSnapshot && latestSnapshot.sequence > 0) {
+            try {
+              snapshotImageRef.current = await loadImage(latestSnapshot.imageData);
+              snapshotSequenceRef.current = latestSnapshot.sequence;
+              setMinSequence(latestSnapshot.sequence);
+              after = latestSnapshot.sequence;
+            } catch (imageError) {
+              captureOperationalError(imageError, "snapshot_image_load", {
+                sequence: latestSnapshot.sequence,
+              });
+            }
           }
         }
 
         // Step 2: Fetch remaining delta strokes since snapshot
         while (!cancelled) {
-          const page = await convex.query(api.strokes.listSince, {
+          const page: ServerStrokeRow[] = await convex.query(backend.strokesApi.listSince, {
             afterSequence: after,
             limit: REPLAY_PAGE_SIZE,
           });
@@ -1343,7 +1347,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           });
           scheduleRedraw();
 
-          if (after - snapshotSequenceRef.current >= SNAPSHOT_STROKE_THRESHOLD) {
+          if (backend.usesSnapshots && after - snapshotSequenceRef.current >= SNAPSHOT_STROKE_THRESHOLD) {
             try {
               const canvas = document.createElement("canvas");
               canvas.width = SNAPSHOT_SIZE_PX;
@@ -1800,6 +1804,21 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const lastPanScreenRef = useRef<Point | null>(null);
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
 
+  /** The single write path for the camera outside of direct pointer
+   * gestures (which are already gated on supportsZoomPan). Every teleport,
+   * jump and fit-to-region goes through here so Board's locked camera can't
+   * be knocked off its fit by an ordinary sidebar button — once off it,
+   * there is no way back short of a reload. */
+  const setCamera = useCallback(
+    (next: Camera) => {
+      if (!backend.supportsZoomPan) return;
+      cameraRef.current = next;
+      setCameraSnapshot(next);
+      scheduleRedraw({ world: true, strokes: true });
+    },
+    [backend, scheduleRedraw],
+  );
+
   const resetView = useCallback(() => {
     if (!backend.supportsZoomPan) return;
     cameraRef.current = defaultCamera(WORLD_WIDTH, WORLD_HEIGHT);
@@ -1894,10 +1913,34 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     (clientX: number, clientY: number): Point => {
       const screen = getScreenPoint(clientX, clientY);
       const { width, height } = viewportRef.current;
-      const pt = clampToWorld(screenToWorld(screen.x, screen.y, cameraRef.current, width, height));
+      const pt = clampToWorld(
+        screenToWorld(screen.x, screen.y, cameraRef.current, width, height),
+        backend.worldWidth,
+        backend.worldHeight,
+      );
       return snapPointToGrid(pt, gridConfig);
     },
-    [getScreenPoint, gridConfig],
+    [backend, getScreenPoint, gridConfig],
+  );
+
+  /** Whether a press here may start a mark. On the wall, always — input
+   * beyond the world edge is forgivingly clamped onto it (long-standing
+   * behavior). On Board the letterboxed margin is not part of the canvas,
+   * so a press there is ignored. Deliberately tests the *unclamped* world
+   * point: getPointerWorld clamps into bounds, so every margin press looks
+   * in-bounds by the time it returns. */
+  const canDrawAtPointer = useCallback(
+    (clientX: number, clientY: number): boolean => {
+      if (!backend.rejectsOffCanvasInput) return true;
+      const screen = getScreenPoint(clientX, clientY);
+      const { width, height } = viewportRef.current;
+      return isWithinWorld(
+        screenToWorld(screen.x, screen.y, cameraRef.current, width, height),
+        backend.worldWidth,
+        backend.worldHeight,
+      );
+    },
+    [backend, getScreenPoint],
   );
 
   const handleSubmitComment = useCallback(
@@ -1946,7 +1989,12 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       reportContent({
         reporterId: clientId,
         targetType: "comment",
-        commentId: id as Id<"canvasComments">,
+        // The id came from backend.commentsApi.list, so it always belongs to
+        // whichever table backend.reportsApi.create expects — the
+        // intersection says "either", rather than asserting the wall's table
+        // for a boardComments row (which Convex rejects at arg validation,
+        // silently, thanks to the .catch below).
+        commentId: id as Id<"canvasComments"> & Id<"boardComments">,
       }).catch(() => {});
     },
     [clientId, reportContent],
@@ -2141,19 +2189,19 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         return;
       }
 
-      if (worldPt.x < 0 || worldPt.x > backend.worldWidth || worldPt.y < 0 || worldPt.y > backend.worldHeight) {
+      if (!canDrawAtPointer(e.clientX, e.clientY)) {
         return; // outside the board's drawable rect — the letterboxed margin
       }
 
       beginDraw(worldPt);
     },
     [
-      backend,
       beginDraw,
       color,
       endDraw,
       getPointerWorld,
       getScreenPoint,
+      canDrawAtPointer,
       isReplayMode,
       scheduleRedraw,
       stampStencilAt,
@@ -2505,13 +2553,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       let totalDelay = 0;
 
       // Teleport camera to AI drawing zone if admin
-      const fitted = fitCameraToRegion(
-        { minX: zoneX - 300, minY: zoneY - 300, maxX: zoneX + 300, maxY: zoneY + 300 },
-        viewportRef.current.width,
-        viewportRef.current.height,
+      setCamera(
+        fitCameraToRegion(
+          { minX: zoneX - 300, minY: zoneY - 300, maxX: zoneX + 300, maxY: zoneY + 300 },
+          viewportRef.current.width,
+          viewportRef.current.height,
+        ),
       );
-      cameraRef.current = fitted;
-      setCameraSnapshot(fitted);
 
       generated.forEach((st) => {
         const densePoints: Point[] = [];
@@ -2585,7 +2633,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         });
       }, totalDelay + 3000);
     },
-    [commitOwnChunk, scheduleRedraw],
+    [commitOwnChunk, scheduleRedraw, setCamera],
   );
 
   const handleShare = useCallback(() => {
@@ -2601,12 +2649,10 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     setReplaySequenceIndex(snapshotSequenceRef.current);
     setIsPlayingReplay(true);
     if (replayRegion) {
-      const fitted = fitCameraToRegion(replayRegion, viewportRef.current.width, viewportRef.current.height);
-      cameraRef.current = fitted;
-      setCameraSnapshot(fitted);
+      setCamera(fitCameraToRegion(replayRegion, viewportRef.current.width, viewportRef.current.height));
     }
     scheduleRedraw({ world: true, strokes: true });
-  }, [replayRegion, scheduleRedraw]);
+  }, [replayRegion, scheduleRedraw, setCamera]);
 
   const handleSelectRegion = useCallback(() => {
     setTool("region");
@@ -2620,13 +2666,11 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   // is local to this admin's own screen and clears itself — never synced,
   // never shown to other users.
   const handleTeleportToReportedRegion = useCallback((rect: WorldRect) => {
-    const fitted = fitCameraToRegion(rect, viewportRef.current.width, viewportRef.current.height);
-    cameraRef.current = fitted;
-    setCameraSnapshot(fitted);
+    setCamera(fitCameraToRegion(rect, viewportRef.current.width, viewportRef.current.height));
     setHighlightedReportRegion(rect);
     scheduleRedraw({ world: true, strokes: true });
     setTimeout(() => setHighlightedReportRegion(null), 6000);
-  }, [scheduleRedraw]);
+  }, [scheduleRedraw, setCamera]);
 
   const handleToolChange = useCallback((nextTool: Tool) => {
     setTool(nextTool);
@@ -2636,10 +2680,9 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const handleMiniMapJump = useCallback(
     (fracX: number, fracY: number) => {
       const target = clampToWorld({ x: fracX * WORLD_WIDTH, y: fracY * WORLD_HEIGHT });
-      cameraRef.current = { ...cameraRef.current, x: target.x, y: target.y };
-      scheduleRedraw({ world: true, strokes: true });
+      setCamera({ ...cameraRef.current, x: target.x, y: target.y });
     },
-    [scheduleRedraw],
+    [setCamera],
   );
 
   const handleToggleHeatmap = useCallback(() => {
@@ -2652,26 +2695,24 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   // Spatial Teleportation Handlers
   const handleJumpToPoint = useCallback((pt: Point, label: string) => {
     const { width, height } = viewportRef.current;
-    cameraRef.current = {
+    setCamera({
       x: Math.max(width / (2 * cameraRef.current.zoom), Math.min(WORLD_WIDTH - width / (2 * cameraRef.current.zoom), pt.x)),
       y: Math.max(height / (2 * cameraRef.current.zoom), Math.min(WORLD_HEIGHT - height / (2 * cameraRef.current.zoom), pt.y)),
       zoom: cameraRef.current.zoom,
-    };
-    scheduleRedraw({ world: true, strokes: true });
+    });
     captureEvent("spatial_teleport", { label });
-  }, [scheduleRedraw]);
+  }, [setCamera]);
 
   const handleBookmarkTeleport = useCallback((pt: Point, targetZoom: number, label: string) => {
     const { width, height } = viewportRef.current;
     const clZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
-    cameraRef.current = {
+    setCamera({
       x: Math.max(width / (2 * clZoom), Math.min(WORLD_WIDTH - width / (2 * clZoom), pt.x)),
       y: Math.max(height / (2 * clZoom), Math.min(WORLD_HEIGHT - height / (2 * clZoom), pt.y)),
       zoom: clZoom,
-    };
-    scheduleRedraw({ world: true, strokes: true });
+    });
     captureEvent("bookmark_teleport", { label });
-  }, [scheduleRedraw]);
+  }, [setCamera]);
 
   const getBusiestPoint = useCallback(() => {
     return findBusiestCell(heatmapGridRef.current, WORLD_WIDTH, WORLD_HEIGHT);
@@ -2828,6 +2869,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
               iconOnly
             />
             <ReportButton
+              backend={backend}
               currentCamera={cameraSnapshot}
               clientId={clientId}
               locale={locale}
@@ -2953,6 +2995,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
               locale={locale}
             />
             <ReportButton
+              backend={backend}
               currentCamera={cameraSnapshot}
               clientId={clientId}
               locale={locale}
@@ -3217,6 +3260,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
                 locale={locale}
               />
               <ReportButton
+              backend={backend}
               currentCamera={cameraSnapshot}
               clientId={clientId}
               locale={locale}
@@ -3418,13 +3462,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             setTool("brush");
             const tx = goal.targetX ?? 0;
             const ty = goal.targetY ?? 0;
-            const fitted = fitCameraToRegion(
-              { minX: tx - 250, minY: ty - 250, maxX: tx + 250, maxY: ty + 250 },
-              viewportRef.current.width,
-              viewportRef.current.height,
+            setCamera(
+              fitCameraToRegion(
+                { minX: tx - 250, minY: ty - 250, maxX: tx + 250, maxY: ty + 250 },
+                viewportRef.current.width,
+                viewportRef.current.height,
+              ),
             );
-            cameraRef.current = fitted;
-            setCameraSnapshot(fitted);
           }}
           onDismissGoal={() => setActiveAdminGoal(null)}
         />

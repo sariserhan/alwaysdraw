@@ -29,14 +29,18 @@ export function worldToScreen(
   };
 }
 
-export function clampToWorld(p: Point): Point {
+/** Bounds default to the wall's world; Board passes its own (see
+ * lib/canvasBackend.ts) — clamping Board input to 20,000 would both let a
+ * click in the left/top letterbox snap onto the board's edge and let a drag
+ * past the right/bottom edge accumulate points the server then rejects. */
+export function clampToWorld(p: Point, width = WORLD_WIDTH, height = WORLD_HEIGHT): Point {
   return {
-    x: Math.min(WORLD_WIDTH, Math.max(0, p.x)),
-    y: Math.min(WORLD_HEIGHT, Math.max(0, p.y)),
+    x: Math.min(width, Math.max(0, p.x)),
+    y: Math.min(height, Math.max(0, p.y)),
   };
 }
 
-/** True if a (possibly unclamped) world point falls on the wall itself, not the void beyond its edge. */
-export function isWithinWorld(p: Point): boolean {
-  return p.x >= 0 && p.x <= WORLD_WIDTH && p.y >= 0 && p.y <= WORLD_HEIGHT;
+/** True if a (possibly unclamped) world point falls on the canvas itself, not the void beyond its edge. */
+export function isWithinWorld(p: Point, width = WORLD_WIDTH, height = WORLD_HEIGHT): boolean {
+  return p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height;
 }

@@ -16,22 +16,61 @@ async function canvasBoundingBox(page: Page) {
   return box;
 }
 
+/** The RGBA of one *screen* point on the strokes canvas. The canvas element
+ * is `absolute inset-0 h-full w-full`, so its DOM rect is always the
+ * viewport and says nothing about the camera — what's painted *at* a given
+ * screen point is the only thing camera state is observable through. */
+async function samplePixel(page: Page, point: { x: number; y: number }) {
+  return page.locator("canvas").nth(1).evaluate((el, p) => {
+    const canvas = el as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2D canvas context unavailable");
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return [...ctx.getImageData(p.x * scaleX, p.y * scaleY, 1, 1).data];
+  }, point);
+}
+
+async function drawThrough(page: Page, box: { x: number; y: number }, point: { x: number; y: number }) {
+  await page.mouse.move(box.x + point.x - 40, box.y + point.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + point.x + 40, box.y + point.y, { steps: 8 });
+  await page.mouse.up();
+}
+
 test("zoom and pan input have zero effect on Board's camera", async ({ page }) => {
   await waitForBoard(page);
-  const before = await canvasBoundingBox(page);
+  const box = await canvasBoundingBox(page);
+  const point = { x: box.width / 2, y: box.height / 2 };
 
-  // Wheel-zoom attempt (ctrl+wheel simulates a trackpad pinch in Chromium).
+  const blank = await samplePixel(page, point);
+  await drawThrough(page, box, point);
+
+  // Establishes that there IS content at this screen point before the
+  // camera input — without it, "unchanged" could just mean two identical
+  // blanks, which is how the previous version of this test passed whether
+  // or not the camera lock worked.
+  await expect.poll(() => samplePixel(page, point), { timeout: 15_000 }).not.toEqual(blank);
+  const before = await samplePixel(page, point);
+
+  // Every camera-moving input Board exposes: wheel zoom, trackpad pinch
+  // (ctrl+wheel in Chromium), the +/- shortcuts, and the reset-view
+  // shortcut. If any of them moved the camera, this screen point would show
+  // a different part of the board — or the blank letterbox.
+  await page.mouse.move(box.x + point.x, box.y + point.y);
   await page.mouse.wheel(0, -200);
   await page.keyboard.down("Control");
   await page.mouse.wheel(0, -200);
   await page.keyboard.up("Control");
-
-  // Keyboard zoom shortcut attempt.
   await page.keyboard.press("Equal"); // "+"
   await page.keyboard.press("Minus"); // "-"
+  await page.keyboard.press("0"); // reset view
 
-  const after = await canvasBoundingBox(page);
-  expect(after).toEqual(before);
+  // Redraws are rAF-driven, so a camera change would already be painted;
+  // this asserts the absence of one, hence a settle wait rather than a poll.
+  await page.waitForTimeout(300);
+  expect(await samplePixel(page, point)).toEqual(before);
 });
 
 test("a stroke lands at the same screen position after a reload (no drift from camera state)", async ({ page }) => {
@@ -39,24 +78,10 @@ test("a stroke lands at the same screen position after a reload (no drift from c
   const box = await canvasBoundingBox(page);
   const point = { x: box.width / 2, y: box.height / 2 };
 
-  await page.mouse.move(box.x + point.x - 20, box.y + point.y);
-  await page.mouse.down();
-  await page.mouse.move(box.x + point.x + 20, box.y + point.y, { steps: 8 });
-  await page.mouse.up();
+  await drawThrough(page, box, point);
 
-  const sample = async () =>
-    page.locator("canvas").nth(1).evaluate((el, p) => {
-      const canvas = el as HTMLCanvasElement;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("2D canvas context unavailable");
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      return [...ctx.getImageData(p.x * scaleX, p.y * scaleY, 1, 1).data];
-    }, point);
-
-  const beforeReload = await sample();
+  const beforeReload = await samplePixel(page, point);
   await page.reload();
   await expect(page.getByText("loading", { exact: false })).toBeHidden({ timeout: 30_000 });
-  await expect.poll(sample, { timeout: 15_000 }).toEqual(beforeReload);
+  await expect.poll(() => samplePixel(page, point), { timeout: 15_000 }).toEqual(beforeReload);
 });
