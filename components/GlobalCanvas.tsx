@@ -60,6 +60,7 @@ import { parseCameraFromSearch, cameraToSearchString } from "@/lib/viewportUrl";
 import { captureEvent, captureOperationalError } from "@/lib/observability";
 import type { LocalStroke, ServerStroke, ServerStrokeRow, Point, Tool, BrushType, WorldRect } from "@/lib/types";
 import { normalizeRect, strokeIntersectsRegion, fitCameraToRegion } from "@/lib/regionFilter";
+import { isToolAllowedAtZoom, TOOL_ZOOM_GATE_THRESHOLD } from "@/lib/toolGating";
 import { DrawingToolbar } from "./DrawingToolbar";
 import { ShareModal } from "./ShareModal";
 import { DrawingChallengeWidget, type ActiveGoal } from "./DrawingChallengeWidget";
@@ -423,6 +424,10 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   // under the header — chained offsets so both stay aligned as the header's
   // height changes (it wraps to 1-3 rows depending on viewport width).
   const sidebarTop = useHeaderBottomOffset(MINI_MAP_SIZE_PX + 12);
+  // NameJoinPrompt used to sit near the bottom (bottom-40), which now
+  // collides with the zoom-gate banner attached to the toolbar — moved to
+  // just below the header instead, out of the toolbar's way entirely.
+  const nameJoinPromptTop = useHeaderBottomOffset(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [hoverAttribution, setHoverAttribution] = useState<{
     screenX: number;
@@ -1855,19 +1860,19 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
       const key = e.key.toLowerCase();
       if (key === "b" || key === "1") {
-        setTool("brush");
+        if (isToolAllowedAtZoom("brush", cameraRef.current.zoom, backend.supportsZoomPan)) setTool("brush");
       } else if (key === "e" || key === "2") {
-        setTool("eraser");
+        if (isToolAllowedAtZoom("eraser", cameraRef.current.zoom, backend.supportsZoomPan)) setTool("eraser");
       } else if (key === "h" || key === "3") {
         setTool("pan");
       } else if (key === "m" || key === "4") {
         setTool("magnifier");
       } else if (key === "s" || key === "5") {
-        setTool("shape");
+        if (isToolAllowedAtZoom("shape", cameraRef.current.zoom, backend.supportsZoomPan)) setTool("shape");
       } else if (key === "t" || key === "6") {
-        setTool("stencil");
+        if (isToolAllowedAtZoom("stencil", cameraRef.current.zoom, backend.supportsZoomPan)) setTool("stencil");
       } else if (key === "r" || key === "7") {
-        setTool("ruler");
+        if (isToolAllowedAtZoom("ruler", cameraRef.current.zoom, backend.supportsZoomPan)) setTool("ruler");
       } else if (key === "l") {
         setTool("laser");
       } else if (key === "i" || key === "8") {
@@ -1902,7 +1907,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [resetView, zoomButton]);
+  }, [resetView, zoomButton, backend]);
 
   const getScreenPoint = useCallback((clientX: number, clientY: number): Point => {
     const rect = containerRef.current!.getBoundingClientRect();
@@ -2681,9 +2686,16 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   }, [scheduleRedraw, setCamera]);
 
   const handleToolChange = useCallback((nextTool: Tool) => {
+    if (!isToolAllowedAtZoom(nextTool, cameraRef.current.zoom, backend.supportsZoomPan)) return;
     setTool(nextTool);
     captureEvent("tool_selected", { tool: nextTool });
-  }, []);
+  }, [backend]);
+
+  // Drives the toolbar's disabled/grayed state for mark-making tools and its
+  // attached "zoom in to draw" banner — reactive (cameraSnapshot, not the
+  // cameraRef used by the gating checks above) so the UI actually re-renders
+  // as the camera moves, not just the next time a tool is selected.
+  const zoomGateActive = backend.supportsZoomPan && cameraSnapshot.zoom < TOOL_ZOOM_GATE_THRESHOLD;
 
   const handleMiniMapJump = useCallback(
     (fracX: number, fracY: number) => {
@@ -3101,6 +3113,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         onSave={handleNameJoinPromptSave}
         onDismiss={() => setShowNameJoinPrompt(false)}
         locale={locale}
+        top={nameJoinPromptTop}
       />
 
       {/* Sticky Floating Admin Status Badge */}
@@ -3473,6 +3486,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
           locale={locale}
+          zoomGateActive={zoomGateActive}
         />
         <DrawingChallengeWidget
           activeGoal={activeAdminGoal}

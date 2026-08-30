@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { t, type Locale } from "@/lib/i18n";
 import type { BrushType, Tool } from "@/lib/types";
 import { BRUSH_CATALOG, getBrushTypeTranslationKey, getBrushCategoryTranslationKey } from "@/lib/brushes";
@@ -529,6 +529,85 @@ function PalettePicker({
   );
 }
 
+/** Palette swatches, custom color picker, and palette switcher — kept next
+ * to the brush picker so color and brush selection happen in one place. */
+function ColorSwatches({
+  activePalette,
+  color,
+  onColorChange,
+  onPickColor,
+  onSelectPalette,
+  locale = "en",
+}: {
+  activePalette: Palette;
+  color: string;
+  onColorChange: (c: string) => void;
+  onPickColor: () => void;
+  onSelectPalette: (p: Palette) => void;
+  locale?: Locale;
+}) {
+  return (
+    <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-1.5 sm:pl-2">
+      {activePalette.colors.map((sw) => (
+        <button
+          key={sw}
+          type="button"
+          onClick={() => {
+            onColorChange(sw);
+            onPickColor();
+          }}
+          aria-label={`color ${sw}`}
+          aria-pressed={color === sw}
+          className={`relative shrink-0 rounded-full ring-1 ring-black/40 transition-all ${
+            color === sw
+              ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+              : "h-6 w-6"
+          }`}
+          style={{
+            background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sw} 100%, white 35%), ${sw} 60%)`,
+          }}
+        />
+      ))}
+      {(() => {
+        const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color || "") ? color : "#17181a";
+        const isCustom = !activePalette.colors.includes(color);
+        return (
+          <label
+            className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
+              isCustom
+                ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
+                : "h-6 w-6"
+            }`}
+            title="Custom color"
+            style={{
+              background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
+            }}
+          >
+            <input
+              type="color"
+              value={safeColor}
+              onChange={(e) => {
+                onColorChange(e.target.value);
+                onPickColor();
+              }}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              aria-label="custom color"
+            />
+            {isCustom && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-[3px] rounded-full"
+                style={{ background: safeColor }}
+              />
+            )}
+          </label>
+        );
+      })()}
+      <PalettePicker activePaletteId={activePalette.id} locale={locale} onSelectPalette={onSelectPalette} />
+    </div>
+  );
+}
+
 export function DrawingToolbar({
   tool,
   onToolChange,
@@ -552,6 +631,7 @@ export function DrawingToolbar({
   showHeatmap,
   onToggleHeatmap,
   locale = "en",
+  zoomGateActive,
 }: {
   tool: Tool;
   onToolChange: (t: Tool) => void;
@@ -575,6 +655,10 @@ export function DrawingToolbar({
   showHeatmap: boolean;
   onToggleHeatmap: () => void;
   locale?: Locale;
+  /** True when the current zoom is below the mark-making tools' minimum —
+   * disables their buttons and shows the attached "zoom in to draw" banner.
+   * Always false on canvases that don't support zoom/pan (Board). */
+  zoomGateActive: boolean;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shapePickerOpen, setShapePickerOpen] = useState(false);
@@ -586,8 +670,74 @@ export function DrawingToolbar({
   const activeBrushLabel = t(locale ?? "en", getBrushTypeTranslationKey(brushType));
   const activeShapeLabel = SHAPE_CATALOG.find((s) => s.type === shapeType)?.label ?? "Line";
 
+  // L-shaped connector from the zoom-gate banner down to the zoom control —
+  // measured live off the real DOM rather than assumed, since the banner is
+  // centered over the whole toolbar while the zoom control sits inside the
+  // left panel, and their horizontal gap shifts with viewport width and
+  // with which sections are expanded/collapsed. Same live-measurement
+  // pattern as MiniMap.tsx's useHeaderBottomOffset.
+  const connectorRootRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const zoomControlRef = useRef<HTMLDivElement>(null);
+  const [connector, setConnector] = useState<{ x1: number; y1: number; midY: number; x2: number; y2: number } | null>(null);
+
+  useEffect(() => {
+    if (!zoomGateActive) {
+      queueMicrotask(() => setConnector(null));
+      return;
+    }
+    const update = () => {
+      const root = connectorRootRef.current;
+      const banner = bannerRef.current;
+      const zoomEl = zoomControlRef.current;
+      if (!root || !banner || !zoomEl) return;
+      const rootRect = root.getBoundingClientRect();
+      const bannerRect = banner.getBoundingClientRect();
+      const zoomRect = zoomEl.getBoundingClientRect();
+      const x1 = bannerRect.left + bannerRect.width / 2 - rootRect.left;
+      const y1 = bannerRect.bottom - rootRect.top;
+      const x2 = zoomRect.left + zoomRect.width / 2 - rootRect.left;
+      const y2 = zoomRect.top - rootRect.top;
+      setConnector({ x1, y1, midY: y1 + (y2 - y1) / 2, x2, y2 });
+    };
+    update();
+    const rafId = requestAnimationFrame(update);
+    const timeoutId = setTimeout(update, 100);
+    const ro = new ResizeObserver(update);
+    if (connectorRootRef.current) ro.observe(connectorRootRef.current);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [zoomGateActive]);
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center items-end px-2 pb-2 sm:px-4 max-w-full z-20">
+    <div ref={connectorRootRef} className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-2 pb-2 sm:px-4 max-w-full z-20">
+      {connector && (
+        <svg aria-hidden className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible text-accent-yellow">
+          <path
+            d={`M ${connector.x1} ${connector.y1} L ${connector.x1} ${connector.midY} L ${connector.x2} ${connector.midY} L ${connector.x2} ${connector.y2}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+      {zoomGateActive && (
+        <div
+          ref={bannerRef}
+          role="status"
+          className="pointer-events-auto flex items-center gap-1.5 rounded-sm border-2 border-rust bg-chrome-bg/95 px-3 py-1.5 font-mono text-[11px] font-bold text-accent-yellow shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-sm"
+        >
+          <span>🔍</span>
+          <span>{t(locale, "zoom_gate_banner")}</span>
+        </div>
+      )}
       <div className="relative flex flex-wrap items-stretch justify-center gap-2 sm:gap-3 max-w-[98vw]">
         {/* SECTION 1: TOOLS & CONTROLS (LEFT PANEL) */}
         <div
@@ -608,6 +758,7 @@ export function DrawingToolbar({
           <div className="relative flex max-w-full flex-wrap items-center gap-0.5 sm:gap-1 rounded-sm border border-chrome-border bg-chrome-bg p-1">
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => {
                 onToolChange("brush");
                 setPickerOpen((v) => (tool !== "brush" ? true : !v));
@@ -616,7 +767,7 @@ export function DrawingToolbar({
               aria-haspopup="true"
               aria-expanded={pickerOpen}
               title={activeBrushLabel}
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "brush" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -635,12 +786,67 @@ export function DrawingToolbar({
                 locale={locale}
               />
             )}
+            {/* Color picker sits right next to the brush picker — quick
+                access to both without hunting across the toolbar. */}
+            <ColorSwatches
+              activePalette={activePalette}
+              color={color}
+              onColorChange={onColorChange}
+              onPickColor={() => onToolChange("brush")}
+              onSelectPalette={(p) => {
+                setActivePalette(p);
+                onColorChange(p.colors[0]);
+              }}
+              locale={locale}
+            />
+            {/* Zoom sits right next to brush/color too — the quickest way
+                out of the zoom gate is right where it's blocking you, never
+                itself disabled by the gate. A bouncing arrow points straight
+                down at it while the gate is active, so the banner's message
+                has an obvious, always-correctly-aligned target — anchored to
+                this control itself rather than measured across the banner,
+                which would drift on reflow/resize. */}
+            <div ref={zoomControlRef} className="relative flex items-center gap-0.5 rounded-sm border border-chrome-border bg-chrome-bg px-1">
+              {zoomGateActive && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 animate-bounce text-base text-accent-yellow"
+                >
+                  ↓
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={onZoomOut}
+                aria-label="zoom out"
+                title="Zoom Out"
+                className="flex h-6 w-6 items-center justify-center rounded-sm text-sm font-bold text-ink-dim transition-colors hover:text-ink"
+              >
+                −
+              </button>
+              <span
+                className="min-w-[2.75rem] text-center font-mono text-[11px] font-bold tabular-nums text-accent-yellow"
+                title="Current Zoom Level"
+              >
+                {zoomPercent}%
+              </span>
+              <button
+                type="button"
+                onClick={onZoomIn}
+                aria-label="zoom in"
+                title="Zoom In"
+                className="flex h-6 w-6 items-center justify-center rounded-sm text-sm font-bold text-ink-dim transition-colors hover:text-ink"
+              >
+                +
+              </button>
+            </div>
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => onToolChange(tool === "eraser" ? "laser" : "eraser")}
               aria-pressed={tool === "eraser"}
               title={t(locale ?? "en", "erase")}
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "eraser" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -695,6 +901,7 @@ export function DrawingToolbar({
             </button>
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => {
                 if (tool === "shape") {
                   onToolChange("laser");
@@ -708,7 +915,7 @@ export function DrawingToolbar({
               aria-haspopup="true"
               aria-expanded={shapePickerOpen}
               title={activeShapeLabel}
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "shape" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -726,10 +933,11 @@ export function DrawingToolbar({
             )}
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => onToolChange(tool === "text" ? "laser" : "text")}
               aria-pressed={tool === "text"}
               title="Text Tool (X)"
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "text" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -748,6 +956,7 @@ export function DrawingToolbar({
             </button>
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => {
                 if (tool === "stencil") {
                   onToolChange("laser");
@@ -761,7 +970,7 @@ export function DrawingToolbar({
               aria-haspopup="true"
               aria-expanded={stencilPickerOpen}
               title={t(locale, "stencil")}
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "stencil" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -790,10 +999,11 @@ export function DrawingToolbar({
             </button>
             <button
               type="button"
+              disabled={zoomGateActive}
               onClick={() => onToolChange(tool === "ruler" ? "laser" : "ruler")}
               aria-pressed={tool === "ruler"}
               title={t(locale, "ruler")}
-              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition ${
+              className={`flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-xs font-semibold tracking-wide uppercase transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-ink-dim ${
                 tool === "ruler" ? "bg-accent-crimson-deep text-on-accent" : "text-ink-dim hover:text-ink"
               }`}
             >
@@ -845,72 +1055,6 @@ export function DrawingToolbar({
         {stylesSectionOpen ? (
           <>
             <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2">
-              {activePalette.colors.map((sw) => (
-                <button
-                  key={sw}
-                  type="button"
-                  onClick={() => {
-                    onColorChange(sw);
-                    onToolChange("brush");
-                  }}
-                  aria-label={`color ${sw}`}
-                  aria-pressed={color === sw}
-                  className={`relative shrink-0 rounded-full ring-1 ring-black/40 transition-all ${
-                    color === sw
-                      ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
-                      : "h-6 w-6"
-                  }`}
-                  style={{
-                    background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${sw} 100%, white 35%), ${sw} 60%)`,
-                  }}
-                />
-              ))}
-              {(() => {
-                const safeColor = /^#[0-9A-Fa-f]{6}$/.test(color || "") ? color : "#17181a";
-                const isCustom = !activePalette.colors.includes(color);
-                return (
-                  <label
-                    className={`relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/40 transition-all ${
-                      isCustom
-                        ? "h-8 w-8 ring-2 ring-accent-yellow ring-offset-2 ring-offset-chrome-bg-raised"
-                        : "h-6 w-6"
-                    }`}
-                    title="Custom color"
-                    style={{
-                      background: "conic-gradient(from 0deg, #ff3b30, #ffcc00, #34c759, #30b0c7, #007aff, #af52de, #ff3b30)",
-                    }}
-                  >
-                    <input
-                      type="color"
-                      value={safeColor}
-                      onChange={(e) => {
-                        onColorChange(e.target.value);
-                        onToolChange("brush");
-                      }}
-                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                      aria-label="custom color"
-                    />
-                    {isCustom && (
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute inset-[3px] rounded-full"
-                        style={{ background: safeColor }}
-                      />
-                    )}
-                  </label>
-                );
-              })()}
-              <PalettePicker
-                activePaletteId={activePalette.id}
-                locale={locale}
-                onSelectPalette={(p) => {
-                  setActivePalette(p);
-                  onColorChange(p.colors[0]);
-                }}
-              />
-            </div>
-
-            <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 border-l border-chrome-border pl-2 sm:pl-3">
               <span className="flex items-center gap-1 text-ink-dim">
                 <RulerIcon />
                 <span className="font-mono text-[11px] font-bold tracking-wide uppercase">{t(locale, "size")}</span>
