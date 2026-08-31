@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { WebVitals } from "@/components/WebVitals";
+import { GlobalErrorGuard } from "@/components/GlobalErrorGuard";
 import "./globals.css";
 
 const spaceGrotesk = localFont({
@@ -202,6 +203,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </noscript>
         <ConvexClientProvider>{children}</ConvexClientProvider>
+        <GlobalErrorGuard />
         <WebVitals />
         <Script
           src="https://cdn.visitorping.com/site/vp_AZDRYS4L.js"
