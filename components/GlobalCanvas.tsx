@@ -2119,6 +2119,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         return;
       }
 
+      // Re-checked here, not just at tool-selection time (handleToolChange,
+      // the keyboard shortcuts) — selecting a gated tool while zoomed in
+      // and then zooming back out must not leave it usable. A no-op for
+      // every non-gated tool (pan/magnifier/eyedropper already returned
+      // above; comment/laser/region/etc. all pass this check).
+      if (!isToolAllowedAtZoom(tool, cameraRef.current.zoom, backend.supportsZoomPan)) return;
+
       const worldPt = getPointerWorld(e.clientX, e.clientY);
       Object.assign(lastCursorWorldRef.current, worldPt);
       lastActivityAtRef.current = Date.now();
@@ -2201,6 +2208,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       beginDraw(worldPt);
     },
     [
+      backend,
       beginDraw,
       color,
       endDraw,
