@@ -17,9 +17,9 @@ export const ZOOM_GATED_TOOLS: ReadonlySet<Tool> = new Set<Tool>([
 ]);
 
 // The wall loads at DEFAULT_ZOOM, which shows the entire 20,000x20,000 world
-// at once — exactly why new users default to painting at that scale. 4x as
+// at once — exactly why new users default to painting at that scale. 2x as
 // a first cut; tune from real usage once this ships.
-export const TOOL_ZOOM_GATE_THRESHOLD = DEFAULT_ZOOM * 4;
+export const TOOL_ZOOM_GATE_THRESHOLD = DEFAULT_ZOOM * 2;
 
 /** Board's camera is fixed (supportsZoomPan is false there), so gating is
  * meaningless — Board is already small enough that "zoom into an area"
