@@ -20,4 +20,22 @@ describe("isIgnorableGlobalError", () => {
   it("does not ignore an empty message", () => {
     expect(isIgnorableGlobalError("")).toBe(false);
   });
+
+  it("ignores any error whose source is VisitorPing's analytics script, regardless of message", () => {
+    // Sentry's own stack-trace normalization has shown this script's source
+    // as the short "app:///vp.js" form — must match that too, not just the
+    // full CDN URL.
+    expect(isIgnorableGlobalError("NS_ERROR_FAILURE: No error message", "app:///vp.js")).toBe(true);
+    expect(
+      isIgnorableGlobalError("TypeError: something", "https://cdn.visitorping.com/vp.js?site=vp_ABC123"),
+    ).toBe(true);
+  });
+
+  it("does not ignore the same message when the source is our own code", () => {
+    expect(isIgnorableGlobalError("TypeError: something", "app:///_next/static/chunks/main.js")).toBe(false);
+  });
+
+  it("does not ignore a genuine error when no source is provided", () => {
+    expect(isIgnorableGlobalError("TypeError: something", undefined)).toBe(false);
+  });
 });

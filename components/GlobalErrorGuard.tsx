@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t, type Locale } from "@/lib/i18n";
 import { captureOperationalError } from "@/lib/observability";
 import { isIgnorableGlobalError } from "@/lib/globalErrorFiltering";
@@ -26,21 +26,35 @@ function getLocale(): Locale {
 export function GlobalErrorGuard() {
   const [triggered, setTriggered] = useState(false);
   const [locale, setLocale] = useState<Locale>("en");
+  // A ref, not the `triggered` state: the handlers below are registered once
+  // (empty deps) and close over whatever `triggered` was at mount forever,
+  // so state alone can never de-duplicate them. Without this, a rapidly
+  // repeating error (e.g. something throwing inside GlobalCanvas's
+  // requestAnimationFrame redraw loop, tens of times per second) re-runs
+  // full handling — another Sentry capture, another state update — on every
+  // single occurrence, which can saturate a phone's main thread badly
+  // enough that a tap on RELOAD never gets processed in time. This ref
+  // flips once and every handler bails out immediately after.
+  const triggeredRef = useRef(false);
 
   useEffect(() => {
     queueMicrotask(() => setLocale(getLocale()));
 
     const handleError = (event: ErrorEvent) => {
+      if (triggeredRef.current) return;
       const message = event.message || event.error?.message || "";
-      if (isIgnorableGlobalError(message)) return;
+      if (isIgnorableGlobalError(message, event.filename)) return;
+      triggeredRef.current = true;
       captureOperationalError(event.error ?? new Error(message), "uncaught_window_error");
       setTriggered(true);
     };
 
     const handleRejection = (event: PromiseRejectionEvent) => {
+      if (triggeredRef.current) return;
       const reason = event.reason;
       const message = reason instanceof Error ? reason.message : String(reason);
       if (isIgnorableGlobalError(message)) return;
+      triggeredRef.current = true;
       captureOperationalError(reason, "unhandled_promise_rejection");
       setTriggered(true);
     };
