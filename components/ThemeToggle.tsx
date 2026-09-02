@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { safeLocalStorageSet } from "@/lib/safeStorage";
 
 const THEME_STORAGE_KEY = "alwaysdraw:theme";
 
@@ -44,11 +45,7 @@ export function ThemeToggle() {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      // ignore (private browsing, storage disabled)
-    }
+    safeLocalStorageSet(THEME_STORAGE_KEY, next);
   };
 
   return (

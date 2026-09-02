@@ -44,6 +44,13 @@ import {
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
 import {
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+  safeSessionStorageGet,
+  safeSessionStorageSet,
+  safeSessionStorageRemove,
+} from "@/lib/safeStorage";
+import {
   getClientId,
   getUsername,
   setUsername,
@@ -322,12 +329,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const [adminPasscode, setAdminPasscode] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("alwaysdraw_admin_passcode") || "";
-    }
-    return "";
-  });
+  const [adminPasscode, setAdminPasscode] = useState<string>(() => safeSessionStorageGet("alwaysdraw_admin_passcode") || "");
   const [imagePlacement, setImagePlacement] = useState<AdminImagePlacement | null>(null);
   // AdminPanelModal creates this blob URL and hands it off via
   // onStartImagePlacement — nothing ever revoked it, so every image an
@@ -368,9 +370,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     const isValid = await verifyAdminPasscode({ passcode });
     if (isValid) {
       setAdminPasscode(passcode);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("alwaysdraw_admin_passcode", passcode);
-      }
+      safeSessionStorageSet("alwaysdraw_admin_passcode", passcode);
       return true;
     }
     return false;
@@ -380,9 +380,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     setAdminPasscode("");
     setAdminOpen(false);
     setImagePlacement(null);
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("alwaysdraw_admin_passcode");
-    }
+    safeSessionStorageRemove("alwaysdraw_admin_passcode");
   }, []);
 
   const handleStartImagePlacement = useCallback((file: File, url: string, aspectRatio: number) => {
@@ -399,24 +397,17 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     });
   }, []);
   const [locale, setLocale] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("alwaysdraw_locale") as Locale | null;
-      if (saved && ["en", "fr", "ar", "ru", "es", "pt", "tr", "ja"].includes(saved)) {
-        return saved;
-      }
+    const saved = safeLocalStorageGet("alwaysdraw_locale") as Locale | null;
+    if (saved && ["en", "fr", "ar", "ru", "es", "pt", "tr", "ja"].includes(saved)) {
+      return saved;
     }
     return "en";
   });
-  const [showComments, setShowComments] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("alwaysdraw_show_comments") !== "false";
-    }
-    return true;
-  });
+  const [showComments, setShowComments] = useState(() => safeLocalStorageGet("alwaysdraw_show_comments") !== "false");
   const toggleShowComments = useCallback(() => {
     setShowComments((prev) => {
       const next = !prev;
-      localStorage.setItem("alwaysdraw_show_comments", String(next));
+      safeLocalStorageSet("alwaysdraw_show_comments", String(next));
       return next;
     });
   }, []);
@@ -3210,7 +3201,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             currentLocale={locale}
             onLocaleChange={(loc) => {
               setLocale(loc);
-              localStorage.setItem("alwaysdraw_locale", loc);
+              safeLocalStorageSet("alwaysdraw_locale", loc);
             }}
           />
           <ThemeToggle />
@@ -3264,7 +3255,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
                 currentLocale={locale}
                 onLocaleChange={(loc) => {
                   setLocale(loc);
-                  localStorage.setItem("alwaysdraw_locale", loc);
+                  safeLocalStorageSet("alwaysdraw_locale", loc);
                 }}
               />
               <ThemeToggle />

@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { t, type Locale } from "@/lib/i18n";
 import { captureOperationalError } from "@/lib/observability";
 import { isIgnorableGlobalError } from "@/lib/globalErrorFiltering";
+import { safeLocalStorageGet } from "@/lib/safeStorage";
 
 const SUPPORTED_LOCALES: Locale[] = ["en", "fr", "ar", "ru", "es", "pt", "tr", "ja"];
 
 function getLocale(): Locale {
-  if (typeof window === "undefined") return "en";
-  const saved = window.localStorage.getItem("alwaysdraw_locale") as Locale | null;
+  const saved = safeLocalStorageGet("alwaysdraw_locale") as Locale | null;
   return saved && SUPPORTED_LOCALES.includes(saved) ? saved : "en";
 }
 

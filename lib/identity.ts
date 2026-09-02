@@ -1,3 +1,5 @@
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from "./safeStorage";
+
 const STORAGE_KEY = "alwaysdraw:clientId";
 const USERNAME_KEY = "alwaysdraw:username";
 const COUNTRY_CODE_KEY = "alwaysdraw:countryCode";
@@ -9,10 +11,10 @@ function randomSuffix(): string {
 
 export function getClientId(): string {
   if (typeof window === "undefined") return "anon-server";
-  const existing = window.localStorage.getItem(STORAGE_KEY);
+  const existing = safeLocalStorageGet(STORAGE_KEY);
   if (existing) return existing;
   const id = `anon-${randomSuffix()}`;
-  window.localStorage.setItem(STORAGE_KEY, id);
+  safeLocalStorageSet(STORAGE_KEY, id);
   return id;
 }
 
@@ -20,7 +22,7 @@ export function getClientId(): string {
  * login, so this is purely a self-reported label attached to their strokes. */
 export function getUsername(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return window.localStorage.getItem(USERNAME_KEY)?.trim() || undefined;
+  return safeLocalStorageGet(USERNAME_KEY)?.trim() || undefined;
 }
 
 /** Pass an empty/whitespace-only name to clear it back to anonymous. */
@@ -28,9 +30,9 @@ export function setUsername(name: string): void {
   if (typeof window === "undefined") return;
   const trimmed = name.trim();
   if (trimmed) {
-    window.localStorage.setItem(USERNAME_KEY, trimmed);
+    safeLocalStorageSet(USERNAME_KEY, trimmed);
   } else {
-    window.localStorage.removeItem(USERNAME_KEY);
+    safeLocalStorageRemove(USERNAME_KEY);
   }
 }
 
@@ -38,12 +40,12 @@ export function setUsername(name: string): void {
  * resolution effect. Avoids re-resolving on every reload. */
 export function getCachedCountryCode(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return window.localStorage.getItem(COUNTRY_CODE_KEY) || undefined;
+  return safeLocalStorageGet(COUNTRY_CODE_KEY) || undefined;
 }
 
 export function setCachedCountryCode(code: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(COUNTRY_CODE_KEY, code);
+  safeLocalStorageSet(COUNTRY_CODE_KEY, code);
 }
 
 /** Whether this browser has already been shown the first-visit welcome
@@ -51,10 +53,10 @@ export function setCachedCountryCode(code: string): void {
  * if the visitor never explicitly dismissed it (reload shouldn't re-nag). */
 export function getHasSeenWelcomeHint(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(WELCOME_HINT_SEEN_KEY) === "1";
+  return safeLocalStorageGet(WELCOME_HINT_SEEN_KEY) === "1";
 }
 
 export function setHasSeenWelcomeHint(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(WELCOME_HINT_SEEN_KEY, "1");
+  safeLocalStorageSet(WELCOME_HINT_SEEN_KEY, "1");
 }
