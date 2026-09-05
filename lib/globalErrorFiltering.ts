@@ -7,6 +7,17 @@
 const IGNORED_PATTERNS = [
   /Connection closed/, // RSC Flight client: streamed page cut off by navigation/tab-close
   /ResizeObserver loop/, // famously harmless browser warning, several ResizeObservers in this app
+  // window.android is a native-app JS bridge object — confirmed absent
+  // from this codebase and every bundled dependency (grepped the full
+  // built output, zero matches), so it can only be injected directly by
+  // some Android WebView wrapper app embedding this site, not by anything
+  // we load. A page lifecycle event (e.g. pagehide) triggers the
+  // wrapper's own injected listener, which then calls a bridge method
+  // ("unLoad" seen so far) missing on that device's WebView version —
+  // a bug in that wrapper's bridge, never something our own code can be
+  // broken by, so it's filtered by message rather than source (there's
+  // no script URL to match: it's injected directly, not loaded from one).
+  /window\.android\./,
 ];
 
 // Third-party script origins whose own uncaught errors must never interrupt

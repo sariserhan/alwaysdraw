@@ -38,4 +38,10 @@ describe("isIgnorableGlobalError", () => {
   it("does not ignore a genuine error when no source is provided", () => {
     expect(isIgnorableGlobalError("TypeError: something", undefined)).toBe(false);
   });
+
+  it("ignores a missing-method error from an Android WebView wrapper's injected bridge", () => {
+    expect(isIgnorableGlobalError("TypeError: window.android.unLoad is not a function")).toBe(true);
+    // Any method on that bridge, not just unLoad — same third-party object.
+    expect(isIgnorableGlobalError("TypeError: window.android.onResume is not a function")).toBe(true);
+  });
 });
