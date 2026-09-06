@@ -16,6 +16,24 @@ if (sentryDsn) {
       // streaming in. Every report of it has an all-internal stack (no
       // app frames), so it isn't actionable app-code noise.
       "Connection closed",
+      // window.android is a native-app JS bridge object — confirmed absent
+      // from this codebase and every bundled dependency. Only some Android
+      // WebView wrapper embedding this site can inject it, and a missing
+      // bridge method there is a bug in that wrapper, never ours. Filtered
+      // by message, not denyUrls: the bridge is injected directly, not
+      // loaded from a script URL, so there's nothing to match on that axis.
+      /window\.android\./,
+    ],
+    // lib/globalErrorFiltering.ts's isIgnorableGlobalError already stops
+    // this from showing the reload prompt to users, but that's a separate,
+    // app-level mechanism — Sentry's own GlobalHandlers integration
+    // captures uncaught errors independently of it, so without a matching
+    // Sentry-level filter this kept reaching the dashboard as noise even
+    // after the user-facing crash was fixed. denyUrls filters by the
+    // erroring script's origin, same signal as that app-level fix.
+    denyUrls: [
+      /visitorping\.com/, // scroll-depth/analytics beacon, loaded site-wide
+      /\/vp\.js/, // its actual served filename, seen in some stack traces instead of the full URL
     ],
   });
 }
