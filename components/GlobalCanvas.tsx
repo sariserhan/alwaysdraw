@@ -43,6 +43,7 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
+import { replayStrokePages } from "@/lib/strokeReplay";
 import {
   safeLocalStorageGet,
   safeLocalStorageSet,
@@ -128,18 +129,7 @@ const MIN_SHAPE_DRAG = 2;
 // shouldn't silently create a near-zero-area region.
 const MIN_REGION_DRAG = 20;
 const HOVER_SCREEN_RADIUS_PX = 8;
-const REPLAY_PAGE_SIZE = 1000;
 const HEATMAP_GRID_SIZE = 32;
-// No server-side canvas renderer exists (Convex functions can't draw), so a
-// snapshot can only ever be produced by a real browser that already has the
-// full stroke history loaded. Whichever client finishes replay with enough
-// new strokes since the last snapshot renders one and submits it in the
-// background — self-sustaining, no cron/admin action required. Harmless if
-// two clients race: snapshots.submit dedupes by exact sequence, and
-// SNAPSHOTS_GLOBAL_WINDOW bounds the worst case to a handful of redundant
-// writes, not an unbounded stampede.
-const SNAPSHOT_STROKE_THRESHOLD = 500;
-const SNAPSHOT_SIZE_PX = 2048;
 const WELCOME_HINT_AUTO_DISMISS_MS = 8000;
 // Longer than the welcome hint's — this one asks for actual typing, so it
 // needs enough headroom to not vanish mid-thought, while still eventually
@@ -155,15 +145,6 @@ const NAME_JOIN_PROMPT_AUTO_DISMISS_MS = 20000;
 // global read. The world's online count (header) is unaffected either way —
 // that's a separate, already-cheap query.
 const MAX_SCOPED_PRESENCE_TILES = 100;
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("failed to load snapshot image"));
-    img.src = src;
-  });
-}
 
 export interface GlobalCanvasProps {
   /** Hides the header, minimap, and sidebar for a lightweight iframe-embed
@@ -229,13 +210,6 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     world: Point;
     screen: Point;
   } | null>(null);
-  // Snapshot base image: loaded once if a snapshot exists, painted as the
-  // base layer under delta strokes on every redraw. snapshotSequenceRef is
-  // the earliest sequence actually available locally (0 if no snapshot was
-  // used, since then every stroke was replayed individually).
-  const snapshotImageRef = useRef<HTMLImageElement | null>(null);
-  const snapshotSequenceRef = useRef(0);
-
   const [clientId] = useState(() => getClientId());
   const [username, setUsernameState] = useState(() => getUsername());
   const [countryCode, setCountryCode] = useState(() => getCachedCountryCode());
@@ -307,7 +281,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
   const [replaySequenceIndex, setReplaySequenceIndex] = useState(0);
-  const [minSequence, setMinSequence] = useState(0);
+  const minSequence = 0;
   const [gridConfig, setGridConfig] = useState<GridConfig>({
     mode: "none",
     cellSize: 50,
@@ -485,7 +459,6 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const removeComment = useMutation(backend.commentsApi.remove);
   const adminRemoveComment = useMutation(backend.commentsApi.adminRemove);
   const reportContent = useMutation(backend.reportsApi.create);
-  const submitSnapshot = useMutation(api.snapshots.submit);
 
   const wallOnlineCount = useQuery(api.presence.onlineCount, backend.usesTileScoping ? {} : "skip");
   const [subscribedTileKeys, setSubscribedTileKeys] = useState<string[]>([]);
@@ -602,21 +575,6 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     if (!ctx) return;
     const { width, height } = viewportRef.current;
     clearCanvas(ctx, width, height);
-
-    // Snapshot base layer, if one was loaded — drawn under delta strokes so
-    // later erases (destination-out) still punch through it correctly, same
-    // as they punch through individually-replayed strokes.
-    if (backend.usesSnapshots && snapshotImageRef.current) {
-      const topLeft = worldToScreen(0, 0, cameraRef.current, width, height);
-      const bottomRight = worldToScreen(WORLD_WIDTH, WORLD_HEIGHT, cameraRef.current, width, height);
-      ctx.drawImage(
-        snapshotImageRef.current,
-        topLeft.x,
-        topLeft.y,
-        bottomRight.x - topLeft.x,
-        bottomRight.y - topLeft.y,
-      );
-    }
 
     const maxSeqFilter = isReplayMode ? replaySequenceIndex : Infinity;
 
@@ -743,15 +701,9 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       ctx.restore();
     }
 
-    // Drawn last, on this canvas rather than the world layer below it — the
-    // snapshot base layer above is a full opaque bitmap of the whole world
-    // rect (background baked in), so a grid painted on the world canvas
-    // underneath it is invisible any time a snapshot has loaded, which in
-    // practice is almost always. Drawing it here, after every stroke
-    // (including erases) has already been composited, keeps it visible
-    // and immune to being punched through by an erase's destination-out.
+    // Draw the grid after strokes so erases cannot punch through it.
     drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
-  }, [backend, paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
+  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1263,7 +1215,8 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     return () => canvas.removeEventListener("wheel", onWheel);
   }, [scheduleRedraw, backend]);
 
-  // Snapshot-assisted fast loading + initial replay
+  // Replay saved strokes from the beginning. Legacy raster snapshots can
+  // omit older drawings and cannot reflect later deletions reliably.
   useEffect(() => {
     let cancelled = false;
     replayStartedAtRef.current = performance.now();
@@ -1271,42 +1224,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       let after = 0;
       let total = 0;
       try {
-        // Step 1: Check for latest snapshot to seed initial sequence. Only
-        // skip replaying strokes up to the snapshot if its image actually
-        // loads — otherwise we'd silently render a wall missing everything
-        // before that point, with no error. Falls back to full replay.
-        if (backend.usesSnapshots) {
-          const latestSnapshot = await convex.query(api.snapshots.getLatest);
-          if (latestSnapshot && latestSnapshot.sequence > 0) {
-            try {
-              snapshotImageRef.current = await loadImage(latestSnapshot.imageData);
-              snapshotSequenceRef.current = latestSnapshot.sequence;
-              setMinSequence(latestSnapshot.sequence);
-              after = latestSnapshot.sequence;
-            } catch (imageError) {
-              captureOperationalError(imageError, "snapshot_image_load", {
-                sequence: latestSnapshot.sequence,
-              });
-            }
-          }
-        }
-
-        // Step 2: Fetch remaining delta strokes since snapshot
-        while (!cancelled) {
-          const page: ServerStrokeRow[] = await convex.query(backend.strokesApi.listSince, {
-            afterSequence: after,
-            limit: REPLAY_PAGE_SIZE,
-          });
-          if (page.length === 0) break;
+        for await (const page of replayStrokePages(
+          (args) => convex.query(backend.strokesApi.listSince, args),
+          () => cancelled,
+        )) {
           for (const s of page) {
             if (s.deleted) {
-              // The original stroke and its later tombstone can both land
-              // in this same delta range (created and deleted before this
-              // client's first load) — drop it rather than replay it. If
-              // the original predates the snapshot cutoff instead, it's
-              // baked into the snapshot image with nothing here to remove;
-              // that's a pre-existing snapshot limitation, not new here —
-              // it self-heals whenever the snapshot is next regenerated.
+              // A deletion can arrive after the original on a later page.
               committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
               removeFromTileIndex(s.clientStrokeId, s.tiles);
             } else {
@@ -1317,7 +1241,6 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             after = Math.max(after, s.sequence);
           }
           total += page.length;
-          if (page.length < REPLAY_PAGE_SIZE) break;
         }
         if (!cancelled) {
           setReplayDone(true);
@@ -1339,31 +1262,9 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
             ),
             stroke_chunks: total,
-            snapshot_used: snapshotImageRef.current !== null,
+            snapshot_used: false,
           });
           scheduleRedraw();
-
-          if (backend.usesSnapshots && after - snapshotSequenceRef.current >= SNAPSHOT_STROKE_THRESHOLD) {
-            try {
-              const canvas = document.createElement("canvas");
-              canvas.width = SNAPSHOT_SIZE_PX;
-              canvas.height = SNAPSHOT_SIZE_PX;
-              const snapshotCtx = canvas.getContext("2d");
-              if (snapshotCtx) {
-                fillMiniMapBackground(snapshotCtx, SNAPSHOT_SIZE_PX);
-                paintMiniMapStrokes(snapshotCtx, committedRef.current, SNAPSHOT_SIZE_PX, WORLD_WIDTH, WORLD_HEIGHT);
-                await submitSnapshot({
-                  sequence: after,
-                  imageData: canvas.toDataURL("image/png"),
-                  strokeCount: committedRef.current.length,
-                });
-              }
-            } catch (snapshotError) {
-              // Non-critical background optimization — the next client past
-              // the threshold will just try again.
-              captureOperationalError(snapshotError, "snapshot_generate", { sequence: after });
-            }
-          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -2658,7 +2559,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
   const handleEnterReplay = useCallback(() => {
     setIsReplayMode(true);
-    setReplaySequenceIndex(snapshotSequenceRef.current);
+    setReplaySequenceIndex(0);
     setIsPlayingReplay(true);
     if (replayRegion) {
       setCamera(fitCameraToRegion(replayRegion, viewportRef.current.width, viewportRef.current.height));

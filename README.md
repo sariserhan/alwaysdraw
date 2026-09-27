@@ -39,7 +39,7 @@ Browser (Next.js App Router, client-only canvas component)
        ├─ strokes table — server-sequenced append-only stroke chunks
        ├─ protectedZones table — locked canvas regions (Mural Shield)
        ├─ broadcasts & presence tables — live banners, cursor positions, and online counts
-       └─ snapshots & bookmarks tables — rendered canvas state and saved locations
+       └─ bookmarks table — saved locations (legacy snapshots are no longer used)
 ```
 
 ---
@@ -77,7 +77,7 @@ convex/
   presence.ts            Heartbeat, tile-scoped listByTiles (what clients actually subscribe to), online counts
   comments.ts            Sticky-note comments: create/list/remove + admin moderation
   bookmarks.ts           Saved location bookmarks & comments
-  snapshots.ts           Rendered-image checkpoints so new visitors don't replay the full history
+  snapshots.ts           Legacy rendered-image checkpoints; canvas now replays saved strokes
 ```
 
 ---
