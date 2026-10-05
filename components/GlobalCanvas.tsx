@@ -1333,6 +1333,12 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             after = Math.max(after, s.sequence);
           }
           total += page.length;
+          // The wall is usable after the first page; later pages stream in
+          // behind it and each one redraws as it lands.
+          if (!cancelled) {
+            setReplayDone(true);
+            scheduleRedraw({ strokes: true });
+          }
         }
         if (!cancelled) {
           setReplayDone(true);
