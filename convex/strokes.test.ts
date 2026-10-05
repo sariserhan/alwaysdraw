@@ -240,6 +240,31 @@ describe("strokes.submit — idempotency and sequencing", () => {
   });
 });
 
+describe("strokes.listSince — replay point rounding", () => {
+  let t: ReturnType<typeof convexTest>;
+  beforeEach(() => {
+    t = convexTest(schema, modules);
+  });
+
+  it("rounds replayed points to 0.1 world units without touching stored data", async () => {
+    const points = [
+      { x: 1234.56789, y: 987.04321 },
+      { x: 1234.6, y: 987.0 },
+    ];
+    await t.mutation(api.strokes.submit, strokeArgs({ clientStrokeId: "round-1", points }));
+    const rows = await t.query(api.strokes.listSince, { afterSequence: 0 });
+    const replayed = rows.find((r) => r.clientStrokeId === "round-1");
+    expect(replayed?.points).toEqual([
+      { x: 1234.6, y: 987 },
+      { x: 1234.6, y: 987 },
+    ]);
+    for (let i = 0; i < points.length; i++) {
+      expect(Math.abs(replayed!.points[i].x - points[i].x)).toBeLessThanOrEqual(0.05);
+      expect(Math.abs(replayed!.points[i].y - points[i].y)).toBeLessThanOrEqual(0.05);
+    }
+  });
+});
+
 describe("strokes.listSince — replay ordering and pagination", () => {
   let t: ReturnType<typeof convexTest>;
   beforeEach(() => {

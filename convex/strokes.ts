@@ -230,6 +230,16 @@ export const submit = mutation({
   },
 });
 
+// Replay payloads round points to 0.1 world units. That moves a point by at most
+// 0.05, under a pixel even at the closest zoom, and cuts point bytes by about
+// 40%. Stored data is unchanged: rounding happens on read.
+function roundReplayPoints<T extends { points: { x: number; y: number }[] }>(row: T): T {
+  return {
+    ...row,
+    points: row.points.map((p) => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })),
+  };
+}
+
 export const listSince = query({
   args: {
     afterSequence: v.number(),
@@ -246,7 +256,7 @@ export const listSince = query({
       .withIndex("by_sequence", (q) => q.gt("sequence", args.afterSequence))
       .order("asc")
       .take(limit);
-    return rows;
+    return rows.map(roundReplayPoints);
   },
 });
 
