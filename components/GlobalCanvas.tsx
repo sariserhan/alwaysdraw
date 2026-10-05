@@ -111,6 +111,7 @@ import { FpsHud } from "./FpsHud";
 import { RateLimitToast } from "./RateLimitToast";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
 import { fpsTracker } from "@/lib/fpsTracker";
+import { CAMERA_SYNC_INTERVAL_MS, GESTURE_SETTLE_MS, StrokeCache } from "@/lib/strokeCache";
 import { calculateShapeMetrics } from "@/lib/shapeMetrics";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
@@ -518,6 +519,10 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   // ---------------------------------------------------------------------
   // Rendering
   // ---------------------------------------------------------------------
+  // Cache of the committed strokes (see lib/strokeCache.ts), reused while the
+  // camera moves or only the in-progress stroke changes.
+  const [strokeCache] = useState(() => new StrokeCache());
+
   const redrawWorld = useCallback(() => {
     const ctx = worldCtxRef.current;
     if (!ctx) return;
@@ -551,26 +556,42 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     redrawHeatmap();
   }, [redrawHeatmap]);
 
-  const paintOneStroke = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, s: LocalStroke) => {
-    if (s.mode === "erase") {
-      drawStroke(ctx, cameraRef.current, width, height, s.points, "erase", s.color, s.width);
-      return;
-    }
-    renderBrushStroke(s.brushType, {
-      ctx,
-      camera: cameraRef.current,
-      viewportWidth: width,
-      viewportHeight: height,
-      points: s.points,
-      color: s.color,
-      width: s.width,
-      opacity: s.opacity ?? 1,
-    });
-  }, []);
+  const paintOneStroke = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      width: number,
+      height: number,
+      s: LocalStroke,
+      camera: Camera = cameraRef.current,
+    ) => {
+      if (s.mode === "erase") {
+        drawStroke(ctx, camera, width, height, s.points, "erase", s.color, s.width);
+        return;
+      }
+      renderBrushStroke(s.brushType, {
+        ctx,
+        camera,
+        viewportWidth: width,
+        viewportHeight: height,
+        points: s.points,
+        color: s.color,
+        width: s.width,
+        opacity: s.opacity ?? 1,
+      });
+    },
+    [],
+  );
 
   const [visibleTileCount, setVisibleTileCount] = useState<number>(0);
+  // Mirrors visibleTileCount for the redraw callbacks: depending on the state
+  // itself re-created them on every tile-boundary crossing, which cascaded
+  // into a full resize and replay each time.
+  const visibleTileCountRef = useRef(0);
 
-  const redrawStrokes = useCallback(() => {
+  // `fromGestureCache` is the pan/zoom path: committed strokes come from the
+  // cached image (rebuilt only when the view leaves it). Everything else is a
+  // full replay, which also invalidates the cache.
+  const redrawStrokes = useCallback((fromGestureCache = false) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     const { width, height } = viewportRef.current;
@@ -589,21 +610,36 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       1,
     );
     const visibleTileSet = new Set(visibleTileKeys);
-    if (visibleTileKeys.length !== visibleTileCount) {
+    if (visibleTileKeys.length !== visibleTileCountRef.current) {
+      visibleTileCountRef.current = visibleTileKeys.length;
       setVisibleTileCount(visibleTileKeys.length);
     }
 
-    for (const s of committedRef.current) {
-      if (s.sequence <= maxSeqFilter) {
-        if (s.tiles && s.tiles.length > 0) {
-          if (!s.tiles.some((t) => visibleTileSet.has(t))) {
-            continue; // Culled off-screen stroke for 60 FPS performance
+    if (fromGestureCache && !isReplayMode) {
+      strokeCache.draw(ctx, cameraRef.current, width, height, window.devicePixelRatio || 1, (cacheCtx, frame) => {
+        // Culling uses the cache's own, larger viewport at the camera it was built for.
+        const tileSet = new Set(
+          getVisibleTileKeys(frame.camera, frame.cacheWidth, frame.cacheHeight, WORLD_WIDTH, WORLD_HEIGHT, TILE_SIZE, 1),
+        );
+        for (const s of committedRef.current) {
+          if (s.tiles && s.tiles.length > 0 && !s.tiles.some((t) => tileSet.has(t))) continue;
+          paintOneStroke(cacheCtx, frame.cacheWidth, frame.cacheHeight, s, frame.camera);
+        }
+      });
+    } else {
+      strokeCache.invalidate();
+      for (const s of committedRef.current) {
+        if (s.sequence <= maxSeqFilter) {
+          if (s.tiles && s.tiles.length > 0) {
+            if (!s.tiles.some((t) => visibleTileSet.has(t))) {
+              continue; // Culled off-screen stroke for 60 FPS performance
+            }
           }
+          if (isReplayMode && replayRegion && !strokeIntersectsRegion(s.points, replayRegion)) {
+            continue;
+          }
+          paintOneStroke(ctx, width, height, s);
         }
-        if (isReplayMode && replayRegion && !strokeIntersectsRegion(s.points, replayRegion)) {
-          continue;
-        }
-        paintOneStroke(ctx, width, height, s);
       }
     }
     if (!isReplayMode) {
@@ -703,7 +739,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
     // Draw the grid after strokes so erases cannot punch through it.
     drawGridOverlay(ctx, cameraRef.current, width, height, gridConfig, WORLD_WIDTH, WORLD_HEIGHT);
-  }, [paintOneStroke, isReplayMode, replaySequenceIndex, visibleTileCount, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
+  }, [paintOneStroke, strokeCache, isReplayMode, replaySequenceIndex, tool, selectedStencil, brushWidth, color, replayRegion, pendingReportRegion, highlightedReportRegion, pendingWipeRegion, gridConfig]);
 
   // Replay animation loop
   useEffect(() => {
@@ -1014,15 +1050,37 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   }, []);
 
   const rafRef = useRef<number | null>(null);
-  const dirtyRef = useRef({ world: true, strokes: true });
+  const dirtyRef = useRef({ world: true, strokes: true, camera: false, overlay: false });
+  const gestureSettleTimerRef = useRef<number | null>(null);
+  const requestSettledRedrawRef = useRef<() => void>(() => {});
+  const lastCameraSyncAtRef = useRef(0);
+  const lastSyncedCameraRef = useRef<{ x: number; y: number; zoom: number } | null>(null);
   const scheduleRedraw = useCallback(
-    (dirty: { world?: boolean; strokes?: boolean } = { strokes: true }) => {
+    // `camera: true` marks a pan/zoom gesture frame and `overlay: true` an
+    // in-progress stroke or preview change; in both the committed strokes are
+    // unchanged, so they come from the cache instead of being replayed.
+    (dirty: { world?: boolean; strokes?: boolean; camera?: boolean; overlay?: boolean } = { strokes: true }) => {
       if (dirty.world) dirtyRef.current.world = true;
-      if (dirty.strokes) dirtyRef.current.strokes = true;
+      if (dirty.overlay) dirtyRef.current.overlay = true;
+      if (dirty.strokes) {
+        dirtyRef.current.strokes = true;
+        strokeCache.invalidate();
+      }
+      if (dirty.camera) {
+        dirtyRef.current.camera = true;
+        if (gestureSettleTimerRef.current !== null) clearTimeout(gestureSettleTimerRef.current);
+        // Once the camera stops moving, do one crisp full redraw and sync the
+        // tile-scoped presence subscription, instead of doing both per frame.
+        gestureSettleTimerRef.current = window.setTimeout(() => {
+          gestureSettleTimerRef.current = null;
+          requestSettledRedrawRef.current();
+        }, GESTURE_SETTLE_MS);
+      }
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null;
-        fpsTracker.tick(visibleTileCount, 10000, committedRef.current.length);
+        fpsTracker.tick(visibleTileCountRef.current, 10000, committedRef.current.length);
+        const gesturing = gestureSettleTimerRef.current !== null;
         if (dirtyRef.current.world) {
           redrawWorld();
           redrawHeatmap();
@@ -1037,12 +1095,28 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         if (dirtyRef.current.strokes) {
           redrawStrokes();
           dirtyRef.current.strokes = false;
+        } else if (dirtyRef.current.camera || dirtyRef.current.overlay) {
+          redrawStrokes(true);
         }
-        setCameraSnapshot({ ...cameraRef.current });
-        setZoomPercent((prev) => {
-          const next = Math.round(cameraRef.current.zoom * 100);
-          return prev === next ? prev : next;
-        });
+        dirtyRef.current.camera = false;
+        dirtyRef.current.overlay = false;
+        // React re-renders the whole canvas component, so camera state is only
+        // synced when the camera actually moved, and at a capped rate during a
+        // gesture; the settle redraw syncs it exactly at the end.
+        const now = performance.now();
+        const cam = cameraRef.current;
+        const last = lastSyncedCameraRef.current;
+        const cameraMoved =
+          !last || last.x !== cam.x || last.y !== cam.y || last.zoom !== cam.zoom;
+        if (cameraMoved && (!gesturing || now - lastCameraSyncAtRef.current >= CAMERA_SYNC_INTERVAL_MS)) {
+          lastCameraSyncAtRef.current = now;
+          lastSyncedCameraRef.current = { x: cam.x, y: cam.y, zoom: cam.zoom };
+          setCameraSnapshot({ ...cam });
+          setZoomPercent((prev) => {
+            const next = Math.round(cam.zoom * 100);
+            return prev === next ? prev : next;
+          });
+        }
         updateCursorOverlay();
         updateMagnifier();
         commentsOverlayRef.current?.syncPositions(
@@ -1066,27 +1140,36 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         // MAX_SCOPED_PRESENCE_TILES) — only updates state, and so only
         // triggers a requery, when the actual set of visible tiles changes
         // (crossing a tile boundary), not on every pan pixel.
-        const visibleTileKeysNow = getVisibleTileKeys(
-          cameraRef.current,
-          viewportRef.current.width,
-          viewportRef.current.height,
-          WORLD_WIDTH,
-          WORLD_HEIGHT,
-          TILE_SIZE,
-          1,
-        );
-        const prevTileKeys = subscribedTileKeysRef.current;
-        const tileKeysChanged =
-          visibleTileKeysNow.length !== prevTileKeys.length ||
-          visibleTileKeysNow.some((k, i) => k !== prevTileKeys[i]);
-        if (tileKeysChanged) {
-          subscribedTileKeysRef.current = visibleTileKeysNow;
-          setSubscribedTileKeys(visibleTileKeysNow);
+        // Skipped mid-gesture: a pan across tile boundaries would otherwise
+        // re-run the presence query once per boundary; the settle redraw
+        // runs it once for where the view actually ends up.
+        if (!gesturing) {
+          const visibleTileKeysNow = getVisibleTileKeys(
+            cameraRef.current,
+            viewportRef.current.width,
+            viewportRef.current.height,
+            WORLD_WIDTH,
+            WORLD_HEIGHT,
+            TILE_SIZE,
+            1,
+          );
+          const prevTileKeys = subscribedTileKeysRef.current;
+          const tileKeysChanged =
+            visibleTileKeysNow.length !== prevTileKeys.length ||
+            visibleTileKeysNow.some((k, i) => k !== prevTileKeys[i]);
+          if (tileKeysChanged) {
+            subscribedTileKeysRef.current = visibleTileKeysNow;
+            setSubscribedTileKeys(visibleTileKeysNow);
+          }
         }
       });
     },
-    [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, visibleTileCount],
+    [redrawWorld, redrawStrokes, redrawHeatmap, updateCursorOverlay, updateMagnifier, updateMiniMapViewportRect, strokeCache],
   );
+
+  useEffect(() => {
+    requestSettledRedrawRef.current = () => scheduleRedraw({ world: true, strokes: true });
+  }, [scheduleRedraw]);
 
   // Toggling the grid (or its spacing/opacity) only rebuilds redrawStrokes's
   // closure — nothing actually re-invokes it until some other interaction
@@ -1136,6 +1219,14 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     scheduleRedraw({ world: true, strokes: true });
   }, [backend, scheduleRedraw]);
 
+  // The resize effect below mounts once and reads the latest redraw functions
+  // from here, so a change to one (tool, color, tile count) doesn't re-run the
+  // resize: that would reallocate three full-size canvases and replay strokes.
+  const latestDrawRef = useRef({ applyFitCamera, redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect });
+  useEffect(() => {
+    latestDrawRef.current = { applyFitCamera, redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect };
+  });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const worldCanvas = worldCanvasRef.current;
@@ -1147,7 +1238,8 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
       viewportRef.current = { width: rect.width, height: rect.height };
-      applyFitCamera();
+      const draw = latestDrawRef.current;
+      draw.applyFitCamera();
       setViewportSize({ width: rect.width, height: rect.height });
       for (const c of [canvas, worldCanvas, heatmapCanvas]) {
         c.width = Math.round(rect.width * dpr);
@@ -1170,9 +1262,9 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         heatmapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         heatmapCtxRef.current = heatmapCtx;
       }
-      redrawWorld();
-      redrawStrokes();
-      redrawHeatmap();
+      draw.redrawWorld();
+      draw.redrawStrokes();
+      draw.redrawHeatmap();
 
       const miniMap = miniMapCanvasRef.current;
       if (miniMap) {
@@ -1188,14 +1280,14 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           }
         }
       }
-      updateMiniMapViewportRect();
+      draw.updateMiniMapViewportRect();
     };
 
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     return () => ro.disconnect();
-  }, [applyFitCamera, redrawWorld, redrawStrokes, redrawHeatmap, updateMiniMapViewportRect]);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1209,7 +1301,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       const { width, height } = viewportRef.current;
       const factor = Math.pow(1.0015, -e.deltaY);
       cameraRef.current = zoomAt(cameraRef.current, factor, screenX, screenY, width, height);
-      scheduleRedraw({ world: true, strokes: true });
+      scheduleRedraw({ world: true, camera: true });
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
@@ -1711,6 +1803,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       if (!backend.supportsZoomPan) return;
       cameraRef.current = next;
       setCameraSnapshot(next);
+      lastSyncedCameraRef.current = null; // next frame re-syncs zoom % and camera
       scheduleRedraw({ world: true, strokes: true });
     },
     [backend, scheduleRedraw],
@@ -2069,7 +2162,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           color: color || "#39c07a",
           points: [{ ...worldPt, timestamp: Date.now() }],
         });
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2157,7 +2250,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           );
           lastPanScreenRef.current = screenPt;
         }
-        scheduleRedraw({ world: true, strokes: true });
+        scheduleRedraw({ world: true, camera: true });
         return;
       }
 
@@ -2219,7 +2312,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           const trail = laserTrailsRef.current.find((t) => t.id === activeLaserTrailIdRef.current);
           if (trail) {
             trail.points.push({ ...worldPt, timestamp: Date.now() });
-            scheduleRedraw({ strokes: true });
+            scheduleRedraw({ overlay: true });
           }
         }
         return;
@@ -2246,7 +2339,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
                 clientTimestamp: Date.now(),
               }
             : null;
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2254,7 +2347,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         const drag = regionDragRef.current;
         if (!drag) return;
         drag.current = worldPt;
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2262,7 +2355,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         const drag = reportRegionDragRef.current;
         if (!drag) return;
         drag.current = worldPt;
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2270,7 +2363,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         const drag = adminWipeRegionDragRef.current;
         if (!drag) return;
         drag.current = worldPt;
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2282,7 +2375,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             stampStencilAt(worldPt);
           }
         }
-        scheduleRedraw({ strokes: true });
+        scheduleRedraw({ overlay: true });
         return;
       }
 
@@ -2524,11 +2617,11 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
               });
 
               buffer.addPoint(pt);
-              scheduleRedraw({ strokes: true });
+              scheduleRedraw({ overlay: true });
 
               if (pIdx === densePoints.length - 1) {
                 buffer.finish();
-                scheduleRedraw({ strokes: true });
+                scheduleRedraw({ overlay: true });
               }
             }, pIdx * 24); // ~24ms per point for human drawing speed
           });
