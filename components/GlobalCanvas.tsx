@@ -112,6 +112,7 @@ import { RateLimitToast } from "./RateLimitToast";
 import { rateLimitTracker } from "@/lib/rateLimitTracker";
 import { fpsTracker } from "@/lib/fpsTracker";
 import { CAMERA_SYNC_INTERVAL_MS, GESTURE_SETTLE_MS, StrokeCache } from "@/lib/strokeCache";
+import { isWallCacheFresh, mergeStrokeRows, readWallCache, writeWallCache } from "@/lib/wallCache";
 import { calculateShapeMetrics } from "@/lib/shapeMetrics";
 import { buildStencilPoints, type StencilType } from "@/lib/stencils";
 import { drawLaserTrails, type LaserTrail } from "@/lib/laser";
@@ -1309,29 +1310,47 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
 
   // Replay saved strokes from the beginning. Legacy raster snapshots can
   // omit older drawings and cannot reflect later deletions reliably.
+  //
+  // A returning visitor draws the saved wall at once and syncs only what
+  // changed since (lib/wallCache.ts); everyone else streams the full history.
   useEffect(() => {
     let cancelled = false;
     replayStartedAtRef.current = performance.now();
     async function replay() {
+      const syncedAt = Date.now();
       let after = 0;
       let total = 0;
+      let fromCache = false;
       try {
+        if (mode === "wall") {
+          const cached = await readWallCache();
+          if (cached && !cancelled && isWallCacheFresh(cached, Date.now())) {
+            fromCache = true;
+            after = cached.sequence;
+            committedRef.current = cached.strokes;
+            for (const s of cached.strokes) {
+              addToTileIndex(s);
+              appliedIdsRef.current.add(s.clientStrokeId);
+            }
+            setReplayDone(true);
+            scheduleRedraw({ strokes: true });
+          }
+        }
         for await (const page of replayStrokePages(
           (args) => convex.query(backend.strokesApi.listSince, args),
           () => cancelled,
+          after,
         )) {
           for (const s of page) {
             if (s.deleted) {
-              // A deletion can arrive after the original on a later page.
-              committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
               removeFromTileIndex(s.clientStrokeId, s.tiles);
             } else {
-              committedRef.current.push(s);
               addToTileIndex(s);
             }
             appliedIdsRef.current.add(s.clientStrokeId);
             after = Math.max(after, s.sequence);
           }
+          committedRef.current = mergeStrokeRows(committedRef.current, page);
           total += page.length;
           // The wall is usable after the first page; later pages stream in
           // behind it and each one redraws as it lands.
@@ -1361,8 +1380,14 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             ),
             stroke_chunks: total,
             snapshot_used: false,
+            from_cache: fromCache,
           });
           scheduleRedraw();
+          if (mode === "wall") {
+            // Copied now, before live strokes can be appended to the same array.
+            const entry = { strokes: committedRef.current.slice(), sequence: after, syncedAt };
+            setTimeout(() => void writeWallCache(entry), 0);
+          }
         }
       } catch (error) {
         if (!cancelled) {
