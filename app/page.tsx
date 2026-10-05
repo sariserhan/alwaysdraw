@@ -5,10 +5,9 @@ import { ChromeRivet } from "@/components/ChromeRivet";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { SketchbookThumbnail } from "@/components/SketchbookThumbnail";
 import { SKETCHBOOK_PAGES, type SketchbookPage } from "@/lib/sketchbookPages";
+import { SITE_URL } from "@/lib/site";
 
 const sketchbookPages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.com";
 
 export const metadata: Metadata = {
   title: "AlwaysDraw — The World's Shared Real-Time Canvas",

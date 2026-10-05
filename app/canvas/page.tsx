@@ -1,13 +1,18 @@
-"use client";
+import { GlobalCanvasClient } from "@/components/GlobalCanvasClient";
+import { RouteSummary } from "@/components/RouteSummary";
+import { pageMetadata } from "@/lib/site";
 
-import dynamic from "next/dynamic";
+const TITLE = "Live World Canvas";
+const DESCRIPTION =
+  "One endless drawing canvas shared by everyone on the internet, live in real time. No sign-up.";
 
-// Skip SSR for the canvas app to prevent hydration mismatches against browser state
-const GlobalCanvas = dynamic(
-  () => import("@/components/GlobalCanvas").then((m) => m.GlobalCanvas),
-  { ssr: false },
-);
+export const metadata = pageMetadata({ path: "/canvas", title: TITLE, description: DESCRIPTION });
 
 export default function CanvasPage() {
-  return <GlobalCanvas />;
+  return (
+    <>
+      <RouteSummary heading={TITLE} summary={DESCRIPTION} />
+      <GlobalCanvasClient />
+    </>
+  );
 }

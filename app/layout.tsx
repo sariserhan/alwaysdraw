@@ -5,6 +5,7 @@ import localFont from "next/font/local";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { WebVitals } from "@/components/WebVitals";
 import { GlobalErrorGuard } from "@/components/GlobalErrorGuard";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const spaceGrotesk = localFont({
@@ -57,9 +58,6 @@ const spaceMonoExt = localFont({
   display: "swap",
 });
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://alwaysdraw.alwaysdraw.workers.dev";
-const SITE_NAME = "AlwaysDraw";
 const TITLE = "AlwaysDraw — The World's Shared Real-Time Canvas";
 const DESCRIPTION =
   "One world. One canvas. Always drawing. Join a single public drawing wall shared by everyone on the internet in real time. Draw, erase, spray paint, and doodle anonymously with 13 unique brush textures.";
@@ -88,9 +86,9 @@ export const metadata: Metadata = {
   creator: "AlwaysDraw",
   publisher: "AlwaysDraw",
   applicationName: "AlwaysDraw",
-  alternates: {
-    canonical: "/",
-  },
+  // No layout-level canonical on purpose: it would be inherited by every
+  // route and mark /canvas, /board and the sketchbook pages as duplicates of
+  // the homepage. Each page sets its own via pageMetadata() in lib/site.ts.
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -101,7 +99,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: SITE_URL,
     title: TITLE,
     description: DESCRIPTION,
     siteName: SITE_NAME,

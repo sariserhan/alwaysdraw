@@ -1,12 +1,18 @@
-"use client";
+import { GlobalCanvasClient } from "@/components/GlobalCanvasClient";
+import { RouteSummary } from "@/components/RouteSummary";
+import { pageMetadata } from "@/lib/site";
 
-import dynamic from "next/dynamic";
+const TITLE = "Board";
+const DESCRIPTION =
+  "A fixed-size, full-screen shared drawing board — no zooming or panning, the whole board at a glance. Same brushes and tools as the live canvas.";
 
-const GlobalCanvas = dynamic(
-  () => import("@/components/GlobalCanvas").then((m) => m.GlobalCanvas),
-  { ssr: false },
-);
+export const metadata = pageMetadata({ path: "/board", title: TITLE, description: DESCRIPTION });
 
 export default function BoardPage() {
-  return <GlobalCanvas mode="board" />;
+  return (
+    <>
+      <RouteSummary heading={TITLE} summary={DESCRIPTION} />
+      <GlobalCanvasClient mode="board" />
+    </>
+  );
 }

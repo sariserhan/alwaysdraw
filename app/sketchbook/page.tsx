@@ -1,12 +1,13 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import { SKETCHBOOK_PAGES, type SketchbookPage } from "@/lib/sketchbookPages";
 import { SketchbookThumbnail } from "@/components/SketchbookThumbnail";
+import { pageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Sketchbook — alwaysdraw",
+export const metadata = pageMetadata({
+  path: "/sketchbook",
+  title: "Sketchbook",
   description: "Pick a page and color it together with everyone online, live.",
-};
+});
 
 export default function SketchbookGalleryPage() {
   const pages = Object.values(SKETCHBOOK_PAGES).filter((p): p is SketchbookPage => p !== undefined);

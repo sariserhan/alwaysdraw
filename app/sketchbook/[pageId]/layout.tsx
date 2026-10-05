@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { getSketchbookPage } from "@/lib/sketchbookPages";
+import { notFound } from "next/navigation";
+import { RouteSummary } from "@/components/RouteSummary";
+import { SKETCHBOOK_PAGES, getSketchbookPage, type SketchbookPage } from "@/lib/sketchbookPages";
+import { pageMetadata } from "@/lib/site";
 
-// Server Component wrapper so a per-page <title>/description can be set —
-// the page.tsx sibling is a Client Component ("use client") and can't
-// export metadata itself. notFound() for an invalid pageId stays in
-// page.tsx; this layout only falls back to a generic title/description.
+// Server Component wrapper so each page gets its own <title>, description
+// and canonical — the page.tsx sibling is a Client Component ("use client")
+// and can't export metadata itself.
+
+function describe(title: string) {
+  return `Color the ${title} page together with everyone online, live.`;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -12,20 +19,36 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { pageId } = await params;
   const page = getSketchbookPage(pageId);
+  if (!page) notFound();
 
-  if (!page) {
-    return {
-      title: "Sketchbook — alwaysdraw",
-      description: "Pick a page and color it together with everyone online, live.",
-    };
-  }
-
-  return {
-    title: `${page.title} — Sketchbook — alwaysdraw`,
-    description: `Color the ${page.title} page together with everyone online, live.`,
-  };
+  return pageMetadata({
+    path: `/sketchbook/${page.id}`,
+    title: `${page.title} — Sketchbook`,
+    description: describe(page.title),
+  });
 }
 
-export default function SketchbookPageLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function SketchbookPageLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ pageId: string }>;
+}) {
+  const { pageId } = await params;
+  const page = getSketchbookPage(pageId);
+  if (!page) notFound();
+
+  return (
+    <>
+      <RouteSummary
+        heading={`${page.title} — Sketchbook`}
+        summary={describe(page.title)}
+        extraLinks={Object.values(SKETCHBOOK_PAGES)
+          .filter((p): p is SketchbookPage => p !== undefined && p.id !== page.id)
+          .map((p) => ({ href: `/sketchbook/${p.id}`, label: p.title }))}
+      />
+      {children}
+    </>
+  );
 }
