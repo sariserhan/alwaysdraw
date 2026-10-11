@@ -5,16 +5,19 @@ Deployment is not verified by source code alone. Complete this record for every 
 ## Current production release
 
 - Public URL: **https://alwaysdraw.com/**
-- Application source commit: **`5c067c3`**
+- Application source commit: **`e1a7d68`**
 - Released: **2026-10-11**, via the existing OpenNext/Cloudflare Worker deployment.
-- Cloudflare Worker: **`alwaysdraw`**, version **`44fdd6b5-2e38-4cad-8b58-4cdad63193cc`**.
+- Cloudflare Worker: **`alwaysdraw`**, version **`3ad99190-bf6e-4feb-96a9-0a1064f462df`**.
 - Convex production deployment: **`intent-dove-612`** (`https://intent-dove-612.convex.cloud`). Functions and the new `strokes.by_deleted_and_sequence` / `boardStrokes.by_deleted_and_sequence` indexes deployed successfully.
 - Fix: the previous browser bundle attempted to connect to `127.0.0.1:3210`. The production deploy/upload scripts now explicitly set the production public Convex URLs before building, overriding local development settings in `.env.local`.
 - Loading UI: a body-level overlay above canvas chrome, with animated pencil/doodles, stroke counter, reduced-motion support, and a retry action. Progress updates re-render only the overlay, at most ten times per second, instead of the full canvas UI per response. Desktop/mobile stacking, reduced motion, failed-load recovery, and the production smoke test passed.
-- Initial loading reads surviving strokes via the new indexes, in four concurrent workers, composes privately, catches up on changes, then reveals the wall. Tombstones remain available to catch-up/live queries. The compatible legacy fallback, request timeouts, and loading progress remain in place.
-- Validation: 291 unit/backend tests passed; TypeScript, targeted lint, Next/OpenNext build, Wrangler dry run, and desktop/mobile smoke tests passed. The public-site smoke test passed initial loading, reload, toolbar interaction, and Sketchbook navigation.
-- Public browser verification: desktop 1280×900 and mobile 390×844 rendered nonempty artwork, used the production Convex WebSocket, and had no page runtime errors. Observed initial-load times were 19.8s and 6.5s respectively; these are individual unthrottled checks, not performance guarantees.
-- Remaining limitation: first visits still transfer surviving stroke data (133,344 strokes at verification time); flattened raster snapshot loading is not implemented. Live drawing/erasing was not exercised on production to avoid adding test artwork.
+- Initial loading uses `strokes.listCurrentPacked`: active vectors only, shared per-page author/brush metadata, flat coordinate arrays, and no database-only fields. The decoder retains every original coordinate, stroke ID, timestamp, tile and owner field. Four concurrent workers still compose privately, catch up on changes/deletions, then reveal the wall. The established current-state endpoint and historical replay remain fallback paths for staggered deployments.
+- Full-wall default overview is unchanged, as requested. No raster snapshot or spatial migration was introduced.
+- Payload verification: three production samples (82, 1,000 and 1,000 strokes) were 34%, 38% and 32% smaller than the established current-state endpoint. These are decoded JSON response sizes, not compressed network bandwidth or guaranteed load-time improvements.
+- Validation: all 294 unit/backend tests passed; TypeScript, full lint (22 existing warnings, zero errors), Next/OpenNext build, and desktop/mobile smoke tests passed. Production smoke passed initial load, reload, toolbar interaction and Sketchbook navigation.
+- Public browser verification: desktop 1280×900 and mobile 390×844 used the compact query, rendered nonempty artwork, and had no runtime errors. Individual unthrottled loads took 16.8s and 8.0s; these are not controlled before/after benchmarks. Owner hover was verified on an existing production stroke at 2× zoom. No test artwork was added to production.
+- Remaining limitation: full-wall first visits still require all surviving vectors, including underlying layers needed for correct compositing, replay and attribution. Payload reduction does not remove that rendering cost. Live drawing/erasing and telemetry were not re-audited on production in this release.
+- Previous known-good frontend rollback: source `5c067c3`, Worker `44fdd6b5-2e38-4cad-8b58-4cdad63193cc`. The backend change is additive and remains compatible with that frontend.
 - Telemetry and unrelated endpoints were not re-audited in this release.
 
 ### Production commands
