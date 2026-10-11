@@ -21,7 +21,21 @@ export async function loadCanvasStateWithFallback(
   isCancelled: () => boolean,
   onProgress: (count: number) => void = () => {},
   fetchCurrent?: FetchCurrent,
+  fetchPacked?: FetchCurrent,
 ): Promise<{ strokes: ServerStroke[]; sequence: number } | null> {
+  // Try the compact endpoint first, then the established current-state API.
+  // A staggered frontend/backend release should never force history replay.
+  if (fetchPacked) {
+    try {
+      return await loadCanvasState(
+        () => withTimeout(getHead()), (args) => withTimeout(fetchRange(args)),
+        isCancelled, onProgress, (args) => withTimeout(fetchPacked(args)),
+      );
+    } catch {
+      if (isCancelled()) return null;
+      onProgress(0);
+    }
+  }
   try {
     return await loadCanvasState(
       () => withTimeout(getHead()),

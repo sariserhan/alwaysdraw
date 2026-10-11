@@ -1,3 +1,5 @@
+import { packStrokes } from "../lib/packedStrokes";
+import type { QueryCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getTileKeysForStroke } from "../lib/tiling";
@@ -326,17 +328,37 @@ export const listCurrent = query({
   args: { afterSequence: v.number(), throughSequence: v.number() },
   returns: v.array(strokeReturnFields),
   handler: async (ctx, args) => {
-    if (!Number.isSafeInteger(args.afterSequence) || !Number.isSafeInteger(args.throughSequence)
-      || args.afterSequence < 0 || args.throughSequence < args.afterSequence) {
-      throw new ConvexError("invalid stroke sequence range");
-    }
-    // Legacy rows omit deleted; explicitly false rows are also active.
-    const groups = await Promise.all([undefined, false].map((deleted) => ctx.db
-      .query("strokes")
-      .withIndex("by_deleted_and_sequence", (q) => q.eq("deleted", deleted)
-        .gt("sequence", args.afterSequence).lte("sequence", args.throughSequence))
-      .take(MAX_LIST_LIMIT)));
-    const rows = groups.flat().sort((a, b) => a.sequence - b.sequence).slice(0, MAX_LIST_LIMIT);
-    return rows.map(roundReplayPoints);
+    return (await readCurrent(ctx, args)).map(roundReplayPoints);
   },
+});
+
+async function readCurrent(ctx: QueryCtx, args: { afterSequence: number; throughSequence: number }) {
+  if (!Number.isSafeInteger(args.afterSequence) || !Number.isSafeInteger(args.throughSequence)
+    || args.afterSequence < 0 || args.throughSequence < args.afterSequence) {
+    throw new ConvexError("invalid stroke sequence range");
+  }
+  // Legacy rows omit deleted; explicitly false rows are also active.
+  const groups = await Promise.all([undefined, false].map((deleted) => ctx.db
+    .query("strokes")
+    .withIndex("by_deleted_and_sequence", (q) => q.eq("deleted", deleted)
+      .gt("sequence", args.afterSequence).lte("sequence", args.throughSequence))
+    .take(MAX_LIST_LIMIT)));
+  const rows = groups.flat().sort((a, b) => a.sequence - b.sequence).slice(0, MAX_LIST_LIMIT);
+  return rows;
+}
+
+export const listCurrentPacked = query({
+  args: { afterSequence: v.number(), throughSequence: v.number() },
+  returns: v.object({
+    styles: v.array(v.object({
+      clientId: v.string(), username: v.optional(v.string()), countryCode: v.optional(v.string()),
+      mode: v.union(v.literal("draw"), v.literal("erase")), brushType: v.optional(brushTypeValidator),
+      color: v.string(), width: v.number(), opacity: v.optional(v.number()),
+    })),
+    strokes: v.array(v.object({
+      id: v.string(), style: v.number(), seq: v.number(), time: v.number(), clientTime: v.number(),
+      xy: v.array(v.number()), tiles: v.optional(v.array(v.string())),
+    })),
+  }),
+  handler: async (ctx, args) => packStrokes(await readCurrent(ctx, args)),
 });
