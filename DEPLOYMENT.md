@@ -4,17 +4,29 @@ Deployment is not verified by source code alone. Complete this record for every 
 
 ## Current production release
 
-- Public URL: **https://alwaysdraw.com/** (custom domain — superseded the earlier `alwaysdraw.alwaysdraw.workers.dev` `.workers.dev` default; Cloudflare Workers via OpenNext, deployed through Cloudflare's dashboard Git integration — no `wrangler.jsonc` in this repo by design, build/deploy config lives in the Cloudflare dashboard, confirmed via the `x-opennext: 1` response header)
-- Git commit: still not confirmed — Cloudflare's Git integration builds from `origin/main` on push; not independently verifiable from this checkout
-- Convex production deployment: **`intent-dove-612`** (`https://intent-dove-612.convex.cloud`) — confirmed via the Convex MCP `status` tool. Read-only from this checkout by design (production writes require an explicit override flag this session never used).
-- Cloudflare Worker/version: not recorded
-- Migration/schema version: not recorded
-- Released at / by: not recorded
-- **Known-broken right now**: `/api/geo` returns HTTP 500 in production as of this check (curl'd directly), from a `runtime = "edge"` directive that's fatal under OpenNext/Cloudflare — this is why country flags render white in prod. The fix is committed to `main` locally but **production has not been redeployed since** — this is the single most important pending action, more urgent than anything else in this file.
-- `/api/og` (dynamic social-card image) has been removed entirely — it was the same `runtime = "edge"` bug, but its `next/og` dependency also pulled ~1.5MB of WASM/font binaries into the Worker bundle and pushed a deploy over Cloudflare's 3 MiB free-plan size limit, hard-failing the build. Replaced with a static `public/og-image.jpg`.
-- Smoke result: stale — the PASS recorded previously was against the old `.workers.dev` URL, before the domain move and before the edge-runtime bug above was found. Needs a fresh `ALWAYSDRAW_SMOKE_URL=https://alwaysdraw.com npm run smoke:production` run after the next deploy.
-- Rollback target: not recorded
-- **Sentry/PostHog: not reverified since the domain move** — the last check (against the old `.workers.dev` URL) found neither active despite `NEXT_PUBLIC_SENTRY_DSN` being set locally, attributed to build-time env var timing. Needs reverification against `https://alwaysdraw.com/` after the next deploy, alongside the edge-runtime fix above.
+- Public URL: **https://alwaysdraw.com/**
+- Application source commit: **`33ea13c`**
+- Released: **2026-10-11**, via the existing OpenNext/Cloudflare Worker deployment.
+- Cloudflare Worker: **`alwaysdraw`**, version **`0cc4f2df-098b-4242-b70e-70aee760da29`**.
+- Convex production deployment: **`intent-dove-612`** (`https://intent-dove-612.convex.cloud`). Functions and the new `strokes.by_deleted_and_sequence` / `boardStrokes.by_deleted_and_sequence` indexes deployed successfully.
+- Fix: the previous browser bundle attempted to connect to `127.0.0.1:3210`. The production deploy/upload scripts now explicitly set the production public Convex URLs before building, overriding local development settings in `.env.local`.
+- Initial loading reads surviving strokes via the new indexes, in four concurrent workers, composes privately, catches up on changes, then reveals the wall. Tombstones remain available to catch-up/live queries. The compatible legacy fallback, request timeouts, and loading progress remain in place.
+- Validation: 291 unit/backend tests passed; TypeScript, targeted lint, Next/OpenNext build, Wrangler dry run, and desktop/mobile smoke tests passed. The public-site smoke test passed initial loading, reload, toolbar interaction, and Sketchbook navigation.
+- Public browser verification: desktop 1280×900 and mobile 390×844 rendered nonempty artwork, used the production Convex WebSocket, and had no page runtime errors. Observed initial-load times were 19.8s and 6.5s respectively; these are individual unthrottled checks, not performance guarantees.
+- Remaining limitation: first visits still transfer surviving stroke data (133,344 strokes at verification time); flattened raster snapshot loading is not implemented. Live drawing/erasing was not exercised on production to avoid adding test artwork.
+- Telemetry and unrelated endpoints were not re-audited in this release.
+
+### Production commands
+
+Deploy backend changes first, then rebuild and deploy the frontend:
+
+```sh
+CONVEX_DEPLOYMENT=prod:intent-dove-612 npx convex deploy
+npm run deploy
+ALWAYSDRAW_SMOKE_URL=https://alwaysdraw.com npm run smoke:production
+```
+
+`npm run deploy` and `npm run upload` deliberately target the existing production backend. Use `npm run dev` / `npm run preview` for local development. Do not publish an arbitrary local build with a loopback `NEXT_PUBLIC_CONVEX_URL`: Next.js embeds that URL into browser JavaScript at build time.
 
 ## Required release gates
 
