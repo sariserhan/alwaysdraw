@@ -1,0 +1,55 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+  background: #17181af5;
+  background-image: radial-gradient(#f0ebd912 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: #24221e;
+  isolation: isolate;
+}
+.card {
+  position: relative;
+  width: min(100%, 410px);
+  padding: 30px 32px 26px;
+  background: #f0ebd9;
+  border: 2px solid #24221e;
+  border-radius: 5px 18px 5px 5px;
+  box-shadow: 8px 8px 0 #e0b13a, 0 24px 80px #0008;
+  text-align: center;
+  animation: arrive 350ms ease-out both;
+}
+.eyebrow { display: flex; align-items: center; justify-content: center; gap: 8px; font: 10px var(--font-mono, monospace); letter-spacing: .12em; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #337453; box-shadow: 0 0 0 3px #33745318; }
+.art { position: relative; margin: 20px auto 6px; width: 260px; max-width: 100%; }
+.art svg { display: block; width: 100%; overflow: visible; }
+.swash { stroke: #e0432b; stroke-width: 16; stroke-linecap: round; stroke-dasharray: 1; animation: draw 3s ease-in-out infinite; }
+.underline { stroke: #2f9fe0; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1; animation: draw 3s .25s ease-in-out infinite both; }
+.pencil { transform-origin: 235px 34px; animation: scribble 1.5s ease-in-out infinite; }
+.spark { position: absolute; left: 1px; top: 8px; font-size: 28px; color: #337453; animation: wiggle 3s ease-in-out infinite; }
+.littleSpark { position: absolute; right: -2px; bottom: 4px; font-size: 28px; color: #b5502c; }
+.title { margin: 0; font-size: clamp(25px, 6vw, 32px); font-weight: 700; line-height: 1.2; letter-spacing: -.05em; }
+.dots { display: inline-block; animation: breathe 1.5s ease-in-out infinite; }
+.description { margin: 10px 0 24px; color: #62584c; font-size: 14px; line-height: 1.6; }
+.counter { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 15px 36px; border: 1px dashed #b4a890; border-radius: 4px; background: #fff6; }
+.number { font: 700 clamp(28px, 7vw, 36px)/1.1 monospace; font-variant-numeric: tabular-nums; letter-spacing: -.06em; }
+.counterLabel { color: #62584c; font-size: 11px; letter-spacing: .04em; }
+.counterStar { position: absolute; right: 17px; top: 22px; color: #b5502c; font-size: 24px; animation: wiggle 3s ease-in-out infinite; }
+.track { height: 4px; overflow: hidden; margin-top: 20px; border-radius: 5px; background: #ded6c3; }
+.track span { display: block; width: 35%; height: 100%; background: #e0432b; border-radius: inherit; animation: slide 1.7s ease-in-out infinite alternate; }
+.footnote { font-size: 11px; color: #62584c; margin: 12px 0 0; }
+.retry { border: 2px solid #24221e; border-radius: 4px; background: #e0b13a; padding: 12px 24px; font-weight: 700; cursor: pointer; box-shadow: 3px 3px 0 #24221e; }
+.retry:focus-visible { outline: 3px solid #2f9fe0; outline-offset: 5px; }
+.overlay[data-error="true"] * { animation: none; }
+@keyframes draw { 0% { stroke-dashoffset: 1; } 55%, 80% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -1; } }
+@keyframes scribble { 0%, 100% { transform: translate(-5px, 4px) rotate(-8deg); } 50% { transform: translate(4px, -3px) rotate(6deg); } }
+@keyframes wiggle { 0%, 100% { transform: rotate(-12deg) scale(.9); } 50% { transform: rotate(12deg) scale(1.1); } }
+@keyframes breathe { 50% { opacity: .3; } }
+@keyframes slide { from { transform: translateX(-30%); } to { transform: translateX(215%); } }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px) rotate(-2deg); } to { opacity: 1; transform: none; } }
+@media (max-width: 420px) { .card { padding: 25px 22px; } .eyebrow { font-size: 9px; } }
+@media (prefers-reduced-motion: reduce) { .overlay *, .overlay .track span, .card { animation: none; } }

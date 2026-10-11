@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { WallLoadingOverlay } from "./WallLoadingOverlay";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
@@ -276,7 +277,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const firstMarkTrackedRef = useRef(false);
   const [replayDone, setReplayDone] = useState(false);
   const [replayError, setReplayError] = useState(false);
-  const [loadedStrokeCount, setLoadedStrokeCount] = useState(0);
+  const loadedStrokeCountRef = useRef(0);
   const [liveTailCursor, setLiveTailCursor] = useState<number | null>(null);
 
   // Time Travel Replay state
@@ -1320,7 +1321,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           (args) => convex.query(backend.strokesApi.listRange, args),
           (args) => convex.query(backend.strokesApi.listSince, args),
           () => cancelled,
-          (count) => { if (!cancelled) setLoadedStrokeCount(count); },
+          (count) => { if (!cancelled) loadedStrokeCountRef.current = count; },
           (args) => convex.query(backend.strokesApi.listCurrent, args),
         );
         if (state && !cancelled) {
@@ -3083,17 +3084,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           />
         )}
 
-        {!replayDone && (
-          <div className="absolute inset-0 flex items-center justify-center bg-chrome-bg">
-            <span className="font-mono text-sm tracking-wide text-ink-dim">
-              {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
-              {!replayError && <span className="animate-pulse text-accent-green">…</span>}
-              {!replayError && loadedStrokeCount > 0 && (
-                <span className="block text-center text-xs mt-2">{loadedStrokeCount.toLocaleString()} strokes processed</span>
-              )}
-            </span>
-          </div>
-        )}
+        {!replayDone && <WallLoadingOverlay progress={loadedStrokeCountRef} error={replayError} />}
       </main>
 
       {/* Admin Broadcast Announcement Ticker */}
