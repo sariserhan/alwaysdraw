@@ -5,11 +5,12 @@ Deployment is not verified by source code alone. Complete this record for every 
 ## Current production release
 
 - Public URL: **https://alwaysdraw.com/**
-- Application source commit: **`33ea13c`**
+- Application source commit: **`5c067c3`**
 - Released: **2026-10-11**, via the existing OpenNext/Cloudflare Worker deployment.
-- Cloudflare Worker: **`alwaysdraw`**, version **`0cc4f2df-098b-4242-b70e-70aee760da29`**.
+- Cloudflare Worker: **`alwaysdraw`**, version **`44fdd6b5-2e38-4cad-8b58-4cdad63193cc`**.
 - Convex production deployment: **`intent-dove-612`** (`https://intent-dove-612.convex.cloud`). Functions and the new `strokes.by_deleted_and_sequence` / `boardStrokes.by_deleted_and_sequence` indexes deployed successfully.
 - Fix: the previous browser bundle attempted to connect to `127.0.0.1:3210`. The production deploy/upload scripts now explicitly set the production public Convex URLs before building, overriding local development settings in `.env.local`.
+- Loading UI: a body-level overlay above canvas chrome, with animated pencil/doodles, stroke counter, reduced-motion support, and a retry action. Progress updates re-render only the overlay, at most ten times per second, instead of the full canvas UI per response. Desktop/mobile stacking, reduced motion, failed-load recovery, and the production smoke test passed.
 - Initial loading reads surviving strokes via the new indexes, in four concurrent workers, composes privately, catches up on changes, then reveals the wall. Tombstones remain available to catch-up/live queries. The compatible legacy fallback, request timeouts, and loading progress remain in place.
 - Validation: 291 unit/backend tests passed; TypeScript, targeted lint, Next/OpenNext build, Wrangler dry run, and desktop/mobile smoke tests passed. The public-site smoke test passed initial loading, reload, toolbar interaction, and Sketchbook navigation.
 - Public browser verification: desktop 1280×900 and mobile 390×844 rendered nonempty artwork, used the production Convex WebSocket, and had no page runtime errors. Observed initial-load times were 19.8s and 6.5s respectively; these are individual unthrottled checks, not performance guarantees.
