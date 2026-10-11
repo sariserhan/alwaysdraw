@@ -5,6 +5,12 @@ import { BRUSH_TYPES } from "./constants";
 const brushTypeValidator = v.union(...BRUSH_TYPES.map((t) => v.literal(t)));
 
 export default defineSchema({
+  wallCheckpoints: defineTable({
+    sequence: v.number(), storageId: v.id("_storage"), createdAt: v.number(),
+    strokeCount: v.number(), bytes: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+  wallCheckpointJobs: defineTable({ token: v.string(), startedAt: v.number() }),
+
   strokes: defineTable({
     clientStrokeId: v.string(),
     clientId: v.string(),

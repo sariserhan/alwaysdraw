@@ -45,4 +45,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "refresh compressed vector wall",
+  { minutes: 5 },
+  internal.buildWallCheckpoint.build,
+  {},
+);
+
 export default crons;

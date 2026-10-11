@@ -44,6 +44,7 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
+import { fetchWallCheckpoint } from "@/lib/wallCheckpoint";
 import { unpackStrokes } from "@/lib/packedStrokes";
 import { loadCanvasStateWithFallback } from "@/lib/loadCanvasState";
 import {
@@ -1326,6 +1327,13 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           (args) => convex.query(backend.strokesApi.listCurrent, args),
           backend.strokesApi.listCurrentPacked
             ? async (args) => unpackStrokes(await convex.query(backend.strokesApi.listCurrentPacked!, args))
+            : undefined,
+          backend.strokesApi.checkpoint
+            ? async () => fetchWallCheckpoint(
+              await convex.query(backend.strokesApi.checkpoint!, {}),
+              () => cancelled,
+              (count) => { if (!cancelled) loadedStrokeCountRef.current = count; },
+            )
             : undefined,
         );
         if (state && !cancelled) {

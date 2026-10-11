@@ -3,6 +3,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT, BOARD_WIDTH, BOARD_HEIGHT } from "@/convex/c
 
 export interface CanvasBackend {
   strokesApi: {
+    checkpoint?: typeof api.wallCheckpoints.latest;
     listCurrentPacked?: typeof api.strokes.listCurrentPacked;
     listCurrent: typeof api.strokes.listCurrent | typeof api.boardStrokes.listCurrent;
     getHead: typeof api.strokes.getHead | typeof api.boardStrokes.getHead;
@@ -42,7 +43,7 @@ export interface CanvasBackend {
 }
 
 export const wallBackend: CanvasBackend = {
-  strokesApi: { listCurrentPacked: api.strokes.listCurrentPacked, listCurrent: api.strokes.listCurrent, submit: api.strokes.submit, listSince: api.strokes.listSince, getHead: api.strokes.getHead, listRange: api.strokes.listRange },
+  strokesApi: { checkpoint: api.wallCheckpoints.latest, listCurrentPacked: api.strokes.listCurrentPacked, listCurrent: api.strokes.listCurrent, submit: api.strokes.submit, listSince: api.strokes.listSince, getHead: api.strokes.getHead, listRange: api.strokes.listRange },
   presenceApi: { heartbeat: api.presence.heartbeat, list: api.presence.list },
   commentsApi: {
     create: api.comments.create,

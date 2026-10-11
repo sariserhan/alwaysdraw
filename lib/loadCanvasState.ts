@@ -1,3 +1,4 @@
+import type { CanvasState } from "./wallCheckpoint";
 import type { ServerStroke, ServerStrokeRow } from "./types";
 import { replayStrokePages } from "./strokeReplay";
 
@@ -5,9 +6,9 @@ const RANGE_SIZE = 1000;
 const CONCURRENCY = 4;
 type FetchCurrent = (args: { afterSequence: number; throughSequence: number }) => Promise<ServerStrokeRow[]>;
 
-function withTimeout<T>(request: Promise<T>): Promise<T> {
+function withTimeout<T>(request: Promise<T>, timeoutMs = 15_000): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("Wall request timed out")), 15_000);
+    const timer = setTimeout(() => reject(new Error("Wall request timed out")), timeoutMs);
     request.then(resolve, reject).finally(() => clearTimeout(timer));
   });
 }
@@ -22,7 +23,21 @@ export async function loadCanvasStateWithFallback(
   onProgress: (count: number) => void = () => {},
   fetchCurrent?: FetchCurrent,
   fetchPacked?: FetchCurrent,
+  fetchCheckpoint?: () => Promise<CanvasState | null>,
 ): Promise<{ strokes: ServerStroke[]; sequence: number } | null> {
+  if (fetchCheckpoint) {
+    try {
+      const checkpoint = await withTimeout(fetchCheckpoint(), 65_000);
+      if (isCancelled()) return null;
+      if (checkpoint) return await loadCanvasState(
+        () => withTimeout(getHead()), (args) => withTimeout(fetchRange(args)),
+        isCancelled, onProgress, undefined, checkpoint,
+      );
+    } catch {
+      if (isCancelled()) return null;
+      onProgress(0);
+    }
+  }
   // Try the compact endpoint first, then the established current-state API.
   // A staggered frontend/backend release should never force history replay.
   if (fetchPacked) {
@@ -71,9 +86,11 @@ export async function loadCanvasState(
   isCancelled: () => boolean,
   onProgress: (count: number) => void = () => {},
   fetchCurrent?: FetchCurrent,
+  checkpoint?: CanvasState,
 ): Promise<{ strokes: ServerStroke[]; sequence: number } | null> {
   const rows = new Map<string, ServerStrokeRow>();
-  let sequence = 0;
+  let sequence = checkpoint?.sequence ?? 0;
+  for (const row of checkpoint?.strokes ?? []) rows.set(row.clientStrokeId, row);
   let failed = false;
 
   async function loadThrough(head: number) {
@@ -99,7 +116,10 @@ export async function loadCanvasState(
   }
 
   const initialHead = await getHead();
-  if (fetchCurrent) {
+  if (checkpoint && (checkpoint.sequence > initialHead || initialHead - checkpoint.sequence > 20_000)) {
+    throw new Error("Wall checkpoint needs a fresh rebuild");
+  }
+  if (fetchCurrent && !checkpoint) {
     // Claim bounded windows dynamically: dense recent artwork must not all
     // land on one worker while the others finish sparse historical ranges.
     const windowSize = RANGE_SIZE * 10;

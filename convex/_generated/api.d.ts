@@ -17,6 +17,7 @@ import type * as boardPresence from "../boardPresence.js";
 import type * as boardReports from "../boardReports.js";
 import type * as boardStrokes from "../boardStrokes.js";
 import type * as bookmarks from "../bookmarks.js";
+import type * as buildWallCheckpoint from "../buildWallCheckpoint.js";
 import type * as canvasMetadata from "../canvasMetadata.js";
 import type * as comments from "../comments.js";
 import type * as constants from "../constants.js";
@@ -30,6 +31,7 @@ import type * as sketchbookPresence from "../sketchbookPresence.js";
 import type * as sketchbookStrokes from "../sketchbookStrokes.js";
 import type * as snapshots from "../snapshots.js";
 import type * as strokes from "../strokes.js";
+import type * as wallCheckpoints from "../wallCheckpoints.js";
 
 import type {
   ApiFromModules,
@@ -47,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   boardReports: typeof boardReports;
   boardStrokes: typeof boardStrokes;
   bookmarks: typeof bookmarks;
+  buildWallCheckpoint: typeof buildWallCheckpoint;
   canvasMetadata: typeof canvasMetadata;
   comments: typeof comments;
   constants: typeof constants;
@@ -60,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   sketchbookStrokes: typeof sketchbookStrokes;
   snapshots: typeof snapshots;
   strokes: typeof strokes;
+  wallCheckpoints: typeof wallCheckpoints;
 }>;
 
 /**
