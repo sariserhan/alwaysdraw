@@ -43,7 +43,7 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
-import { loadCanvasState } from "@/lib/loadCanvasState";
+import { loadCanvasStateWithFallback } from "@/lib/loadCanvasState";
 import {
   safeLocalStorageGet,
   safeLocalStorageSet,
@@ -276,6 +276,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
   const firstMarkTrackedRef = useRef(false);
   const [replayDone, setReplayDone] = useState(false);
   const [replayError, setReplayError] = useState(false);
+  const [loadedStrokeCount, setLoadedStrokeCount] = useState(0);
   const [liveTailCursor, setLiveTailCursor] = useState<number | null>(null);
 
   // Time Travel Replay state
@@ -1314,10 +1315,12 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     replayStartedAtRef.current = performance.now();
     async function load() {
       try {
-        const state = await loadCanvasState(
+        const state = await loadCanvasStateWithFallback(
           () => convex.query(backend.strokesApi.getHead, {}),
           (args) => convex.query(backend.strokesApi.listRange, args),
+          (args) => convex.query(backend.strokesApi.listSince, args),
           () => cancelled,
+          (count) => { if (!cancelled) setLoadedStrokeCount(count); },
         );
         if (state && !cancelled) {
           committedRef.current = state.strokes;
@@ -3084,6 +3087,9 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             <span className="font-mono text-sm tracking-wide text-ink-dim">
               {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
               {!replayError && <span className="animate-pulse text-accent-green">…</span>}
+              {!replayError && loadedStrokeCount > 0 && (
+                <span className="block text-center text-xs mt-2">{loadedStrokeCount.toLocaleString()} strokes processed</span>
+              )}
             </span>
           </div>
         )}

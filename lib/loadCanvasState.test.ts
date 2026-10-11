@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../convex/schema";
 import { api } from "../convex/_generated/api";
-import { loadCanvasState } from "./loadCanvasState";
+import { loadCanvasState, loadCanvasStateWithFallback } from "./loadCanvasState";
 import type { ServerStrokeRow } from "./types";
 
 const allModules = import.meta.glob("../convex/**/*.*s");
@@ -74,5 +74,34 @@ describe("current canvas state", () => {
     const fetchRange = vi.fn();
     expect(await loadCanvasState(async () => 0, fetchRange, () => false)).toEqual({ strokes: [], sequence: 0 });
     expect(fetchRange).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("backward-compatible wall loading", () => {
+  it("uses the existing API when the new backend queries are unavailable", async () => {
+    const pages = vi.fn().mockResolvedValueOnce(Array.from({ length: 1000 }, (_, i) => stroke(i + 1)))
+      .mockResolvedValueOnce([{ ...stroke(1), sequence: 1001, deleted: true }, { ...stroke(1002), mode: "erase" }]);
+    const progress = vi.fn();
+    const state = await loadCanvasStateWithFallback(async () => { throw new Error("Server Error"); }, vi.fn(), pages, () => false, progress);
+    expect(state?.sequence).toBe(1002);
+    expect(state?.strokes).toHaveLength(1000);
+    expect(state?.strokes.some(s => s.clientStrokeId === "stroke-1")).toBe(false);
+    expect(state?.strokes.at(-1)?.mode).toBe("erase");
+    expect(progress).toHaveBeenLastCalledWith(1002);
+    expect(pages.mock.calls[1][0].afterSequence).toBe(1000);
+  });
+
+  it("times out stalled requests instead of remaining in loading forever", async () => {
+    vi.useFakeTimers();
+    try {
+      const stalled = () => new Promise<never>(() => {});
+      const loading = loadCanvasStateWithFallback(stalled, stalled, stalled, () => false);
+      const assertion = expect(loading).rejects.toThrow("Wall request timed out");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
