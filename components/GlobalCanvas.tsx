@@ -43,7 +43,7 @@ import {
 } from "@/lib/heatmap";
 import { renderBrushStroke } from "@/lib/brushes";
 import { StrokeBuffer } from "@/lib/strokeBuffer";
-import { replayStrokePages } from "@/lib/strokeReplay";
+import { loadCanvasState } from "@/lib/loadCanvasState";
 import {
   safeLocalStorageGet,
   safeLocalStorageSet,
@@ -1307,43 +1307,29 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
     return () => canvas.removeEventListener("wheel", onWheel);
   }, [scheduleRedraw, backend]);
 
-  // Replay saved strokes from the beginning. Legacy raster snapshots can
-  // omit older drawings and cannot reflect later deletions reliably.
+  // Assemble the current wall privately and reveal it in one paint. Never
+  // publish an early page: it can contain artwork later covered or deleted.
   useEffect(() => {
     let cancelled = false;
     replayStartedAtRef.current = performance.now();
-    async function replay() {
-      let after = 0;
-      let total = 0;
+    async function load() {
       try {
-        for await (const page of replayStrokePages(
-          (args) => convex.query(backend.strokesApi.listSince, args),
+        const state = await loadCanvasState(
+          () => convex.query(backend.strokesApi.getHead, {}),
+          (args) => convex.query(backend.strokesApi.listRange, args),
           () => cancelled,
-        )) {
-          for (const s of page) {
-            if (s.deleted) {
-              // A deletion can arrive after the original on a later page.
-              committedRef.current = committedRef.current.filter((c) => c.clientStrokeId !== s.clientStrokeId);
-              removeFromTileIndex(s.clientStrokeId, s.tiles);
-            } else {
-              committedRef.current.push(s);
-              addToTileIndex(s);
-            }
-            appliedIdsRef.current.add(s.clientStrokeId);
-            after = Math.max(after, s.sequence);
+        );
+        if (state && !cancelled) {
+          committedRef.current = state.strokes;
+          strokesByTileRef.current.clear();
+          appliedIdsRef.current.clear();
+          for (const stroke of state.strokes) {
+            addToTileIndex(stroke);
+            appliedIdsRef.current.add(stroke.clientStrokeId);
           }
-          total += page.length;
-          // The wall is usable after the first page; later pages stream in
-          // behind it and each one redraws as it lands.
-          if (!cancelled) {
-            setReplayDone(true);
-            scheduleRedraw({ strokes: true });
-          }
-        }
-        if (!cancelled) {
           setReplayDone(true);
-          setLiveTailCursor(after);
-          setMaxSequence(after);
+          setLiveTailCursor(state.sequence);
+          setMaxSequence(state.sequence);
           if (miniMapCtxRef.current && miniMapCanvasRef.current) {
             paintMiniMapStrokes(
               miniMapCtxRef.current,
@@ -1359,7 +1345,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
             duration_ms: Math.round(
               performance.now() - (replayStartedAtRef.current ?? performance.now()),
             ),
-            stroke_chunks: total,
+            stroke_chunks: state.strokes.length,
             snapshot_used: false,
           });
           scheduleRedraw();
@@ -1367,11 +1353,11 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
       } catch (error) {
         if (!cancelled) {
           setReplayError(true);
-          captureOperationalError(error, "initial_replay", { stroke_chunks: total });
+          captureOperationalError(error, "initial_state");
         }
       }
     }
-    replay();
+    load();
     return () => {
       cancelled = true;
     };
@@ -3094,7 +3080,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
         )}
 
         {!replayDone && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-chrome-bg/80">
+          <div className="absolute inset-0 flex items-center justify-center bg-chrome-bg">
             <span className="font-mono text-sm tracking-wide text-ink-dim">
               {replayError ? "the wall couldn't load — reload to try again" : "loading the wall"}
               {!replayError && <span className="animate-pulse text-accent-green">…</span>}

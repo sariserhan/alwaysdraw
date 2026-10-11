@@ -3,6 +3,8 @@ import { WORLD_WIDTH, WORLD_HEIGHT, BOARD_WIDTH, BOARD_HEIGHT } from "@/convex/c
 
 export interface CanvasBackend {
   strokesApi: {
+    getHead: typeof api.strokes.getHead | typeof api.boardStrokes.getHead;
+    listRange: typeof api.strokes.listRange | typeof api.boardStrokes.listRange;
     submit: typeof api.strokes.submit | typeof api.boardStrokes.submit;
     listSince: typeof api.strokes.listSince | typeof api.boardStrokes.listSince;
   };
@@ -38,7 +40,7 @@ export interface CanvasBackend {
 }
 
 export const wallBackend: CanvasBackend = {
-  strokesApi: { submit: api.strokes.submit, listSince: api.strokes.listSince },
+  strokesApi: { submit: api.strokes.submit, listSince: api.strokes.listSince, getHead: api.strokes.getHead, listRange: api.strokes.listRange },
   presenceApi: { heartbeat: api.presence.heartbeat, list: api.presence.list },
   commentsApi: {
     create: api.comments.create,
@@ -56,7 +58,7 @@ export const wallBackend: CanvasBackend = {
 };
 
 export const boardBackend: CanvasBackend = {
-  strokesApi: { submit: api.boardStrokes.submit, listSince: api.boardStrokes.listSince },
+  strokesApi: { submit: api.boardStrokes.submit, listSince: api.boardStrokes.listSince, getHead: api.boardStrokes.getHead, listRange: api.boardStrokes.listRange },
   presenceApi: { heartbeat: api.boardPresence.heartbeat, list: api.boardPresence.list },
   commentsApi: {
     create: api.boardComments.create,

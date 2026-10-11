@@ -289,3 +289,33 @@ export const listByTiles = query({
     });
   },
 });
+
+// Capture a finite loading boundary; later writes are picked up by listSince.
+export const getHead = query({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const metadata = await ctx.db.query("canvasMetadata").first();
+    const latest = await ctx.db.query("strokes").withIndex("by_sequence").order("desc").first();
+    return Math.max(metadata?.currentSequence ?? 0, latest?.sequence ?? 0);
+  },
+});
+
+// Sequence ranges contain at most 1,000 rows, including when deletes leave
+// holes. Independent ranges can load concurrently without truncating data.
+export const listRange = query({
+  args: { afterSequence: v.number(), throughSequence: v.number() },
+  returns: v.array(strokeReturnFields),
+  handler: async (ctx, args) => {
+    if (!Number.isSafeInteger(args.afterSequence) || !Number.isSafeInteger(args.throughSequence)
+      || args.afterSequence < 0 || args.throughSequence < args.afterSequence
+      || args.throughSequence - args.afterSequence > MAX_LIST_LIMIT) {
+      throw new ConvexError("invalid stroke sequence range");
+    }
+    const rows = await ctx.db.query("strokes")
+      .withIndex("by_sequence", (q) => q.gt("sequence", args.afterSequence).lte("sequence", args.throughSequence))
+      .order("asc")
+      .take(MAX_LIST_LIMIT);
+    return rows.map(roundReplayPoints);
+  },
+});
