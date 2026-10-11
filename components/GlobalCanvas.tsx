@@ -1321,6 +1321,7 @@ export function GlobalCanvas({ embedded = false, mode = "wall" }: GlobalCanvasPr
           (args) => convex.query(backend.strokesApi.listSince, args),
           () => cancelled,
           (count) => { if (!cancelled) setLoadedStrokeCount(count); },
+          (args) => convex.query(backend.strokesApi.listCurrent, args),
         );
         if (state && !cancelled) {
           committedRef.current = state.strokes;

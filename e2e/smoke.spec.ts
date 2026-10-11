@@ -13,14 +13,13 @@ test("loads the wall and primary controls respond", async ({ page }) => {
   await expect(page.getByText("AlwaysDraw", { exact: true })).toBeVisible();
   // World layer + stroke layer + heatmap layer + magnifier loupe + minimap canvas.
   await expect(page.locator("canvas")).toHaveCount(5);
-  await expect(page.getByRole("button", { name: "switch to light theme" })).toBeVisible();
+  await expect(page.getByText("loading the wall", { exact: false })).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByText("the wall couldn't load", { exact: false })).toBeHidden();
+  await page.getByRole("button", { name: "collapse section" }).first().click();
+  await expect(page.getByRole("button", { name: "expand section" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "expand section" }).first().click();
 
-  await page.getByRole("button", { name: "switch to light theme" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(page.getByRole("button", { name: "switch to dark theme" })).toBeVisible();
-
-  await page.getByTitle("Pan").click();
-  await expect(page.getByTitle("Pan")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Pan", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(thirdPartyTelemetryRequests).toEqual([]);
 });
 

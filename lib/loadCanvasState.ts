@@ -3,6 +3,7 @@ import { replayStrokePages } from "./strokeReplay";
 
 const RANGE_SIZE = 1000;
 const CONCURRENCY = 4;
+type FetchCurrent = (args: { afterSequence: number; throughSequence: number }) => Promise<ServerStrokeRow[]>;
 
 function withTimeout<T>(request: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ export async function loadCanvasStateWithFallback(
   fetchPage: (args: { afterSequence: number; limit: number }) => Promise<ServerStrokeRow[]>,
   isCancelled: () => boolean,
   onProgress: (count: number) => void = () => {},
+  fetchCurrent?: FetchCurrent,
 ): Promise<{ strokes: ServerStroke[]; sequence: number } | null> {
   try {
     return await loadCanvasState(
@@ -26,6 +28,7 @@ export async function loadCanvasStateWithFallback(
       (args) => withTimeout(fetchRange(args)),
       isCancelled,
       onProgress,
+      fetchCurrent ? (args) => withTimeout(fetchCurrent(args)) : undefined,
     );
   } catch {
     if (isCancelled()) return null;
@@ -53,6 +56,7 @@ export async function loadCanvasState(
   fetchRange: (args: { afterSequence: number; throughSequence: number }) => Promise<ServerStrokeRow[]>,
   isCancelled: () => boolean,
   onProgress: (count: number) => void = () => {},
+  fetchCurrent?: FetchCurrent,
 ): Promise<{ strokes: ServerStroke[]; sequence: number } | null> {
   const rows = new Map<string, ServerStrokeRow>();
   let sequence = 0;
@@ -80,7 +84,36 @@ export async function loadCanvasState(
     sequence = head;
   }
 
-  await loadThrough(await getHead());
+  const initialHead = await getHead();
+  if (fetchCurrent) {
+    // Claim bounded windows dynamically: dense recent artwork must not all
+    // land on one worker while the others finish sparse historical ranges.
+    const windowSize = RANGE_SIZE * 10;
+    let nextWindow = 0;
+    await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+      while (!failed && !isCancelled() && nextWindow < initialHead) {
+        let afterSequence = nextWindow;
+        const throughSequence = Math.min(initialHead, nextWindow + windowSize);
+        nextWindow = throughSequence;
+        while (!failed && !isCancelled() && afterSequence < throughSequence) {
+          const page = await fetchCurrent({ afterSequence, throughSequence });
+          if (failed || isCancelled()) return;
+          for (const row of page) rows.set(row.clientStrokeId, row);
+          onProgress(rows.size);
+          if (page.length < RANGE_SIZE) break;
+          const lastSequence = page[page.length - 1].sequence;
+          if (lastSequence <= afterSequence) throw new Error("Wall cursor did not advance");
+          afterSequence = lastSequence;
+        }
+      }
+    })).catch((error) => {
+      failed = true;
+      throw error;
+    });
+    sequence = initialHead;
+  } else {
+    await loadThrough(initialHead);
+  }
   if (isCancelled()) return null;
   // Include edits/deletions made while the initial ranges were in flight.
   // A finite catch-up avoids waiting forever on a busy wall. The reactive

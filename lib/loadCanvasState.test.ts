@@ -15,10 +15,29 @@ const stroke = (sequence: number): ServerStrokeRow => ({
 });
 
 describe("current canvas state", () => {
+  it("loads dense current-state windows across gaps and applies catch-up tombstones", async () => {
+    const active = Array.from({ length: 12000 }, (_, i) => stroke(i + 1));
+    active.push(stroke(45000));
+    const heads = vi.fn().mockResolvedValueOnce(50000).mockResolvedValueOnce(50001);
+    const current = vi.fn(async ({ afterSequence, throughSequence }) =>
+      active.filter((row) => row.sequence > afterSequence && row.sequence <= throughSequence).slice(0, 1000));
+    const state = await loadCanvasState(heads, async () => [
+      { ...stroke(1), sequence: 50001, deleted: true },
+    ], () => false, vi.fn(), current);
+    expect(state?.strokes).toHaveLength(12000);
+    expect(state?.strokes[0].sequence).toBe(2);
+    expect(state?.strokes.at(-1)?.sequence).toBe(45000);
+    expect(state?.sequence).toBe(50001);
+    expect(current.mock.calls.some(([args]) => args.afterSequence === 1000)).toBe(true);
+    expect(current.mock.calls.some(([args]) => args.afterSequence === 40000)).toBe(true);
+  });
+
   it.each(["strokes", "boardStrokes"] as const)("loads %s across sequence gaps and catches concurrent deletions", async (table) => {
     const t = convexTest(schema, modules);
     const queries = api[table];
     const ids = await t.run(async (ctx) => {
+      await ctx.db.insert(table, { ...stroke(2000), deleted: true });
+      await ctx.db.insert(table, { ...stroke(2001), deleted: false });
       const ids = [];
       for (const seq of [1, 1000, 1001, 3002]) ids.push(await ctx.db.insert(table, stroke(seq)));
       return ids;
@@ -32,8 +51,9 @@ describe("current canvas state", () => {
         });
       }
       return t.query(queries.getHead, {});
-    }, (args) => t.query(queries.listRange, args), () => false);
-    expect(state?.strokes.map((row) => row.sequence)).toEqual([1000, 1001, 3002, 3004]);
+    }, (args) => t.query(queries.listRange, args), () => false, vi.fn(),
+      (args) => t.query(queries.listCurrent, args));
+    expect(state?.strokes.map((row) => row.sequence)).toEqual([1000, 1001, 2001, 3002, 3004]);
     expect(state?.strokes.at(-1)?.mode).toBe("erase");
     expect(state?.sequence).toBe(3004);
     await expect(t.query(queries.listRange, { afterSequence: 0, throughSequence: 1001 })).rejects.toThrow("invalid stroke sequence range");

@@ -199,3 +199,24 @@ export const listRange = query({
     return rows;
   },
 });
+
+// Initial state needs surviving strokes only. Keep tombstones on listRange /
+// listSince for catch-up and live deletion delivery to existing clients.
+export const listCurrent = query({
+  args: { afterSequence: v.number(), throughSequence: v.number() },
+  returns: v.array(boardStrokeReturnFields),
+  handler: async (ctx, args) => {
+    if (!Number.isSafeInteger(args.afterSequence) || !Number.isSafeInteger(args.throughSequence)
+      || args.afterSequence < 0 || args.throughSequence < args.afterSequence) {
+      throw new ConvexError("invalid stroke sequence range");
+    }
+    // Legacy rows omit deleted; explicitly false rows are also active.
+    const groups = await Promise.all([undefined, false].map((deleted) => ctx.db
+      .query("boardStrokes")
+      .withIndex("by_deleted_and_sequence", (q) => q.eq("deleted", deleted)
+        .gt("sequence", args.afterSequence).lte("sequence", args.throughSequence))
+      .take(MAX_LIST_LIMIT)));
+    const rows = groups.flat().sort((a, b) => a.sequence - b.sequence).slice(0, MAX_LIST_LIMIT);
+    return rows;
+  },
+});

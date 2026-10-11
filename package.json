@@ -13,8 +13,8 @@
     "test:e2e:live": "ALWAYSDRAW_E2E_LIVE=1 playwright test e2e/multiplayer.spec.ts",
     "smoke:production": "node scripts/smoke-production.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "deploy": "node scripts/deploy-production.mjs",
+    "upload": "node scripts/deploy-production.mjs --upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {

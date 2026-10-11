@@ -40,7 +40,8 @@ export default defineSchema({
     .index("by_sequence", ["sequence"])
     .index("by_clientStrokeId", ["clientStrokeId"])
     .index("by_clientId", ["clientId"])
-    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"]),
+    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"])
+    .index("by_deleted_and_sequence", ["deleted", "sequence"]),
 
   canvasMetadata: defineTable({
     currentSequence: v.number(),
@@ -228,7 +229,8 @@ export default defineSchema({
     // rows sort toward the *end* of by_sequence, not scattered among old
     // live ones. A by_sequence scan from the front would mostly re-read
     // old live rows and rarely reach the deleted ones at all.
-    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"]),
+    .index("by_deleted_and_deletedAt", ["deleted", "deletedAt"])
+    .index("by_deleted_and_sequence", ["deleted", "sequence"]),
 
   boardMetadata: defineTable({
     currentSequence: v.number(),
